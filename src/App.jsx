@@ -9,6 +9,8 @@ import GameOverScreen  from './components/GameOverScreen';
 import TimerDisplay    from './components/TimerDisplay';
 import MilestoneBanner from './components/MilestoneBanner';
 import GoalBar         from './components/GoalBar';
+import Tutorial, { tutorialHasSeen } from './components/Tutorial';
+import ToastManager, { useToast } from './components/ToastManager';
 import { useSound }    from './hooks/useSound';
 import { generateCard, STARTING_BALANCE } from './utils/lottery';
 import { getRandomTheme } from './utils/themes';
@@ -58,6 +60,18 @@ function generateFlowPickerOptions(speedMode, balance, flowRound) {
 }
 
 export default function App() {
+  // ── Toast system ──────────────────────────────────────────────────────────
+  const { toasts, addToast: _addToast } = useToast();
+  // Wrap addToast to play a subtle sound cue
+  const addToast = useCallback((text, opts = {}) => {
+    _addToast(text, opts);
+    const isWarn = opts.anim === 'shake' || opts.type === 'red';
+    soundRef.current?.tick(isWarn ? false : true);
+  }, [_addToast]); // soundRef is a ref so no dep needed
+
+  // ── Tutorial ──────────────────────────────────────────────────────────────
+  const [showTutorial, setShowTutorial] = useState(() => !tutorialHasSeen());
+
   // ── Balance & stats ──────────────────────────────────────────────────────
   const [balance,     setBalance]     = useState(STARTING_BALANCE);
   const [totalWon,    setTotalWon]    = useState(0);
@@ -113,6 +127,15 @@ export default function App() {
   const sound        = useSound();
   soundRef.current   = sound;
 
+  // ── Toast tracking refs (avoid re-triggering same toast) ──────────────────
+  const consecWinsRef    = useRef(0);   // mirrors consecWins state for callbacks
+  const speedStreakRef   = useRef(0);   // consecutive fast cards (< 4s)
+  const heatToast50Ref  = useRef(false);
+  const heatToast75Ref  = useRef(false);
+  const lowBalanceRef   = useRef(false);
+  const firstWinRef     = useRef(false);
+  const goalToastRef    = useRef(false);
+
   useEffect(() => { speedModeRef.current = speedMode; }, [speedMode]);
   useEffect(() => { phaseRef.current = phase; },        [phase]);
 
@@ -151,6 +174,7 @@ export default function App() {
 
   // ── Heat / Flow State ─────────────────────────────────────────────────────
   const exitFlowState = useCallback(() => {
+    const cardsInFlow = flowRoundRef.current - 1; // rounds completed before exit
     flowStateRef.current = false;
     setFlowState(false);
     setFlowRound(0);
@@ -159,7 +183,12 @@ export default function App() {
     flowDrainRef.current = null;
     heatRef.current = 0;
     setHeat(0);
-  }, []);
+    heatToast50Ref.current = false;
+    heatToast75Ref.current = false;
+    if (cardsInFlow > 0) {
+      addToast(`💨 Flow State over — ${cardsInFlow} card${cardsInFlow !== 1 ? 's' : ''} cashed`, { type: 'blue' });
+    }
+  }, [addToast]);
 
   const enterFlowState = useCallback(() => {
     flowStateRef.current = true;
@@ -169,19 +198,28 @@ export default function App() {
     setShowFlowBanner(true);
     setTimeout(() => setShowFlowBanner(false), 1000);
     clearInterval(flowDrainRef.current);
+    addToast('⚡ FLOW STATE!', { type: 'gold', size: 'large' });
     // Drain ~8 pts/s
     flowDrainRef.current = setInterval(() => {
       heatRef.current = Math.max(0, heatRef.current - 1.2);
       setHeat(Math.round(heatRef.current));
       if (heatRef.current <= 0 && flowStateRef.current) exitFlowState();
     }, 150);
-  }, [exitFlowState]);
+  }, [exitFlowState, addToast]);
 
   const updateHeat = useCallback((delta) => {
     heatRef.current = Math.max(0, Math.min(100, heatRef.current + delta));
     setHeat(Math.round(heatRef.current));
-    if (heatRef.current >= 100 && !flowStateRef.current) enterFlowState();
-  }, [enterFlowState]);
+    const h = heatRef.current;
+    if (delta > 0) {
+      if (!heatToast50Ref.current && h >= 50) { heatToast50Ref.current = true; addToast('🌡️ Heating up...', { type: 'gold' }); }
+      if (!heatToast75Ref.current && h >= 75) { heatToast75Ref.current = true; addToast('🔥 Almost there!', { type: 'orange' }); }
+    } else {
+      if (h < 50) heatToast50Ref.current = false;
+      if (h < 75) heatToast75Ref.current = false;
+    }
+    if (h >= 100 && !flowStateRef.current) enterFlowState();
+  }, [enterFlowState, addToast]);
 
   // ── Milestone banner ──────────────────────────────────────────────────────
   const triggerMilestone = useCallback((key) => {
@@ -265,18 +303,38 @@ export default function App() {
       setTotalWon(t => t + prize);
       setBiggestWin(b => Math.max(b, prize));
       applyWinFeedback(prize);
+
+      // Win toasts
+      const td = isFlow ? 1200 : 2000;
+      addToast(`💰 +${prize.toLocaleString()} coins!`, { type: 'gold', duration: td });
+      if (prize > 5000) addToast('💎 JACKPOT!', { type: 'jackpot', size: 'large', duration: td });
+      else if (prize > 500) addToast('🤑 Big money!', { type: 'gold', duration: td });
+
+      if (!firstWinRef.current) { firstWinRef.current = true; addToast('🎉 First blood!', { type: 'green', duration: td }); }
+
       setConsecWins(c => {
         const n = c + 1;
+        consecWinsRef.current = n;
         if (n === 1 && !seenRef.current.has('firstWin')) triggerMilestone('firstWin');
-        if (n === 3) triggerMilestone('onARoll');
-        if (n === 5) triggerMilestone('lucky5');
+        if (n === 3) { triggerMilestone('onARoll'); addToast('🔥 Three in a row!', { type: 'orange', duration: td }); }
+        if (n === 5) { triggerMilestone('lucky5'); addToast("⚡ You're on FIRE!", { type: 'red', duration: td }); }
+        if (n === 10) addToast('👑 UNSTOPPABLE', { type: 'gold', size: 'large', duration: td });
         return n;
       });
+
       if (prize >= 500) triggerMilestone('highRoller');
       setWinMsg({ text: `${prize >= 5000 ? '🏆 JACKPOT' : prize >= 500 ? '💎 BIG WIN' : prize >= 100 ? '⭐ WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`, tier: prize >= 5000 ? 'jackpot' : prize >= 500 ? 'big' : prize >= 100 ? 'medium' : 'small' });
       if (!isFlow) updateHeat(prize >= 5000 ? 50 : prize >= 500 ? 35 : 18);
-      if (isFlow) { const r = flowRoundRef.current + 1; flowRoundRef.current = r; setFlowRound(r); }
+      if (isFlow) {
+        const r = flowRoundRef.current + 1;
+        flowRoundRef.current = r;
+        setFlowRound(r);
+        if (r === 3) addToast('👀 Odds shifting...', { type: 'gold', duration: 1200 });
+        if (r === 5) addToast('😰 Getting risky...', { type: 'orange', anim: 'shake', duration: 1200 });
+        if (r >= 6) addToast('🎲 One winner left...', { type: 'red', anim: 'shake', duration: 1200 });
+      }
     } else {
+      consecWinsRef.current = 0;
       setConsecWins(0);
       soundRef.current?.tick(false);
       setWinMsg({ text: isFlow ? '💔 FLOW STATE BROKEN!' : 'No match — better luck next time!', tier: 'none' });
@@ -284,6 +342,16 @@ export default function App() {
       else updateHeat(-10);
     }
 
+    // Speed toasts
+    if (scratchSecs !== null && !isFlow) {
+      if (scratchSecs < 3) addToast('⚡ Lightning round!', { type: 'blue' });
+      if (scratchSecs < 4) {
+        speedStreakRef.current++;
+        if (speedStreakRef.current === 5) addToast('🚀 Speed demon!', { type: 'purple' });
+      } else {
+        speedStreakRef.current = 0;
+      }
+    }
     if (scratchSecs !== null && scratchSecs < 5 && !isFlow) {
       triggerMilestone('speedDemon');
       updateBalance(b => b + 5);
@@ -294,7 +362,12 @@ export default function App() {
       if (!goalAchieved && b >= GOAL_BALANCE) {
         setGoalAchieved(true);
         triggerMilestone('goalHit');
+        if (!goalToastRef.current) { goalToastRef.current = true; addToast('📈 Doubled up!', { type: 'green' }); }
         confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#D4AF37','#FFE066','#fff'] });
+      }
+      if (!lowBalanceRef.current && b < STARTING_BALANCE * 0.25 && b > 0) {
+        lowBalanceRef.current = true;
+        addToast('😬 Running low...', { type: 'red', anim: 'shake' });
       }
       return b;
     });
@@ -305,7 +378,7 @@ export default function App() {
       ? generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current)
       : generatePickerOptions(speedModeRef.current, balanceRef.current);
     setTimeout(() => showPicker(pregenOptions), delay);
-  }, [applyWinFeedback, exitFlowState, goalAchieved, triggerMilestone, updateHeat, showPicker]);
+  }, [applyWinFeedback, exitFlowState, goalAchieved, triggerMilestone, updateHeat, showPicker, addToast]);
 
   // ── Flow state: player picks → auto-scratch ───────────────────────────────
   const handleFlowPick = useCallback((opt) => {
@@ -382,6 +455,14 @@ export default function App() {
     resetTimer(speedMode ? SPEED_TIME : NORMAL_TIME);
     setGameOver(false); setShaking(false);
     setPhase('intro'); phaseRef.current = 'intro';
+    // Reset toast tracking refs
+    consecWinsRef.current  = 0;
+    speedStreakRef.current  = 0;
+    heatToast50Ref.current = false;
+    heatToast75Ref.current = false;
+    lowBalanceRef.current  = false;
+    firstWinRef.current    = false;
+    goalToastRef.current   = false;
   }, [stopTimer, exitFlowState, resetTimer, speedMode]);
 
   // Cleanup on unmount
@@ -400,6 +481,7 @@ export default function App() {
         <h1 className="title">🎰 Scratch &amp; Win</h1>
         <div className="header-right">
           <TimerDisplay timeLeft={timeLeft} active={!!timerIntervalRef.current} speedMode={speedMode} />
+          <button className="info-btn" onClick={() => setShowTutorial(true)} title="How to play">?</button>
           <button className="info-btn" onClick={() => setShowTiers(true)}>ℹ️</button>
         </div>
       </header>
@@ -459,8 +541,10 @@ export default function App() {
       )}
 
       <MilestoneBanner milestone={milestone} />
+      <ToastManager toasts={toasts} />
       {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} onPlayAgain={handlePlayAgain} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
+      {showTutorial && <Tutorial onDone={() => setShowTutorial(false)} />}
     </div>
   );
 }

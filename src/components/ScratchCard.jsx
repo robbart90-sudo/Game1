@@ -4,7 +4,7 @@ import './ScratchCard.css';
 
 const CW = 320;
 const CH = 190;
-const BASE_BRUSH_R       = 35;   // 22 × 1.6 ≈ 35 — 60% increase
+const BASE_BRUSH_R       = 63;   // 35 × 1.8 — 80% increase
 const WIN_CELL_THRESHOLD  = 0.50; // winning cells: must scratch 50%
 const LOSS_CELL_THRESHOLD = 0.05; // losing cells: 5% is enough
 const CARD_COMPLETE_AT    = 0.95;
@@ -284,17 +284,27 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     }
   }, [cells, formCells, onComplete, soundScratch, brushRadius]);
 
-  // Non-passive touchmove
+  // Window-level pointer listeners — scratching continues even when cursor leaves card
   useEffect(() => {
-    const canvas = displayRef.current;
-    if (!canvas) return;
-    const onTM = (e) => {
+    const onMove  = (e) => { if (pointerDown.current) scratchAt(e.clientX, e.clientY); };
+    const onUp    = ()  => { pointerDown.current = false; };
+    const onTMove = (e) => {
       if (!pointerDown.current) return;
       e.preventDefault();
       scratchAt(e.touches[0].clientX, e.touches[0].clientY);
     };
-    canvas.addEventListener('touchmove', onTM, { passive: false });
-    return () => canvas.removeEventListener('touchmove', onTM);
+    const onTEnd  = () => { pointerDown.current = false; };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    window.addEventListener('touchmove', onTMove, { passive: false });
+    window.addEventListener('touchend',  onTEnd);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+      window.removeEventListener('touchmove', onTMove);
+      window.removeEventListener('touchend',  onTEnd);
+    };
   }, [scratchAt]);
 
   // Spacebar: instantly reveal all LOSING cells, winning cells still need manual scratch
@@ -346,11 +356,6 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     return () => window.removeEventListener('keydown', onKey);
   }, [autoRevealLosers]);
 
-  const onMD = (e) => { pointerDown.current = true;  scratchAt(e.clientX, e.clientY); };
-  const onMM = (e) => { if (pointerDown.current) scratchAt(e.clientX, e.clientY); };
-  const onMU = ()  => { pointerDown.current = false; };
-  const onTS = (e) => { pointerDown.current = true;  scratchAt(e.touches[0].clientX, e.touches[0].clientY); };
-  const onTE = ()  => { pointerDown.current = false; };
 
   const hdBg   = `linear-gradient(135deg, ${palette.hdr[0]}, ${palette.hdr[1]}, ${palette.hdr[2]})`;
   const cardBg = `linear-gradient(170deg, ${palette.bg[0]}, ${palette.bg[1]})`;
@@ -527,12 +532,8 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
             className="scratch-canvas"
             width={CW}
             height={CH}
-            onMouseDown={onMD}
-            onMouseMove={onMM}
-            onMouseUp={onMU}
-            onMouseLeave={onMU}
-            onTouchStart={onTS}
-            onTouchEnd={onTE}
+            onMouseDown={(e) => { pointerDown.current = true; scratchAt(e.clientX, e.clientY); }}
+            onTouchStart={(e) => { pointerDown.current = true; scratchAt(e.touches[0].clientX, e.touches[0].clientY); }}
           />
         )}
       </div>
