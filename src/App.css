@@ -297,11 +297,11 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
 /* ── Slide animations ─────────────────────────────────────────────── */
 .card-area.slide-out-left,
 .picker-area.slide-out-left {
-  animation: slideOutLeft 0.26s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  animation: slideOutLeft 0.208s cubic-bezier(0.4, 0, 0.6, 1) forwards;
 }
 .card-area.slide-in-right,
 .picker-area.slide-in-right {
-  animation: slideInRight 0.30s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slideInRight 0.236s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes slideOutLeft {

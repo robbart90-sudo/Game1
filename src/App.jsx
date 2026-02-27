@@ -16,9 +16,9 @@ import { generateCard, STARTING_BALANCE } from './utils/lottery';
 import { getRandomTheme } from './utils/themes';
 import './App.css';
 
-// Slide durations — 30% faster than original
-const SLIDE_OUT_MS = 260;
-const SLIDE_IN_MS  = 295;
+// Slide durations — 50% faster than original (20% faster than previous 260/295)
+const SLIDE_OUT_MS = 208;
+const SLIDE_IN_MS  = 236;
 
 const NORMAL_TIME  = 60;
 const SPEED_TIME   = 30;
@@ -363,7 +363,7 @@ export default function App() {
       return b;
     });
 
-    const delay = prize > 0 ? 1500 : 1000;
+    const delay = prize > 0 ? 1200 : 800;
     // No pre-generated options — let showPicker check flowStateRef and pick the right generator
     setTimeout(() => showPicker(), delay);
   }, [applyWinFeedback, goalAchieved, triggerMilestone, updateHeat, showPicker, addToast]);
@@ -430,7 +430,7 @@ export default function App() {
       return b;
     });
 
-    // Show result on the picked card for 500ms, then refresh or exit
+    // Show result on the picked card for 400ms, then refresh or exit
     setFlowPickResult({ index, won, prize });
     setTimeout(() => {
       setFlowPickResult(null);
@@ -442,7 +442,7 @@ export default function App() {
         // Lost — flow state ended, slide to normal picker
         showPicker();
       }
-    }, 500);
+    }, 400);
   }, [pickerOptions, applyWinFeedback, exitFlowState, goalAchieved, triggerMilestone,
       addToast, showPicker]);
 
