@@ -187,6 +187,7 @@ export default function App() {
     setHeat(0);
     heatToast50Ref.current = false;
     heatToast75Ref.current = false;
+    // Timer resumes naturally in handlePick when the player selects their next card
     if (cardsInFlow > 0) {
       addToast(`💨 Flow State over — ${cardsInFlow} card${cardsInFlow !== 1 ? 's' : ''} cashed`, { type: 'blue' });
     }
@@ -200,6 +201,7 @@ export default function App() {
     setShowFlowBanner(true);
     setTimeout(() => setShowFlowBanner(false), 1000);
     clearInterval(flowDrainRef.current);
+    stopTimer(); // freeze countdown during flow state
     addToast('⚡ FLOW STATE!', { type: 'gold', size: 'large' });
     // Drain ~8 pts/s
     flowDrainRef.current = setInterval(() => {
@@ -207,7 +209,7 @@ export default function App() {
       setHeat(Math.round(heatRef.current));
       if (heatRef.current <= 0 && flowStateRef.current) exitFlowState();
     }, 150);
-  }, [exitFlowState, addToast]);
+  }, [exitFlowState, addToast, stopTimer]);
 
   const updateHeat = useCallback((delta) => {
     heatRef.current = Math.max(0, Math.min(100, heatRef.current + delta));
