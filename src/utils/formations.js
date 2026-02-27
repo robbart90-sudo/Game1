@@ -61,26 +61,26 @@ export const FORMATIONS = {
     })(),
   },
 
-  // ── Diamond (3-2-3 stagger) ────────────────────────────────────
+  // ── Diamond (1-2-3-2-1 true diamond shape) ─────────────────────
   diamond: {
     id: 'diamond',
     cellCount: 9,
     luckyStyle: 'split',
-    cells: [
-      // Row 0 – 3 cells
-      { x: 0.06, y: 0.06, w: 0.26, h: 0.28 },
-      { x: 0.37, y: 0.06, w: 0.26, h: 0.28 },
-      { x: 0.68, y: 0.06, w: 0.26, h: 0.28 },
-      // Row 1 – 2 cells offset
-      { x: 0.185, y: 0.38, w: 0.26, h: 0.28 },
-      { x: 0.555, y: 0.38, w: 0.26, h: 0.28 },
-      // Row 2 – 2 cells
-      { x: 0.06,  y: 0.68, w: 0.26, h: 0.28 },
-      { x: 0.37,  y: 0.68, w: 0.26, h: 0.28 },
-      { x: 0.68,  y: 0.68, w: 0.26, h: 0.28 },
-      // Center bonus
-      { x: 0.37,  y: 0.38, w: 0.26, h: 0.28 },
-    ],
+    cells: (() => {
+      const pw = 0.26, ph = 0.17;
+      const gy = (1 - 5 * ph) / 6; // even vertical gutter (~0.025)
+      // 1-2-3-2-1 column counts per row — classic diamond silhouette
+      const rowXs = [
+        [0.37],
+        [0.185, 0.555],
+        [0.06,  0.37,  0.68],
+        [0.185, 0.555],
+        [0.37],
+      ];
+      return rowXs.flatMap((xs, r) =>
+        xs.map(x => ({ x, y: gy + r * (ph + gy), w: pw, h: ph }))
+      );
+    })(),
   },
 
   // ── Twin 2×3 Grids ─────────────────────────────────────────────
@@ -90,19 +90,19 @@ export const FORMATIONS = {
     luckyStyle: 'col-left',
     cells: (() => {
       const result = [];
-      const pw = 0.2, ph = 0.28;
-      // Left cluster (3 cols × 2 rows), starts at x=0.02
+      const pw = 0.14, ph = 0.28;
+      const cellGap    = 0.02;  // gap between cells within a cluster
+      const clusterGap = 0.04;  // gap between the two clusters
       const lx0 = 0.02;
-      const rx0 = 0.54;
-      for (let r = 0; r < 2; r++) {
-        for (let c = 0; c < 3; c++) {
-          result.push({ x: lx0 + c * (pw + 0.025), y: 0.08 + r * (ph + 0.1), w: pw, h: ph });
-        }
-      }
-      // Right cluster
-      for (let r = 0; r < 2; r++) {
-        for (let c = 0; c < 3; c++) {
-          result.push({ x: rx0 + c * (pw + 0.025), y: 0.08 + r * (ph + 0.1), w: pw, h: ph });
+      // rx0 must start after left cluster's right edge + cluster gap
+      // left cluster right edge = lx0 + 3*pw + 2*cellGap = 0.02+0.42+0.04 = 0.48
+      const rx0 = lx0 + 3 * pw + 2 * cellGap + clusterGap; // 0.52
+      for (let cluster = 0; cluster < 2; cluster++) {
+        const x0 = cluster === 0 ? lx0 : rx0;
+        for (let r = 0; r < 2; r++) {
+          for (let c = 0; c < 3; c++) {
+            result.push({ x: x0 + c * (pw + cellGap), y: 0.08 + r * (ph + 0.10), w: pw, h: ph });
+          }
         }
       }
       return result;

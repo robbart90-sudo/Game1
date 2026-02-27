@@ -328,6 +328,8 @@
   gap: 1px;
   transition: box-shadow 0.3s;
   box-sizing: border-box;
+  overflow: hidden;           /* content never bleeds into adjacent cells */
+  container-type: inline-size; /* enables cqi units for children */
 }
 
 .art-cell.match {
@@ -351,14 +353,16 @@
 }
 
 .art-num {
-  font-size: 1rem;
+  /* Scale with cell width so narrow cells (wide/row5/twins) don't overflow;
+     30cqi = 30% of the cell's own width, capped at 1rem for large cells */
+  font-size: min(30cqi, 1rem);
   font-weight: 900;
   line-height: 1;
   text-shadow: 0 0 1px currentColor, 0 0 3px rgba(0,0,0,0.3);
 }
 
 .art-prize {
-  font-size: 0.5rem;
+  font-size: min(18cqi, 0.55rem);
   font-weight: 800;
   color: #00ff88;
   letter-spacing: 0.02em;

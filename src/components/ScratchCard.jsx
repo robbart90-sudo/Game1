@@ -663,9 +663,9 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
                   className={`art-cell ${cell.isMatch ? 'match' : ''} ${completed && cell.isMatch ? 'win-revealed' : ''}`}
                   style={{
                     left:   `${fc.x * 100}%`,
-                    top:    `calc(18px + ${fc.y * 100}%)`,
+                    top:    `calc(18px + ${fc.y} * (100% - 18px))`,
                     width:  `${fc.w * 100}%`,
-                    height: `${fc.h * 85}%`,
+                    height: `calc(${fc.h} * (100% - 18px))`,
                     background: cell.isMatch
                       ? `linear-gradient(135deg, ${palette.numBg}, #0d2810)`
                       : palette.numBg,
