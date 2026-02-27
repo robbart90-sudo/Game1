@@ -12,8 +12,8 @@ const BLOCK_W    = CW / BLOCK_COLS;   // 8px
 const BLOCK_H    = CH / BLOCK_ROWS;   // 7.6px
 const TOTAL_BLOCKS = BLOCK_COLS * BLOCK_ROWS; // 1000
 
-// Brush radius — halved from 63
-const BASE_BRUSH_R = 31;
+// Base half-width of the scratch brush (px). Velocity elongates the stroke.
+const BASE_BRUSH_R = 28;
 
 // Coverage thresholds
 const WIN_CELL_THRESHOLD  = 0.50;
@@ -77,7 +77,8 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
   const blockCanvasRef = useRef(null);  // pre-rendered foil block texture
   const scratchedRef   = useRef(null);  // Uint8Array[TOTAL_BLOCKS] — binary scratched state
   const scratchedCountRef = useRef(0);
-  const lastPosRef     = useRef(null);  // {bx, by} last block pos for line interpolation
+  const lastPosRef     = useRef(null);  // { bxF, byF, cx, cy } — last pointer position
+  const velRef         = useRef({ nx: 1, ny: 0 }); // smoothed velocity unit-vector
   const animRef        = useRef(null);
   const pointerDown    = useRef(false);
   const scratchCount   = useRef(0);
@@ -99,6 +100,7 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     revealedRef.current     = false;
     particlesRef.current    = [];
     lastPosRef.current      = null;
+    velRef.current          = { nx: 1, ny: 0 };
     scratchCount.current    = 0;
     scratchStart.current    = null;
     scratchedCountRef.current = 0;
@@ -365,65 +367,84 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     const cx = (clientX - rect.left) * sx;
     const cy = (clientY - rect.top)  * sy;
 
-    // Convert to block coordinates (used for coverage / debris)
     const bxF = cx / BLOCK_W;
     const byF = cy / BLOCK_H;
 
-    // ── Capsule brush ─────────────────────────────────────────────────────
-    // Scratch every block whose centre falls within `hw` pixels of the
-    // line segment from the last pointer position to the current one.
-    // This produces a realistic directional swipe rather than dot-stamps.
-    const hw  = brushRadius;   // half-width of scratch strip, in pixels
-    const hw2 = hw * hw;
-
+    // ── Velocity: direction + speed ───────────────────────────────────────
+    // Blend raw frame-delta direction into a smoothed unit vector so the
+    // brush orientation follows direction changes without flickering.
+    let speed = 0;
     if (lastPosRef.current) {
       const { cx: lcx, cy: lcy } = lastPosRef.current;
-
-      const segDx  = cx - lcx;
-      const segDy  = cy - lcy;
-      const segLen2 = segDx * segDx + segDy * segDy;
-
-      // Bounding box of the capsule, clamped to the block grid
-      const bx0 = Math.max(0,              Math.floor((Math.min(lcx, cx) - hw) / BLOCK_W));
-      const by0 = Math.max(0,              Math.floor((Math.min(lcy, cy) - hw) / BLOCK_H));
-      const bx1 = Math.min(BLOCK_COLS - 1, Math.ceil( (Math.max(lcx, cx) + hw) / BLOCK_W));
-      const by1 = Math.min(BLOCK_ROWS - 1, Math.ceil( (Math.max(lcy, cy) + hw) / BLOCK_H));
-
-      for (let by = by0; by <= by1; by++) {
-        for (let bx = bx0; bx <= bx1; bx++) {
-          // Block centre in pixel space, relative to segment start
-          const px = (bx + 0.5) * BLOCK_W - lcx;
-          const py = (by + 0.5) * BLOCK_H - lcy;
-
-          let distSq;
-          if (segLen2 < 0.25) {
-            // Near-stationary tap — circle fallback
-            distSq = px * px + py * py;
-          } else {
-            const t     = Math.max(0, Math.min(1, (px * segDx + py * segDy) / segLen2));
-            const nearX = px - t * segDx;
-            const nearY = py - t * segDy;
-            distSq = nearX * nearX + nearY * nearY;
-          }
-
-          if (distSq <= hw2) scratchBlock(bx, by);
-        }
-      }
-    } else {
-      // First touch — circle stamp for immediate feedback
-      const bx0 = Math.max(0,              Math.floor((cx - hw) / BLOCK_W));
-      const by0 = Math.max(0,              Math.floor((cy - hw) / BLOCK_H));
-      const bx1 = Math.min(BLOCK_COLS - 1, Math.ceil( (cx + hw) / BLOCK_W));
-      const by1 = Math.min(BLOCK_ROWS - 1, Math.ceil( (cy + hw) / BLOCK_H));
-
-      for (let by = by0; by <= by1; by++) {
-        for (let bx = bx0; bx <= bx1; bx++) {
-          const dx = (bx + 0.5) * BLOCK_W - cx;
-          const dy = (by + 0.5) * BLOCK_H - cy;
-          if (dx * dx + dy * dy <= hw2) scratchBlock(bx, by);
-        }
+      const dvx = cx - lcx;
+      const dvy = cy - lcy;
+      speed = Math.sqrt(dvx * dvx + dvy * dvy);
+      if (speed > 0.5) {
+        const alpha  = 0.65; // higher = snappier direction tracking
+        const rawNx  = dvx / speed;
+        const rawNy  = dvy / speed;
+        const bx     = alpha * rawNx + (1 - alpha) * velRef.current.nx;
+        const by_    = alpha * rawNy + (1 - alpha) * velRef.current.ny;
+        const blen   = Math.sqrt(bx * bx + by_ * by_) || 1;
+        velRef.current = { nx: bx / blen, ny: by_ / blen };
       }
     }
+    const { nx: nvx, ny: nvy } = velRef.current;
+
+    // ── Speed-shaped brush ellipse ────────────────────────────────────────
+    // At rest  → near-circle (~19px radius)
+    // At speed → thin streak (long axis up to ~56px, perp as low as ~11px)
+    // MAX_SPEED ~28 px/frame = fast full-card swipe at 60 fps
+    const t        = Math.min(speed / 28, 1);
+    const halfLong = brushRadius * (0.68 + 1.32 * t); // 19 → 56 px
+    const halfPerp = brushRadius * (0.68 - 0.28 * t); // 19 → 11 px
+    const hl2      = halfLong * halfLong;
+    const hp2      = halfPerp * halfPerp;
+
+    // ── Stamp one oriented ellipse at canvas position (scx, scy) ─────────
+    const stampAt = (scx, scy) => {
+      // Bounding box in block indices (use halfLong for both axes — safe over-estimate)
+      const bx0 = Math.max(0,              Math.floor((scx - halfLong) / BLOCK_W));
+      const by0 = Math.max(0,              Math.floor((scy - halfLong) / BLOCK_H));
+      const bx1 = Math.min(BLOCK_COLS - 1, Math.ceil( (scx + halfLong) / BLOCK_W));
+      const by1 = Math.min(BLOCK_ROWS - 1, Math.ceil( (scy + halfLong) / BLOCK_H));
+
+      for (let by = by0; by <= by1; by++) {
+        for (let bx = bx0; bx <= bx1; bx++) {
+          // Jitter block centre for organic, ragged edges
+          const j  = BLOCK_JITTER[by * BLOCK_COLS + bx];
+          const px = (bx + 0.5) * BLOCK_W - scx + j.dx * 1.2;
+          const py = (by + 0.5) * BLOCK_H - scy + j.dy * 1.2;
+
+          // Rotate into velocity-aligned ellipse frame
+          const along = px *  nvx + py * nvy;
+          const perp  = px * -nvy + py * nvx;
+
+          if ((along * along) / hl2 + (perp * perp) / hp2 <= 1.0) {
+            scratchBlock(bx, by);
+          }
+        }
+      }
+    };
+
+    // ── Interpolate stamps along the stroke ───────────────────────────────
+    // Step = halfPerp × 0.55 — just enough overlap in the narrow axis so
+    // no gaps appear, without redundant stamps in the long axis.
+    if (lastPosRef.current) {
+      const { cx: lcx, cy: lcy } = lastPosRef.current;
+      const dist     = Math.sqrt((cx - lcx) ** 2 + (cy - lcy) ** 2);
+      const stepSize = Math.max(halfPerp * 0.55, 2);
+      const steps    = Math.max(1, Math.ceil(dist / stepSize));
+      for (let s = 1; s <= steps; s++) {
+        stampAt(
+          lcx + (cx - lcx) * (s / steps),
+          lcy + (cy - lcy) * (s / steps),
+        );
+      }
+    } else {
+      stampAt(cx, cy);
+    }
+
     lastPosRef.current = { bxF, byF, cx, cy };
     // ─────────────────────────────────────────────────────────────────────
 
