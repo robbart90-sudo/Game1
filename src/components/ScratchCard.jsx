@@ -161,7 +161,49 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     octx.fillStyle = wash;
     octx.fillRect(0, 0, CW, CH);
 
-  }, [cardData, palette.scratch]);
+    // Step 5: Embossed cell guides — shows exactly where to scratch, like a real ticket
+    // Uses same canvas coordinates as the coverage detection (fc.x*CW, fc.y*CH).
+    for (const fc of formCells) {
+      const cx = fc.x * CW;
+      const cy = fc.y * CH;
+      const cw = fc.w * CW;
+      const ch = fc.h * CH;
+
+      // Raised-panel effect: shadow on bottom+right, highlight on top+left
+      octx.lineWidth = 1.5;
+      octx.strokeStyle = 'rgba(0,0,0,0.30)';
+      octx.beginPath();
+      octx.moveTo(cx,      cy + ch);  // bottom-left
+      octx.lineTo(cx + cw, cy + ch);  // bottom-right
+      octx.lineTo(cx + cw, cy);       // top-right
+      octx.stroke();
+
+      octx.strokeStyle = 'rgba(255,255,255,0.50)';
+      octx.beginPath();
+      octx.moveTo(cx + cw, cy);  // top-right
+      octx.lineTo(cx,      cy);  // top-left
+      octx.lineTo(cx,      cy + ch);  // bottom-left
+      octx.stroke();
+
+      // Inner dashed boundary (classic scratch-ticket style)
+      octx.strokeStyle = 'rgba(255,255,255,0.22)';
+      octx.lineWidth = 0.75;
+      octx.setLineDash([2, 2]);
+      octx.strokeRect(cx + 3, cy + 3, cw - 6, ch - 6);
+      octx.setLineDash([]);
+
+      // "SCRATCH" label — only if cell is wide enough to fit text
+      if (cw >= 30) {
+        const fsize = Math.max(5, Math.min(8, Math.floor(cw * 0.13)));
+        octx.fillStyle = 'rgba(255,255,255,0.28)';
+        octx.font      = `bold ${fsize}px Arial`;
+        octx.textAlign    = 'center';
+        octx.textBaseline = 'middle';
+        octx.fillText('SCRATCH', cx + cw / 2, cy + ch / 2);
+      }
+    }
+
+  }, [cardData, palette.scratch, formCells]);
 
   // ── Scratch a single block ────────────────────────────────────────────────
   const scratchBlock = useCallback((bx, by) => {
@@ -283,17 +325,6 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
       ctx.fillRect(0, 0, CW, CH);
 
       ctx.globalCompositeOperation = 'source-over';
-
-      // ── 4. Hint text (only while almost no scratching done) ──────────────
-      if (scratchedCountRef.current < TOTAL_BLOCKS * 0.03) {
-        ctx.globalCompositeOperation = 'source-atop';
-        ctx.fillStyle    = 'rgba(0,0,0,0.22)';
-        ctx.font         = 'bold 11px Arial';
-        ctx.textAlign    = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('✦  SCRATCH TO REVEAL  ✦', CW / 2, CH / 2);
-        ctx.globalCompositeOperation = 'source-over';
-      }
 
       // ── 5. Debris particles ──────────────────────────────────────────────
       const now = Date.now();
