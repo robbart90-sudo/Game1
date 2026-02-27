@@ -74,6 +74,10 @@ export function TplVault({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx, c
         <CoinStack x={108} y={82} count={3} r={11} fill={fg1} rim={acc} />
         <CoinStack x={236} y={82} count={4} r={11} fill={fg2} rim={acc} />
       </g>
+      {/* Animated: coins drifting upward out of the vault */}
+      <circle className="ill-coin-float" cx="138" cy="38" r="5" fill={fg1} stroke={acc} strokeWidth="1" opacity="0.72" />
+      <circle className="ill-coin-float" cx="172" cy="30" r="4" fill={fg2} stroke={acc} strokeWidth="1" opacity="0.68" />
+      <circle className="ill-coin-float" cx="208" cy="36" r="5" fill={fg1} stroke={acc} strokeWidth="1" opacity="0.72" />
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg1} acc={acc} />
       <Logo id={id} text={text} lg1={lg1} lg2={lg2} />
     </svg>
@@ -112,6 +116,10 @@ export function TplFair({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx, cy
         {/* Highlight */}
         <ellipse cx="162" cy="52" rx="12" ry="7" fill="rgba(255,255,255,0.35)" transform="rotate(-20,162,52)" />
       </g>
+      {/* Animated: steam puffs rising from the food element */}
+      <ellipse className="ill-puff" cx="157" cy="54" rx="8" ry="5" fill="rgba(255,255,255,0.55)" />
+      <ellipse className="ill-puff" cx="176" cy="48" rx="10" ry="6" fill="rgba(255,255,255,0.45)" />
+      <ellipse className="ill-puff" cx="196" cy="54" rx="7"  ry="4" fill="rgba(255,255,255,0.50)" />
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg1} acc={acc} />
       <Burst cx={280} cy={28} r1={8} r2={16} pts={10} fill={acc} opacity={0.55} />
       <Logo id={id} text={text} lg1={lg1} lg2={lg2} />
@@ -154,6 +162,10 @@ export function TplStage({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx, c
             fill={fg2} opacity="0.60" transform={`rotate(${dx*0.8},176,78)`} />
         ))}
       </g>
+      {/* Animated: stage sparkles twinkling in the spotlight */}
+      <circle className="ill-twinkle" cx="60"  cy="28" r="3.5" fill={acc} />
+      <circle className="ill-twinkle" cx="292" cy="30" r="3.0" fill={acc} />
+      <circle className="ill-twinkle" cx="88"  cy="58" r="2.5" fill={fg2} />
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg1} acc={acc} />
       <Logo id={id} text={text} lg1={lg1} lg2={lg2} />
     </svg>
@@ -191,6 +203,9 @@ export function TplArena({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx, c
         <CoinStack x={80}  y={90} count={3} r={10} fill={fg1} rim={acc} />
         <CoinStack x={272} y={90} count={3} r={10} fill={fg2} rim={acc} />
       </g>
+      {/* Animated: camera flash bursts from the stands */}
+      <circle className="ill-flash" cx="42"  cy="24" r="11" fill="rgba(255,255,255,0.72)" />
+      <circle className="ill-flash" cx="310" cy="24" r="11" fill="rgba(255,255,255,0.72)" />
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg1} acc={acc} />
       <Burst cx={300} cy={22} r1={7} r2={14} pts={10} fill={acc} opacity={0.50} />
       <Logo id={id} text={text} lg1={lg1} lg2={lg2} />
@@ -230,6 +245,12 @@ export function TplCapitol({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx,
             fill={fg1} stroke={acc} strokeWidth="1" opacity="0.75" />
         ))}
       </g>
+      {/* Animated: clouds drifting slowly past the dome */}
+      <ellipse className="ill-cloud" cx="58"  cy="34" rx="28" ry="9"  fill="rgba(255,255,255,0.28)" />
+      <ellipse className="ill-cloud" cx="294" cy="42" rx="22" ry="7"  fill="rgba(255,255,255,0.20)" />
+      {/* Animated: clouds drifting past the capitol dome */}
+      <ellipse className="ill-cloud" cx="55"  cy="36" rx="26" ry="9"  fill="rgba(255,255,255,0.26)" />
+      <ellipse className="ill-cloud" cx="298" cy="42" rx="22" ry="7"  fill="rgba(255,255,255,0.20)" />
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg1} acc={acc} />
       <Logo id={id} text={text} lg1={lg1} lg2={lg2} />
     </svg>
@@ -263,6 +284,10 @@ export function TplNature({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx, 
         <CoinStack x={250} y={88} count={3} r={10} fill={acc} rim={fg2} />
       </g>
       <WinkingStar cx={50} cy={22} r={9} fill={acc} stroke={mid1} />
+      {/* Animated: stars twinkling in the wilderness sky */}
+      <circle className="ill-twinkle" cx="100" cy="16" r="2.5" fill={acc} />
+      <circle className="ill-twinkle" cx="182" cy="12" r="2.0" fill={fg2} />
+      <circle className="ill-twinkle" cx="262" cy="18" r="2.5" fill={acc} />
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg1} acc={acc} />
       <Logo id={id} text={text} lg1={lg1} lg2={lg2} />
     </svg>
@@ -296,6 +321,11 @@ export function TplFestive({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx,
         <Burst cx={60}  cy={26} r1={5} r2={11} pts={8} fill={mid2} opacity={0.60} />
         <Burst cx={292} cy={26} r1={5} r2={11} pts={8} fill={fg2}  opacity={0.60} />
       </g>
+      {/* Animated: confetti falling from the celebration burst */}
+      <rect className="ill-fall" x="58"  y="8"  width="5" height="6" rx="1" fill={mid2} />
+      <rect className="ill-fall" x="118" y="4"  width="4" height="5" rx="1" fill={fg1}  />
+      <rect className="ill-fall" x="234" y="6"  width="5" height="6" rx="1" fill={acc}  />
+      <rect className="ill-fall" x="290" y="10" width="4" height="5" rx="1" fill={fg2}  />
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg1} acc={acc} />
       <Logo id={id} text={text} lg1={lg1} lg2={lg2} />
     </svg>
@@ -334,6 +364,14 @@ export function TplDesk({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx, cy
           <circle key={dx} cx={176+dx} cy={22} r={7}
             fill={fg1} stroke={acc} strokeWidth="1.2" opacity="0.78" />
         ))}
+      </g>
+      {/* Animated: a document floating above the desk */}
+      <g className="ill-doc-float">
+        <rect x="50" y="20" width="28" height="36" rx="2"
+          fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.32)" strokeWidth="1" />
+        <line x1="56" y1="30" x2="72" y2="30" stroke="rgba(255,255,255,0.42)" strokeWidth="1.2" />
+        <line x1="56" y1="36" x2="72" y2="36" stroke="rgba(255,255,255,0.32)" strokeWidth="1"   />
+        <line x1="56" y1="42" x2="68" y2="42" stroke="rgba(255,255,255,0.28)" strokeWidth="1"   />
       </g>
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg1} acc={acc} />
       <WinkingStar cx={310} cy={24} r={10} fill={acc} stroke={mid1} />
@@ -375,6 +413,10 @@ export function TplAnimal({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx, 
         <CoinStack x={100} y={85} count={3} r={10} fill={acc} rim={fg2} />
         <CoinStack x={250} y={85} count={3} r={10} fill={bg2} rim={acc} />
       </g>
+      {/* Animated: bubbles rising around the character */}
+      <circle className="ill-bubble" cx="128" cy="72" r="5" fill="rgba(255,255,255,0.28)" stroke="rgba(255,255,255,0.42)" strokeWidth="1" />
+      <circle className="ill-bubble" cx="176" cy="76" r="4" fill="rgba(255,255,255,0.24)" stroke="rgba(255,255,255,0.38)" strokeWidth="1" />
+      <circle className="ill-bubble" cx="224" cy="70" r="6" fill="rgba(255,255,255,0.26)" stroke="rgba(255,255,255,0.40)" strokeWidth="1" />
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg2} acc={acc} />
       <Logo id={id} text={text} lg1={lg1} lg2={lg2} />
     </svg>
@@ -411,6 +453,10 @@ export function TplAbsurd({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx, 
       </g>
       <Bunting x1={10} y1={12} x2={342} y2={12} n={8}
         colors={[mid2, fg1, acc, fg2, bg2]} />
+      {/* Animated: a spinning starburst in the corner for chaos energy */}
+      <g className="ill-spin">
+        <Burst cx={52} cy={55} r1={6} r2={14} pts={8} fill={acc} opacity={0.72} />
+      </g>
       <Charm charm={charm} cx={cx} cy={cy} fg1={fg1} acc={acc} />
       <WinkingStar cx={52} cy={26} r={10} fill={acc} stroke={mid1} />
       <Logo id={id} text={text} lg1={lg1} lg2={lg2} />

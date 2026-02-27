@@ -48,6 +48,9 @@
   pointer-events: none;
   /* Clip so illustration never bleeds into sibling components */
   overflow: hidden;
+  /* Smooth parallax on mouse move */
+  transition: transform 0.12s ease-out;
+  will-change: transform;
 }
 
 
@@ -149,6 +152,168 @@
   display: block;
   z-index: 3;
 
-  /* Subtle glow amplifies the fine centre thread and curve intersections */
-  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.18));
+  /* Slight blur simulates ink bleed at the print edge; glow amplifies threads */
+  filter: blur(0.28px) drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.18));
 }
+
+
+/* ── Lamp light source ───────────────────────────────────────────────────────
+   Oversized radial gradient that drifts slowly across the header, suggesting
+   the card catching warm light from a desk lamp overhead.
+   mix-blend-mode: screen means it only adds brightness — never darkens text.
+─────────────────────────────────────────────────────────────────────────────── */
+
+@keyframes lampSweep {
+  0%   { transform: translate(-14%, -8%);  opacity: 0.17; }
+  30%  { transform: translate( 12%,  6%);  opacity: 0.24; }
+  65%  { transform: translate( -4%, 14%);  opacity: 0.19; }
+  100% { transform: translate(-14%, -8%);  opacity: 0.17; }
+}
+
+.card-header__lamp {
+  position: absolute;
+  inset: -40%;
+  width: 180%;
+  height: 180%;
+  background: radial-gradient(
+    ellipse 55% 45% at 50% 50%,
+    rgba(255, 238, 190, 0.70)  0%,
+    rgba(255, 210, 120, 0.25) 45%,
+    transparent               70%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 1;
+  animation: lampSweep 14s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+
+/* ── Paper / print texture ───────────────────────────────────────────────────
+   SVG feTurbulence noise tile that mimics aged paper grain or offset-print
+   texture.  Extremely subtle — opacity 0.55 at mix-blend-mode: overlay.
+─────────────────────────────────────────────────────────────────────────────── */
+
+.card-header__paper {
+  position: absolute;
+  inset: 0;
+  /* Inline SVG noise — no external asset required */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.68' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23p)' opacity='0.05'/%3E%3C/svg%3E");
+  opacity: 0.55;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 1;
+}
+
+
+/* ── Ink bleed ───────────────────────────────────────────────────────────────
+   Dark gradient strip at the base of the header that bleeds into the
+   guilloche zone, mimicking the ink spread seen on real lottery tickets.
+─────────────────────────────────────────────────────────────────────────────── */
+
+.card-header__bleed {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.22) 100%);
+  pointer-events: none;
+  z-index: 2;
+  filter: blur(1.8px);
+}
+
+
+/* ── Illustration animated elements ─────────────────────────────────────────
+   CSS animation classes used on SVG elements inside illustrations-templates.
+   All use transform-box: fill-box so transform-origin: center works correctly
+   on SVG geometry (SVG transforms default to the SVG viewport origin).
+─────────────────────────────────────────────────────────────────────────────── */
+
+/* Shared transform-box fix for SVG */
+.ill-coin-float, .ill-puff, .ill-twinkle, .ill-flash,
+.ill-cloud, .ill-fall, .ill-doc-float, .ill-bubble, .ill-spin {
+  transform-box:    fill-box;
+  transform-origin: center;
+}
+
+/* Finance / Vault — coins drifting upward */
+@keyframes illCoinFloat {
+  0%   { transform: translateY(  0px) rotate(  0deg); opacity: 0.65; }
+  50%  { transform: translateY(-16px) rotate(180deg); opacity: 0.88; }
+  100% { transform: translateY(  0px) rotate(360deg); opacity: 0.65; }
+}
+.ill-coin-float              { animation: illCoinFloat 3.8s ease-in-out infinite; }
+.ill-coin-float:nth-child(2) { animation-delay: -1.3s; }
+.ill-coin-float:nth-child(3) { animation-delay: -2.5s; }
+
+/* Food / Fair — steam puffs rising */
+@keyframes illPuffRise {
+  0%   { transform: translateY( 0px) scale(1.0); opacity: 0.50; }
+  80%  { transform: translateY(-28px) scale(1.4); opacity: 0.12; }
+  100% { transform: translateY(-34px) scale(1.5); opacity: 0.00; }
+}
+.ill-puff              { animation: illPuffRise 2.4s ease-out infinite; }
+.ill-puff:nth-child(2) { animation-delay: -0.8s; }
+.ill-puff:nth-child(3) { animation-delay: -1.6s; }
+
+/* Pop / Stage — twinkling sparkles */
+@keyframes illStarTwinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.75); }
+  50%      { opacity: 1.00; transform: scale(1.25); }
+}
+.ill-twinkle              { animation: illStarTwinkle 1.6s ease-in-out infinite; }
+.ill-twinkle:nth-child(2) { animation-delay: -0.55s; }
+.ill-twinkle:nth-child(3) { animation-delay: -1.10s; }
+
+/* Sports / Arena — camera flash burst */
+@keyframes illFlashPop {
+  0%, 80%, 100% { opacity: 0.00; transform: scale(0.4); }
+  85%           { opacity: 0.80; transform: scale(1.4); }
+  92%           { opacity: 0.28; transform: scale(1.0); }
+}
+.ill-flash              { animation: illFlashPop 2.8s ease-in-out infinite; }
+.ill-flash:nth-child(2) { animation-delay: -0.9s; }
+
+/* Political / Capitol — drifting clouds */
+@keyframes illCloudDrift {
+  0%   { transform: translateX(-18px); opacity: 0.42; }
+  50%  { transform: translateX( 18px); opacity: 0.58; }
+  100% { transform: translateX(-18px); opacity: 0.42; }
+}
+.ill-cloud              { animation: illCloudDrift 8s ease-in-out infinite; }
+.ill-cloud:nth-child(2) { animation-delay: -4s; }
+
+/* Holidays / Festive — falling confetti */
+@keyframes illFall {
+  0%   { transform: translateY(  0px) rotate(  0deg); opacity: 0.80; }
+  100% { transform: translateY( 38px) rotate(480deg); opacity: 0.00; }
+}
+.ill-fall              { animation: illFall 2.2s linear infinite; }
+.ill-fall:nth-child(2) { animation-delay: -0.55s; }
+.ill-fall:nth-child(3) { animation-delay: -1.10s; }
+.ill-fall:nth-child(4) { animation-delay: -1.65s; }
+
+/* Jobs / Desk — floating document */
+@keyframes illDocFloat {
+  0%, 100% { transform: translateY(  0px) rotate(-3deg); opacity: 0.52; }
+  50%      { transform: translateY( -9px) rotate( 3deg); opacity: 0.72; }
+}
+.ill-doc-float { animation: illDocFloat 3.2s ease-in-out infinite; }
+
+/* Animals — rising bubbles */
+@keyframes illBubble {
+  0%   { transform: translateY(  0px) scale(1.0); opacity: 0.55; }
+  80%  { transform: translateY(-30px) scale(1.3); opacity: 0.20; }
+  100% { transform: translateY(-36px) scale(1.4); opacity: 0.00; }
+}
+.ill-bubble              { animation: illBubble 2.8s ease-in-out infinite; }
+.ill-bubble:nth-child(2) { animation-delay: -0.95s; }
+.ill-bubble:nth-child(3) { animation-delay: -1.90s; }
+
+/* Absurd / Random — spinning element */
+@keyframes illSpin {
+  from { transform: rotate(  0deg); }
+  to   { transform: rotate(360deg); }
+}
+.ill-spin { animation: illSpin 6s linear infinite; }

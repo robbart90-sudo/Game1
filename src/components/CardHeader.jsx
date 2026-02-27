@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState, useCallback } from 'react';
 import { getIllustration } from '../utils/illustrations';
 import './CardHeader.css';
 
@@ -104,7 +104,10 @@ import './CardHeader.css';
 //
 //   CSS class hooks exposed on CardHeader DOM nodes
 //     .card-header                 root wrapper — attach card-level animations
-//     .card-header__illustration   illustration container — transition opacity here
+//     .card-header__illustration   illustration container — parallax + transition opacity here
+//     .card-header__lamp           slow-drift radial-gradient light source (mix-blend: screen)
+//     .card-header__paper          SVG noise paper texture (mix-blend: overlay)
+//     .card-header__bleed          ink-bleed gradient strip above guilloche
 //     .card-header__guilloche      the SVG border element — filter/opacity safe
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -233,15 +236,45 @@ export default function CardHeader({ theme, illustrationLayer = null }) {
   // Auto-resolve illustration from theme id; explicit prop overrides.
   const resolvedLayer = illustrationLayer || getIllustration(theme.id);
 
+  // Parallax — shifts illustration ±4 px / ±2.5 px on mouse move.
+  const [px, setPx] = useState({ x: 0, y: 0 });
+  const handleMouseMove = useCallback((e) => {
+    const r  = e.currentTarget.getBoundingClientRect();
+    const dx = (e.clientX - (r.left + r.width  / 2)) / (r.width  / 2);
+    const dy = (e.clientY - (r.top  + r.height / 2)) / (r.height / 2);
+    setPx({ x: dx * -4, y: dy * -2.5 });
+  }, []);
+  const handleMouseLeave = useCallback(() => setPx({ x: 0, y: 0 }), []);
+
   return (
-    <div className="card-header" style={{ background: hdBg }}>
+    <div
+      className="card-header"
+      style={{ background: hdBg }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+
+      {/* ── Paper / print texture ────────────────────────────────────── */}
+      {/* SVG feTurbulence noise overlay — aged paper / offset-print grain.
+          mix-blend-mode: overlay keeps it non-destructive over any hdr palette. */}
+      <div className="card-header__paper" aria-hidden="true" />
+
+      {/* ── Lamp light source ────────────────────────────────────────── */}
+      {/* Slow-drifting radial gradient (mix-blend-mode: screen) suggests the
+          card catching warm lamplight.  Animates over 14 s — lampSweep keyframe. */}
+      <div className="card-header__lamp" aria-hidden="true" />
 
       {/* ── Illustration slot ─────────────────────────────────────────── */}
       {/* Rendered at z-index 0 — beneath price badge, title, and guilloche.
           Resolved from theme.id automatically; override via illustrationLayer prop.
+          Parallax transform applied inline; CSS transition smooths movement.
           See DESIGNER CONFIGURATION GUIDE at the top of this file. */}
       {resolvedLayer && (
-        <div className="card-header__illustration" aria-hidden="true">
+        <div
+          className="card-header__illustration"
+          aria-hidden="true"
+          style={{ transform: `translate(${px.x}px, ${px.y}px)` }}
+        >
           {resolvedLayer({ width: GW, height: '100%', palette })}
         </div>
       )}
@@ -261,6 +294,11 @@ export default function CardHeader({ theme, illustrationLayer = null }) {
       <div className="card-header__top-prize" style={{ color: palette.accent }}>
         TOP PRIZE: {theme.topPrize}
       </div>
+
+      {/* ── Ink bleed ────────────────────────────────────────────────── */}
+      {/* Dark gradient strip at the base of the header that bleeds into
+          the guilloche zone, mimicking offset-print ink spread. */}
+      <div className="card-header__bleed" aria-hidden="true" />
 
       {/* ── Guilloche border ─────────────────────────────────────────── */}
       {/* Three-layer SVG that visually separates the header from the play
