@@ -187,11 +187,11 @@ export default function App() {
     setHeat(0);
     heatToast50Ref.current = false;
     heatToast75Ref.current = false;
-    // Timer resumes naturally in handlePick when the player selects their next card
+    startTimer(); // resume the countdown that was frozen on flow state entry
     if (cardsInFlow > 0) {
       addToast(`💨 Flow State over — ${cardsInFlow} card${cardsInFlow !== 1 ? 's' : ''} cashed`, { type: 'blue' });
     }
-  }, [addToast]);
+  }, [addToast, startTimer]);
 
   const enterFlowState = useCallback(() => {
     flowStateRef.current = true;
