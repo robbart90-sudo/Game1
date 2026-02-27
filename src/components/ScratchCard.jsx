@@ -194,15 +194,6 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
       octx.strokeRect(cx + 3, cy + 3, cw - 6, ch - 6);
       octx.setLineDash([]);
 
-      // "SCRATCH" label — only if cell is wide enough to fit text
-      if (cw >= 30) {
-        const fsize = Math.max(5, Math.min(8, Math.floor(cw * 0.13)));
-        octx.fillStyle = 'rgba(255,255,255,0.28)';
-        octx.font      = `bold ${fsize}px Arial`;
-        octx.textAlign    = 'center';
-        octx.textBaseline = 'middle';
-        octx.fillText('SCRATCH', cx + cw / 2, cy + ch / 2);
-      }
     }
 
   }, [cardData, palette.scratch, formCells]);
