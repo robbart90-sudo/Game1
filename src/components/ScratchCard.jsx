@@ -2,12 +2,13 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import Sparkles from './Sparkles';
 import './ScratchCard.css';
 
-const CW = 320;   // canvas internal width
-const CH = 190;   // canvas internal height
-const BRUSH_R = 22;
-const CELL_REVEAL_THRESHOLD = 0.70;  // 70% of a cell's pixels cleared → revealed
-const CARD_COMPLETE_AT = 0.95;       // 95% of cells revealed → card done
-const CHECK_EVERY = 5;
+const CW = 320;
+const CH = 190;
+const BASE_BRUSH_R       = 35;   // 22 × 1.6 ≈ 35 — 60% increase
+const WIN_CELL_THRESHOLD  = 0.50; // winning cells: must scratch 50%
+const LOSS_CELL_THRESHOLD = 0.05; // losing cells: 5% is enough
+const CARD_COMPLETE_AT    = 0.95;
+const CHECK_EVERY         = 5;
 
 function lighten(hex, amt) {
   try {
@@ -39,11 +40,14 @@ function cellCoverage(mCtx, cell) {
   return cleared / (pw * ph);
 }
 
-export default function ScratchCard({ cardData, onComplete, soundScratch }) {
+export default function ScratchCard({ cardData, onComplete, soundScratch, heat = 0 }) {
   const { theme, luckyNumbers, cells } = cardData;
   const { palette, formation, tilt } = theme;
   const formCells  = formation ? formation.cells : [];
   const luckyStyle = formation ? formation.luckyStyle : 'row';
+
+  // Brush radius scales with heat: +20% at ≥75 heat
+  const brushRadius = heat >= 75 ? BASE_BRUSH_R * 1.2 : BASE_BRUSH_R;
 
   // Which lucky numbers are actual matches (for post-reveal flash)
   const matchedNums = new Set(cells.filter(c => c.isMatch).map(c => c.number));
@@ -196,12 +200,13 @@ export default function ScratchCard({ cardData, onComplete, soundScratch }) {
 
     const mCtx = mask.getContext('2d');
     mCtx.globalCompositeOperation = 'destination-out';
+    const BR = brushRadius;
     for (let i = 0; i < 8; i++) {
       const angle  = Math.random() * Math.PI * 2;
-      const radius = Math.random() * BRUSH_R;
+      const radius = Math.random() * BR;
       const sx2    = x + Math.cos(angle) * radius * 0.5;
       const sy2    = y + Math.sin(angle) * radius * 0.5;
-      const r      = BRUSH_R * (0.4 + Math.random() * 0.6);
+      const r      = BR * (0.4 + Math.random() * 0.6);
       const rg = mCtx.createRadialGradient(sx2, sy2, 0, sx2, sy2, r);
       rg.addColorStop(0,   'rgba(0,0,0,1)');
       rg.addColorStop(0.5, 'rgba(0,0,0,0.85)');
@@ -225,13 +230,16 @@ export default function ScratchCard({ cardData, onComplete, soundScratch }) {
       });
     }
 
-    // Per-cell coverage check
+    // Per-cell coverage check with different thresholds for win/loss cells
     scratchCount.current++;
     if (scratchCount.current % CHECK_EVERY === 0 && formCells.length > 0) {
       let revealedCells = 0;
-      for (const fc of formCells) {
-        if (cellCoverage(mCtx, fc) >= CELL_REVEAL_THRESHOLD) revealedCells++;
-      }
+      cells.forEach((cell, i) => {
+        const fc = formCells[i];
+        if (!fc) return;
+        const threshold = cell.isMatch ? WIN_CELL_THRESHOLD : LOSS_CELL_THRESHOLD;
+        if (cellCoverage(mCtx, fc) >= threshold) revealedCells++;
+      });
       if (revealedCells / formCells.length >= CARD_COMPLETE_AT) {
         revealedRef.current = true;
         setCompleted(true);
@@ -242,7 +250,7 @@ export default function ScratchCard({ cardData, onComplete, soundScratch }) {
         onComplete(scratchSecs);
       }
     }
-  }, [formCells, onComplete, soundScratch]);
+  }, [cells, formCells, onComplete, soundScratch, brushRadius]);
 
   // Non-passive touchmove
   useEffect(() => {
@@ -256,6 +264,55 @@ export default function ScratchCard({ cardData, onComplete, soundScratch }) {
     canvas.addEventListener('touchmove', onTM, { passive: false });
     return () => canvas.removeEventListener('touchmove', onTM);
   }, [scratchAt]);
+
+  // Spacebar: instantly reveal all LOSING cells, winning cells still need manual scratch
+  const autoRevealLosers = useCallback(() => {
+    if (revealedRef.current || dealingRef.current || completed) return;
+    const mask = maskRef.current;
+    if (!mask) return;
+    const mCtx = mask.getContext('2d');
+
+    mCtx.globalCompositeOperation = 'destination-out';
+    cells.forEach((cell, i) => {
+      if (cell.isMatch) return; // skip winning cells
+      const fc = formCells[i];
+      if (!fc) return;
+      // Fill entire cell region with transparency
+      mCtx.fillStyle = 'rgba(0,0,0,1)';
+      mCtx.fillRect(fc.x * CW, fc.y * CH, fc.w * CW, fc.h * CH);
+    });
+    mCtx.globalCompositeOperation = 'source-over';
+
+    // Check completion
+    let revealedCount = 0;
+    cells.forEach((cell, i) => {
+      const fc = formCells[i];
+      if (!fc) return;
+      if (!cell.isMatch) {
+        revealedCount++; // auto-revealed above
+      } else {
+        if (cellCoverage(mCtx, fc) >= WIN_CELL_THRESHOLD) revealedCount++;
+      }
+    });
+    if (revealedCount / formCells.length >= CARD_COMPLETE_AT) {
+      revealedRef.current = true;
+      setCompleted(true);
+      cancelAnimationFrame(animRef.current);
+      onComplete(scratchStart.current ? (Date.now() - scratchStart.current) / 1000 : null);
+    }
+  }, [cells, formCells, completed, onComplete]);
+
+  // Keyboard: spacebar triggers auto-reveal of losing cells
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        autoRevealLosers();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [autoRevealLosers]);
 
   const onMD = (e) => { pointerDown.current = true;  scratchAt(e.clientX, e.clientY); };
   const onMM = (e) => { if (pointerDown.current) scratchAt(e.clientX, e.clientY); };
