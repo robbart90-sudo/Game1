@@ -1,0 +1,22 @@
+.sparkles-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.spark {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #ffe066 50%, transparent 100%);
+  transform: translate(-50%, -50%) scale(0);
+  animation: sparkPop forwards;
+}
+
+@keyframes sparkPop {
+  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 1; }
+  40%  { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+}

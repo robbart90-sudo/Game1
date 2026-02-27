@@ -1,0 +1,40 @@
+.goal-bar-wrap {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.goal-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(212, 175, 55, 0.55);
+  text-transform: uppercase;
+}
+
+.goal-target {
+  color: rgba(212, 175, 55, 0.8);
+}
+
+.goal-track {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.goal-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8B6914, #D4AF37, #FFE066);
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.goal-fill.done {
+  background: linear-gradient(90deg, #1a7a40, #00cc66, #00ff88);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+}
