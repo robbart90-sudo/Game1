@@ -34,9 +34,9 @@ const BLOCK_JITTER = (() => {
     const s2 = Math.sin(i * 311.7) * 43758.5453;
     const s3 = Math.sin(i * 74.3)  * 43758.5453;
     arr[i] = {
-      dx:     (s1 - Math.floor(s1) - 0.5) * 1.8,   // ±0.9px edge jitter
-      dy:     (s2 - Math.floor(s2) - 0.5) * 1.8,
-      lShift: (s3 - Math.floor(s3)) * 26 - 13,      // ±13 lightness shift
+      dx:     (s1 - Math.floor(s1) - 0.5) * 5.0,   // ±2.5px edge jitter (scratch boundary only)
+      dy:     (s2 - Math.floor(s2) - 0.5) * 5.0,
+      lShift: (s3 - Math.floor(s3)) * 26 - 13,      // ±13 lightness shift (foil micro-texture)
     };
   }
   return arr;
@@ -119,42 +119,44 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     blockCanvasRef.current = bc;
     const octx = bc.getContext('2d');
 
+    // Step 1: Solid seamless metallic base (fully opaque — no see-through at all)
+    const baseGrad = octx.createLinearGradient(0, 0, CW, CH);
+    baseGrad.addColorStop(0,    lighten(palette.scratch, 70));
+    baseGrad.addColorStop(0.2,  lighten(palette.scratch, 95));
+    baseGrad.addColorStop(0.45, lighten(palette.scratch, 55));
+    baseGrad.addColorStop(0.7,  lighten(palette.scratch, 85));
+    baseGrad.addColorStop(1,    lighten(palette.scratch, 45));
+    octx.fillStyle = baseGrad;
+    octx.fillRect(0, 0, CW, CH);
+
+    // Step 2: Subtle per-block lightness variation — no gaps, no position jitter
+    // This gives a faint micro-texture to the foil without any grid seams
     for (let by = 0; by < BLOCK_ROWS; by++) {
       for (let bx = 0; bx < BLOCK_COLS; bx++) {
-        const idx = by * BLOCK_COLS + bx;
-        const { dx, dy, lShift } = BLOCK_JITTER[idx];
-
-        const px = bx * BLOCK_W + dx;
-        const py = by * BLOCK_H + dy;
-
-        // Per-block micro-gradient (gives chunky, irregular foil texture)
-        const baseL   = 55 + lShift;
-        const col0 = lighten(palette.scratch, baseL + 35);
-        const col1 = lighten(palette.scratch, baseL + 10);
-        const col2 = lighten(palette.scratch, baseL + 50);
-
-        const bg = octx.createLinearGradient(px, py, px + BLOCK_W, py + BLOCK_H);
-        bg.addColorStop(0,   col0);
-        bg.addColorStop(0.5, col1);
-        bg.addColorStop(1,   col2);
-        octx.fillStyle = bg;
-
-        // Slightly irregular block edges — 0.5px gap between blocks
-        octx.fillRect(
-          Math.round(px) + 0.5,
-          Math.round(py) + 0.5,
-          BLOCK_W - 1,
-          BLOCK_H - 1,
-        );
+        const { lShift } = BLOCK_JITTER[by * BLOCK_COLS + bx];
+        const a = (lShift / 13) * 0.07; // ±7% alpha overlay — very subtle
+        octx.fillStyle = a > 0 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${-a})`;
+        // Fill exactly the block cell — no gap, no position offset
+        octx.fillRect(bx * BLOCK_W, by * BLOCK_H, BLOCK_W, BLOCK_H);
       }
     }
 
-    // Overall shimmer wash on top of blocks
+    // Step 3: Diagonal grain lines (classic metallic lottery ticket look)
+    octx.strokeStyle = 'rgba(255,255,255,0.07)';
+    octx.lineWidth   = 1;
+    for (let x = -CH; x < CW + CH; x += 8) {
+      octx.beginPath();
+      octx.moveTo(x, 0);
+      octx.lineTo(x + CH, CH);
+      octx.stroke();
+    }
+
+    // Step 4: Overall shimmer wash
     const wash = octx.createLinearGradient(0, 0, CW, CH);
-    wash.addColorStop(0,    'rgba(255,255,255,0.18)');
-    wash.addColorStop(0.3,  'rgba(255,255,255,0.08)');
-    wash.addColorStop(0.55, 'rgba(255,255,255,0.22)');
-    wash.addColorStop(0.8,  'rgba(255,255,255,0.06)');
+    wash.addColorStop(0,    'rgba(255,255,255,0.20)');
+    wash.addColorStop(0.3,  'rgba(255,255,255,0.06)');
+    wash.addColorStop(0.55, 'rgba(255,255,255,0.24)');
+    wash.addColorStop(0.8,  'rgba(255,255,255,0.04)');
     wash.addColorStop(1,    'rgba(255,255,255,0.14)');
     octx.fillStyle = wash;
     octx.fillRect(0, 0, CW, CH);
@@ -237,6 +239,10 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
       ctx.drawImage(bc, 0, 0);
 
       // ── 2. Erase scratched blocks (destination-out) ──────────────────────
+      // Each block is erased at a slightly jittered position — this creates
+      // jagged/chunky edges at the scratch boundary while the interior stays
+      // clean. Oversize by 5px ensures adjacent scratched blocks overlap so
+      // no thin lines appear inside a fully-scratched region.
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = 'rgba(0,0,0,1)';
       for (let by = 0; by < BLOCK_ROWS; by++) {
@@ -244,10 +250,10 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
           if (!sc[by * BLOCK_COLS + bx]) continue;
           const { dx, dy } = BLOCK_JITTER[by * BLOCK_COLS + bx];
           ctx.fillRect(
-            Math.round(bx * BLOCK_W + dx) + 0.5,
-            Math.round(by * BLOCK_H + dy) + 0.5,
-            BLOCK_W - 1,
-            BLOCK_H - 1,
+            Math.floor(bx * BLOCK_W + dx),
+            Math.floor(by * BLOCK_H + dy),
+            BLOCK_W + 5,
+            BLOCK_H + 5,
           );
         }
       }
