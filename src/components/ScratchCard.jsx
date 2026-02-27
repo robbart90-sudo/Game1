@@ -59,8 +59,9 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
   const scratchCount = useRef(0);
   const scratchStart = useRef(null);
   const revealedRef  = useRef(false);
-  const particlesRef = useRef([]);
-  const dealingRef   = useRef(true);
+  const particlesRef   = useRef([]);
+  const lastScratchRef = useRef(null); // tracks last brush pos for edge glow
+  const dealingRef     = useRef(true);
 
   const [sparkles,   setSparkles]   = useState(false);
   const [isDealing,  setIsDealing]  = useState(true);
@@ -90,10 +91,11 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     mCtx.fillStyle = '#fff';
     mCtx.fillRect(0, 0, CW, CH);
 
-    scratchCount.current = 0;
-    scratchStart.current = null;
-    revealedRef.current  = false;
-    particlesRef.current = [];
+    scratchCount.current   = 0;
+    scratchStart.current   = null;
+    revealedRef.current    = false;
+    particlesRef.current   = [];
+    lastScratchRef.current = null;
 
     let hue = 0;
 
@@ -104,7 +106,11 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
 
       ctx.clearRect(0, 0, CW, CH);
 
-      // Metallic base
+      // Layer 1: Warm cream card-stock base (shows through metallic as warm tint)
+      ctx.fillStyle = 'rgba(255,252,235,0.22)';
+      ctx.fillRect(0, 0, CW, CH);
+
+      // Layer 2: Metallic base
       const grad = ctx.createLinearGradient(0, 0, CW, CH);
       grad.addColorStop(0,    lighten(palette.scratch, 60));
       grad.addColorStop(0.2,  lighten(palette.scratch, 90));
@@ -114,15 +120,26 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, CW, CH);
 
-      // Iridescent HSL cycling layer
-      hue = (hue + 0.4) % 360;
+      // Layer 3a: Iridescent HSL cycling layer — vivid, cartoonishly shiny
+      hue = (hue + 0.6) % 360;
       const iriGrad = ctx.createLinearGradient(0, 0, CW, CH);
-      iriGrad.addColorStop(0,    `hsla(${hue},       80%, 60%, 0.07)`);
-      iriGrad.addColorStop(0.25, `hsla(${hue + 60},  80%, 60%, 0.11)`);
-      iriGrad.addColorStop(0.5,  `hsla(${hue + 140}, 80%, 60%, 0.08)`);
-      iriGrad.addColorStop(0.75, `hsla(${hue + 220}, 80%, 60%, 0.12)`);
-      iriGrad.addColorStop(1,    `hsla(${hue + 300}, 80%, 60%, 0.07)`);
+      iriGrad.addColorStop(0,    `hsla(${hue},       95%, 65%, 0.13)`);
+      iriGrad.addColorStop(0.25, `hsla(${hue + 60},  95%, 65%, 0.19)`);
+      iriGrad.addColorStop(0.5,  `hsla(${hue + 140}, 95%, 65%, 0.14)`);
+      iriGrad.addColorStop(0.75, `hsla(${hue + 220}, 95%, 65%, 0.20)`);
+      iriGrad.addColorStop(1,    `hsla(${hue + 300}, 95%, 65%, 0.13)`);
       ctx.fillStyle = iriGrad;
+      ctx.fillRect(0, 0, CW, CH);
+
+      // Layer 3b: Specular highlight — moves OPPOSITE direction to main shimmer
+      const sp2 = (1.6 - (ts * 0.00035) % 1.6) * CW;
+      const spec = ctx.createLinearGradient(sp2 - 80, 0, sp2 + 80, 0);
+      spec.addColorStop(0,    'rgba(255,255,255,0)');
+      spec.addColorStop(0.35, 'rgba(255,255,255,0.06)');
+      spec.addColorStop(0.5,  'rgba(255,255,255,0.18)');
+      spec.addColorStop(0.65, 'rgba(255,255,255,0.06)');
+      spec.addColorStop(1,    'rgba(255,255,255,0)');
+      ctx.fillStyle = spec;
       ctx.fillRect(0, 0, CW, CH);
 
       // Diagonal grain
@@ -175,6 +192,19 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
       ctx.drawImage(maskRef.current, 0, 0);
       ctx.globalCompositeOperation = 'source-over';
 
+      // Scratch-edge glow: bright ring at boundary of last brush stroke
+      if (lastScratchRef.current) {
+        const { ex, ey } = lastScratchRef.current;
+        ctx.globalCompositeOperation = 'source-atop';
+        const eg = ctx.createRadialGradient(ex, ey, BASE_BRUSH_R * 0.7, ex, ey, BASE_BRUSH_R * 1.8);
+        eg.addColorStop(0,   'rgba(255,255,255,0)');
+        eg.addColorStop(0.7, 'rgba(255,255,255,0.28)');
+        eg.addColorStop(1,   'rgba(255,255,255,0)');
+        ctx.fillStyle = eg;
+        ctx.fillRect(ex - BASE_BRUSH_R * 2, ey - BASE_BRUSH_R * 2, BASE_BRUSH_R * 4, BASE_BRUSH_R * 4);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
       animRef.current = requestAnimationFrame(render);
     };
 
@@ -198,6 +228,8 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     const x  = (clientX - rect.left) * sx;
     const y  = (clientY - rect.top)  * sy;
 
+    lastScratchRef.current = { ex: x, ey: y };
+
     const mCtx = mask.getContext('2d');
     mCtx.globalCompositeOperation = 'destination-out';
     const BR = brushRadius;
@@ -218,7 +250,7 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
 
     // Silver debris particles
     const silverColors = ['#e8e8e8','#c0c0c0','#d4d4d4','#f0f0f0','#aaaaaa'];
-    for (let i = 0; i < 3 + Math.floor(Math.random() * 4); i++) {
+    for (let i = 0; i < 4 + Math.floor(Math.random() * 5); i++) {
       particlesRef.current.push({
         x, y,
         vx: (Math.random() - 0.5) * 2,
@@ -413,7 +445,8 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
       style={{
         background: cardBg,
         borderColor: palette.border,
-        transform: `rotate(${tilt || 0}deg)`,
+        '--tilt': `${tilt || 0}deg`,
+        transform: isDealing ? undefined : `rotate(${tilt || 0}deg)`,
       }}
     >
       <Sparkles active={sparkles} />
@@ -451,7 +484,7 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
               return (
                 <div
                   key={i}
-                  className={`art-cell ${cell.isMatch ? 'match' : ''}`}
+                  className={`art-cell ${cell.isMatch ? 'match' : ''} ${completed && cell.isMatch ? 'win-revealed' : ''}`}
                   style={{
                     left:   `${fc.x * 100}%`,
                     top:    `calc(18px + ${fc.y * 100}%)`,
@@ -477,6 +510,14 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
               );
             })}
           </div>
+        </div>
+
+        {/* Corner registration marks */}
+        <div className="registration-marks" aria-hidden="true">
+          <span className="reg-mark reg-tl" />
+          <span className="reg-mark reg-tr" />
+          <span className="reg-mark reg-bl" />
+          <span className="reg-mark reg-br" />
         </div>
 
         {/* Scratch canvas */}
