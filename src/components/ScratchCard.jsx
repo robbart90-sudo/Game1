@@ -4,11 +4,43 @@ import './ScratchCard.css';
 
 const CW = 320;
 const CH = 190;
-const BASE_BRUSH_R       = 63;   // 35 × 1.8 — 80% increase
-const WIN_CELL_THRESHOLD  = 0.50; // winning cells: must scratch 50%
-const LOSS_CELL_THRESHOLD = 0.05; // losing cells: 5% is enough
+
+// ── Block grid constants ──────────────────────────────────────────────────
+const BLOCK_COLS = 40;
+const BLOCK_ROWS = 25;
+const BLOCK_W    = CW / BLOCK_COLS;   // 8px
+const BLOCK_H    = CH / BLOCK_ROWS;   // 7.6px
+const TOTAL_BLOCKS = BLOCK_COLS * BLOCK_ROWS; // 1000
+
+// Brush radius — halved from 63
+const BASE_BRUSH_R = 31;
+
+// Coverage thresholds
+const WIN_CELL_THRESHOLD  = 0.50;
+const LOSS_CELL_THRESHOLD = 0.05;
 const CARD_COMPLETE_AT    = 0.95;
-const CHECK_EVERY         = 5;
+const CHECK_EVERY         = 3; // check more often since block ops are cheap
+
+// Silver/foil debris colors
+const SILVER_COLORS = ['#e8e8e8', '#c0c0c0', '#d4d4d4', '#f0f0f0', '#aaaaaa', '#b8b8b8'];
+
+// Pre-computed per-block variation — stable across renders (module-level constant)
+const BLOCK_JITTER = (() => {
+  // Use seeded-ish values so it's consistent across re-renders of same card
+  const arr = new Array(TOTAL_BLOCKS);
+  for (let i = 0; i < TOTAL_BLOCKS; i++) {
+    // Simple deterministic pseudo-random from index
+    const s1 = Math.sin(i * 127.1) * 43758.5453;
+    const s2 = Math.sin(i * 311.7) * 43758.5453;
+    const s3 = Math.sin(i * 74.3)  * 43758.5453;
+    arr[i] = {
+      dx:     (s1 - Math.floor(s1) - 0.5) * 1.8,   // ±0.9px edge jitter
+      dy:     (s2 - Math.floor(s2) - 0.5) * 1.8,
+      lShift: (s3 - Math.floor(s3)) * 26 - 13,      // ±13 lightness shift
+    };
+  }
+  return arr;
+})();
 
 function lighten(hex, amt) {
   try {
@@ -20,24 +52,13 @@ function lighten(hex, amt) {
   } catch { return hex; }
 }
 
-function cellPixelBox(cell) {
-  return {
-    px: Math.floor(cell.x * CW),
-    py: Math.floor(cell.y * CH),
-    pw: Math.ceil(cell.w * CW),
-    ph: Math.ceil(cell.h * CH),
-  };
-}
-
-function cellCoverage(mCtx, cell) {
-  const { px, py, pw, ph } = cellPixelBox(cell);
-  if (pw <= 0 || ph <= 0) return 0;
-  const data = mCtx.getImageData(px, py, pw, ph).data;
-  let cleared = 0;
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] < 64) cleared++;
-  }
-  return cleared / (pw * ph);
+// Convert cell fractional coords to block-grid indices
+function cellBlockBounds(fc) {
+  const x0 = Math.floor(fc.x * BLOCK_COLS);
+  const y0 = Math.floor(fc.y * BLOCK_ROWS);
+  const x1 = Math.min(BLOCK_COLS - 1, Math.ceil((fc.x + fc.w) * BLOCK_COLS));
+  const y1 = Math.min(BLOCK_ROWS - 1, Math.ceil((fc.y + fc.h) * BLOCK_ROWS));
+  return { x0, y0, x1, y1 };
 }
 
 export default function ScratchCard({ cardData, onComplete, soundScratch, heat = 0 }) {
@@ -52,172 +73,251 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
   // Which lucky numbers are actual matches (for post-reveal flash)
   const matchedNums = new Set(cells.filter(c => c.isMatch).map(c => c.number));
 
-  const displayRef   = useRef(null);
-  const maskRef      = useRef(null);
-  const animRef      = useRef(null);
-  const pointerDown  = useRef(false);
-  const scratchCount = useRef(0);
-  const scratchStart = useRef(null);
-  const revealedRef  = useRef(false);
+  const displayRef     = useRef(null);
+  const blockCanvasRef = useRef(null);  // pre-rendered foil block texture
+  const scratchedRef   = useRef(null);  // Uint8Array[TOTAL_BLOCKS] — binary scratched state
+  const scratchedCountRef = useRef(0);
+  const lastPosRef     = useRef(null);  // {bx, by} last block pos for line interpolation
+  const animRef        = useRef(null);
+  const pointerDown    = useRef(false);
+  const scratchCount   = useRef(0);
+  const scratchStart   = useRef(null);
+  const revealedRef    = useRef(false);
   const particlesRef   = useRef([]);
-  const lastScratchRef = useRef(null); // tracks last brush pos for edge glow
   const dealingRef     = useRef(true);
 
-  const [sparkles,   setSparkles]   = useState(false);
-  const [isDealing,  setIsDealing]  = useState(true);
-  const [completed,  setCompleted]  = useState(false); // triggers match-flash on lucky nums
+  const [sparkles,  setSparkles]  = useState(false);
+  const [isDealing, setIsDealing] = useState(true);
+  const [completed, setCompleted] = useState(false);
 
-  // ---------- sparkles + deal animation ----------
+  // ── Sparkles + deal animation ────────────────────────────────────────────
   useEffect(() => {
     setSparkles(true);
     setIsDealing(true);
     setCompleted(false);
-    dealingRef.current  = true;
-    revealedRef.current = false;
-    particlesRef.current = [];
+    dealingRef.current      = true;
+    revealedRef.current     = false;
+    particlesRef.current    = [];
+    lastPosRef.current      = null;
+    scratchCount.current    = 0;
+    scratchStart.current    = null;
+    scratchedCountRef.current = 0;
+
+    // Fresh scratch state
+    scratchedRef.current = new Uint8Array(TOTAL_BLOCKS);
+
     const t1 = setTimeout(() => setSparkles(false), 1200);
     const t2 = setTimeout(() => { setIsDealing(false); dealingRef.current = false; }, 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [cardData]);
 
-  // ---------- canvas render loop ----------
+  // ── Build foil block canvas (pre-rendered texture per card) ───────────────
   useEffect(() => {
-    if (!maskRef.current) maskRef.current = document.createElement('canvas');
-    const mask = maskRef.current;
-    mask.width  = CW;
-    mask.height = CH;
-    const mCtx = mask.getContext('2d');
-    mCtx.clearRect(0, 0, CW, CH);
-    mCtx.fillStyle = '#fff';
-    mCtx.fillRect(0, 0, CW, CH);
+    const bc = document.createElement('canvas');
+    bc.width  = CW;
+    bc.height = CH;
+    blockCanvasRef.current = bc;
+    const octx = bc.getContext('2d');
 
-    scratchCount.current   = 0;
-    scratchStart.current   = null;
-    revealedRef.current    = false;
-    particlesRef.current   = [];
-    lastScratchRef.current = null;
+    for (let by = 0; by < BLOCK_ROWS; by++) {
+      for (let bx = 0; bx < BLOCK_COLS; bx++) {
+        const idx = by * BLOCK_COLS + bx;
+        const { dx, dy, lShift } = BLOCK_JITTER[idx];
 
+        const px = bx * BLOCK_W + dx;
+        const py = by * BLOCK_H + dy;
+
+        // Per-block micro-gradient (gives chunky, irregular foil texture)
+        const baseL   = 55 + lShift;
+        const col0 = lighten(palette.scratch, baseL + 35);
+        const col1 = lighten(palette.scratch, baseL + 10);
+        const col2 = lighten(palette.scratch, baseL + 50);
+
+        const bg = octx.createLinearGradient(px, py, px + BLOCK_W, py + BLOCK_H);
+        bg.addColorStop(0,   col0);
+        bg.addColorStop(0.5, col1);
+        bg.addColorStop(1,   col2);
+        octx.fillStyle = bg;
+
+        // Slightly irregular block edges — 0.5px gap between blocks
+        octx.fillRect(
+          Math.round(px) + 0.5,
+          Math.round(py) + 0.5,
+          BLOCK_W - 1,
+          BLOCK_H - 1,
+        );
+      }
+    }
+
+    // Overall shimmer wash on top of blocks
+    const wash = octx.createLinearGradient(0, 0, CW, CH);
+    wash.addColorStop(0,    'rgba(255,255,255,0.18)');
+    wash.addColorStop(0.3,  'rgba(255,255,255,0.08)');
+    wash.addColorStop(0.55, 'rgba(255,255,255,0.22)');
+    wash.addColorStop(0.8,  'rgba(255,255,255,0.06)');
+    wash.addColorStop(1,    'rgba(255,255,255,0.14)');
+    octx.fillStyle = wash;
+    octx.fillRect(0, 0, CW, CH);
+
+  }, [cardData, palette.scratch]);
+
+  // ── Scratch a single block ────────────────────────────────────────────────
+  const scratchBlock = useCallback((bx, by) => {
+    if (bx < 0 || bx >= BLOCK_COLS || by < 0 || by >= BLOCK_ROWS) return;
+    const idx = by * BLOCK_COLS + bx;
+    if (scratchedRef.current[idx]) return; // already scratched
+    scratchedRef.current[idx] = 1;
+    scratchedCountRef.current++;
+
+    // Spawn debris particle at block centre
+    const px = (bx + 0.5) * BLOCK_W;
+    const py = (by + 0.5) * BLOCK_H;
+    if (Math.random() < 0.35) { // not every block — keeps it subtle
+      particlesRef.current.push({
+        x: px, y: py,
+        vx: (Math.random() - 0.5) * 2.2,
+        vy: (Math.random() - 0.5) * 2.2,
+        size: 0.8 + Math.random() * 1.8,
+        angle: Math.random() * Math.PI,
+        color: SILVER_COLORS[Math.floor(Math.random() * SILVER_COLORS.length)],
+        born: Date.now(),
+      });
+    }
+  }, []);
+
+  // ── Block-based cell coverage (no pixel reads) ────────────────────────────
+  const cellBlockCoverage = useCallback((fc) => {
+    const { x0, y0, x1, y1 } = cellBlockBounds(fc);
+    let total = 0, scratched = 0;
+    for (let by = y0; by <= y1; by++) {
+      for (let bx = x0; bx <= x1; bx++) {
+        total++;
+        if (scratchedRef.current[by * BLOCK_COLS + bx]) scratched++;
+      }
+    }
+    return total > 0 ? scratched / total : 0;
+  }, []);
+
+  // ── Check overall coverage and fire onComplete ────────────────────────────
+  const checkCoverage = useCallback(() => {
+    if (revealedRef.current || formCells.length === 0) return;
+    let revealedCells = 0;
+    cells.forEach((cell, i) => {
+      const fc = formCells[i];
+      if (!fc) return;
+      const threshold = cell.isMatch ? WIN_CELL_THRESHOLD : LOSS_CELL_THRESHOLD;
+      if (cellBlockCoverage(fc) >= threshold) revealedCells++;
+    });
+    if (revealedCells / formCells.length >= CARD_COMPLETE_AT) {
+      revealedRef.current = true;
+      setCompleted(true);
+      cancelAnimationFrame(animRef.current);
+      const scratchSecs = scratchStart.current
+        ? (Date.now() - scratchStart.current) / 1000
+        : null;
+      onComplete(scratchSecs);
+    }
+  }, [cells, formCells, cellBlockCoverage, onComplete]);
+
+  // ── Canvas render loop ────────────────────────────────────────────────────
+  useEffect(() => {
     let hue = 0;
 
     const render = (ts) => {
       const canvas = displayRef.current;
-      if (!canvas) return;
+      const bc     = blockCanvasRef.current;
+      const sc     = scratchedRef.current;
+      if (!canvas || !bc || !sc) { animRef.current = requestAnimationFrame(render); return; }
       const ctx = canvas.getContext('2d');
 
       ctx.clearRect(0, 0, CW, CH);
 
-      // Layer 1: Warm cream card-stock base (shows through metallic as warm tint)
-      ctx.fillStyle = 'rgba(255,252,235,0.22)';
-      ctx.fillRect(0, 0, CW, CH);
+      // ── 1. Draw pre-rendered foil block texture ──────────────────────────
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(bc, 0, 0);
 
-      // Layer 2: Metallic base
-      const grad = ctx.createLinearGradient(0, 0, CW, CH);
-      grad.addColorStop(0,    lighten(palette.scratch, 60));
-      grad.addColorStop(0.2,  lighten(palette.scratch, 90));
-      grad.addColorStop(0.45, lighten(palette.scratch, 45));
-      grad.addColorStop(0.7,  lighten(palette.scratch, 80));
-      grad.addColorStop(1,    lighten(palette.scratch, 35));
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, CW, CH);
+      // ── 2. Erase scratched blocks (destination-out) ──────────────────────
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      for (let by = 0; by < BLOCK_ROWS; by++) {
+        for (let bx = 0; bx < BLOCK_COLS; bx++) {
+          if (!sc[by * BLOCK_COLS + bx]) continue;
+          const { dx, dy } = BLOCK_JITTER[by * BLOCK_COLS + bx];
+          ctx.fillRect(
+            Math.round(bx * BLOCK_W + dx) + 0.5,
+            Math.round(by * BLOCK_H + dy) + 0.5,
+            BLOCK_W - 1,
+            BLOCK_H - 1,
+          );
+        }
+      }
 
-      // Layer 3a: Iridescent HSL cycling layer — vivid, cartoonishly shiny
-      hue = (hue + 0.6) % 360;
+      // ── 3. Iridescent shimmer + specular (source-atop = only on unscratched foil) ──
+      ctx.globalCompositeOperation = 'source-atop';
+
+      hue = (hue + 0.5) % 360;
       const iriGrad = ctx.createLinearGradient(0, 0, CW, CH);
       iriGrad.addColorStop(0,    `hsla(${hue},       95%, 65%, 0.13)`);
-      iriGrad.addColorStop(0.25, `hsla(${hue + 60},  95%, 65%, 0.19)`);
-      iriGrad.addColorStop(0.5,  `hsla(${hue + 140}, 95%, 65%, 0.14)`);
-      iriGrad.addColorStop(0.75, `hsla(${hue + 220}, 95%, 65%, 0.20)`);
-      iriGrad.addColorStop(1,    `hsla(${hue + 300}, 95%, 65%, 0.13)`);
+      iriGrad.addColorStop(0.25, `hsla(${hue + 60},  95%, 65%, 0.18)`);
+      iriGrad.addColorStop(0.5,  `hsla(${hue + 140}, 95%, 65%, 0.13)`);
+      iriGrad.addColorStop(0.75, `hsla(${hue + 220}, 95%, 65%, 0.18)`);
+      iriGrad.addColorStop(1,    `hsla(${hue + 300}, 95%, 65%, 0.11)`);
       ctx.fillStyle = iriGrad;
       ctx.fillRect(0, 0, CW, CH);
 
-      // Layer 3b: Specular highlight — moves OPPOSITE direction to main shimmer
-      const sp2 = (1.6 - (ts * 0.00035) % 1.6) * CW;
-      const spec = ctx.createLinearGradient(sp2 - 80, 0, sp2 + 80, 0);
-      spec.addColorStop(0,    'rgba(255,255,255,0)');
-      spec.addColorStop(0.35, 'rgba(255,255,255,0.06)');
-      spec.addColorStop(0.5,  'rgba(255,255,255,0.18)');
-      spec.addColorStop(0.65, 'rgba(255,255,255,0.06)');
-      spec.addColorStop(1,    'rgba(255,255,255,0)');
-      ctx.fillStyle = spec;
-      ctx.fillRect(0, 0, CW, CH);
-
-      // Diagonal grain
-      ctx.strokeStyle = 'rgba(255,255,255,0.055)';
-      ctx.lineWidth   = 1;
-      for (let x = -CH; x < CW + CH; x += 10) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x + CH, CH);
-        ctx.stroke();
-      }
-
-      // Moving shimmer stripe
+      // Specular highlight
       const sp = ((ts * 0.00035) % 1.6 - 0.3) * CW;
-      const shim = ctx.createLinearGradient(sp - 110, 0, sp + 110, 0);
+      const shim = ctx.createLinearGradient(sp - 100, 0, sp + 100, 0);
       shim.addColorStop(0,    'rgba(255,255,255,0)');
-      shim.addColorStop(0.25, 'rgba(255,255,255,0.07)');
-      shim.addColorStop(0.5,  'rgba(255,255,255,0.28)');
-      shim.addColorStop(0.75, 'rgba(255,255,255,0.07)');
+      shim.addColorStop(0.3,  'rgba(255,255,255,0.07)');
+      shim.addColorStop(0.5,  'rgba(255,255,255,0.24)');
+      shim.addColorStop(0.7,  'rgba(255,255,255,0.07)');
       shim.addColorStop(1,    'rgba(255,255,255,0)');
       ctx.fillStyle = shim;
       ctx.fillRect(0, 0, CW, CH);
 
-      // Hint text
-      ctx.fillStyle    = 'rgba(0,0,0,0.25)';
-      ctx.font         = 'bold 12px Arial';
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('✦  SCRATCH TO REVEAL  ✦', CW / 2, CH / 2);
+      ctx.globalCompositeOperation = 'source-over';
 
-      // Silver debris particles
+      // ── 4. Hint text (only while almost no scratching done) ──────────────
+      if (scratchedCountRef.current < TOTAL_BLOCKS * 0.03) {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.fillStyle    = 'rgba(0,0,0,0.22)';
+        ctx.font         = 'bold 11px Arial';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✦  SCRATCH TO REVEAL  ✦', CW / 2, CH / 2);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
+      // ── 5. Debris particles ──────────────────────────────────────────────
       const now = Date.now();
-      particlesRef.current = particlesRef.current.filter(p => now - p.born < 700);
+      particlesRef.current = particlesRef.current.filter(p => now - p.born < 600);
       for (const p of particlesRef.current) {
-        const age = (now - p.born) / 700;
-        ctx.globalAlpha = (1 - age) * 0.8;
+        const age = (now - p.born) / 600;
+        ctx.globalAlpha = (1 - age) * 0.75;
         ctx.fillStyle   = p.color;
         ctx.beginPath();
         ctx.ellipse(
-          p.x + p.vx * age * 18,
-          p.y + p.vy * age * 18,
-          p.size, p.size * 0.5, p.angle, 0, Math.PI * 2
+          p.x + p.vx * age * 14,
+          p.y + p.vy * age * 14,
+          p.size, p.size * 0.5, p.angle, 0, Math.PI * 2,
         );
         ctx.fill();
       }
       ctx.globalAlpha = 1;
-
-      // Apply mask
-      ctx.globalCompositeOperation = 'destination-in';
-      ctx.drawImage(maskRef.current, 0, 0);
-      ctx.globalCompositeOperation = 'source-over';
-
-      // Scratch-edge glow: bright ring at boundary of last brush stroke
-      if (lastScratchRef.current) {
-        const { ex, ey } = lastScratchRef.current;
-        ctx.globalCompositeOperation = 'source-atop';
-        const eg = ctx.createRadialGradient(ex, ey, BASE_BRUSH_R * 0.7, ex, ey, BASE_BRUSH_R * 1.8);
-        eg.addColorStop(0,   'rgba(255,255,255,0)');
-        eg.addColorStop(0.7, 'rgba(255,255,255,0.28)');
-        eg.addColorStop(1,   'rgba(255,255,255,0)');
-        ctx.fillStyle = eg;
-        ctx.fillRect(ex - BASE_BRUSH_R * 2, ey - BASE_BRUSH_R * 2, BASE_BRUSH_R * 4, BASE_BRUSH_R * 4);
-        ctx.globalCompositeOperation = 'source-over';
-      }
 
       animRef.current = requestAnimationFrame(render);
     };
 
     animRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animRef.current);
-  }, [cardData, palette.scratch]);
+  }, [cardData]);
 
-  // ---------- spray brush ----------
+  // ── scratchAt — converts canvas coords to blocks, with line interpolation ─
   const scratchAt = useCallback((clientX, clientY) => {
     if (revealedRef.current || dealingRef.current) return;
     const canvas = displayRef.current;
-    const mask   = maskRef.current;
-    if (!canvas || !mask) return;
+    if (!canvas) return;
 
     if (!scratchStart.current) scratchStart.current = Date.now();
     soundScratch?.();
@@ -225,75 +325,71 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     const rect = canvas.getBoundingClientRect();
     const sx = CW / rect.width;
     const sy = CH / rect.height;
-    const x  = (clientX - rect.left) * sx;
-    const y  = (clientY - rect.top)  * sy;
+    const cx = (clientX - rect.left) * sx;
+    const cy = (clientY - rect.top)  * sy;
 
-    lastScratchRef.current = { ex: x, ey: y };
+    // Convert to block coordinates (centre of brush in block-space)
+    const bxF = cx / BLOCK_W;
+    const byF = cy / BLOCK_H;
 
-    const mCtx = mask.getContext('2d');
-    mCtx.globalCompositeOperation = 'destination-out';
-    const BR = brushRadius;
-    for (let i = 0; i < 8; i++) {
-      const angle  = Math.random() * Math.PI * 2;
-      const radius = Math.random() * BR;
-      const sx2    = x + Math.cos(angle) * radius * 0.5;
-      const sy2    = y + Math.sin(angle) * radius * 0.5;
-      const r      = BR * (0.4 + Math.random() * 0.6);
-      const rg = mCtx.createRadialGradient(sx2, sy2, 0, sx2, sy2, r);
-      rg.addColorStop(0,   'rgba(0,0,0,1)');
-      rg.addColorStop(0.5, 'rgba(0,0,0,0.85)');
-      rg.addColorStop(1,   'rgba(0,0,0,0)');
-      mCtx.fillStyle = rg;
-      mCtx.fillRect(sx2 - r, sy2 - r, r * 2, r * 2);
+    // Brush radius in block-space
+    const BR  = brushRadius;
+    const brBlockX = BR / BLOCK_W;
+    const brBlockY = BR / BLOCK_H;
+
+    // Line interpolation — fill gaps for fast swipes
+    const positions = [];
+    if (lastPosRef.current) {
+      const { bxF: lbx, byF: lby } = lastPosRef.current;
+      const dist = Math.sqrt((bxF - lbx) ** 2 + (byF - lby) ** 2);
+      const steps = Math.ceil(dist / 0.5); // one step per 0.5 block
+      for (let s = 1; s <= steps; s++) {
+        positions.push({
+          bxF: lbx + (bxF - lbx) * (s / steps),
+          byF: lby + (byF - lby) * (s / steps),
+        });
+      }
+    } else {
+      positions.push({ bxF, byF });
     }
-    mCtx.globalCompositeOperation = 'source-over';
+    lastPosRef.current = { bxF, byF };
 
-    // Silver debris particles
-    const silverColors = ['#e8e8e8','#c0c0c0','#d4d4d4','#f0f0f0','#aaaaaa'];
-    for (let i = 0; i < 4 + Math.floor(Math.random() * 5); i++) {
-      particlesRef.current.push({
-        x, y,
-        vx: (Math.random() - 0.5) * 2,
-        vy: (Math.random() - 0.5) * 2,
-        size: 1 + Math.random() * 2.5,
-        angle: Math.random() * Math.PI,
-        color: silverColors[Math.floor(Math.random() * silverColors.length)],
-        born: Date.now(),
-      });
-    }
+    // Scratch all blocks within brush radius at each interpolated position
+    for (const pos of positions) {
+      const bx0 = Math.floor(pos.bxF - brBlockX);
+      const by0 = Math.floor(pos.byF - brBlockY);
+      const bx1 = Math.ceil(pos.bxF  + brBlockX);
+      const by1 = Math.ceil(pos.byF  + brBlockY);
 
-    // Per-cell coverage check with different thresholds for win/loss cells
-    scratchCount.current++;
-    if (scratchCount.current % CHECK_EVERY === 0 && formCells.length > 0) {
-      let revealedCells = 0;
-      cells.forEach((cell, i) => {
-        const fc = formCells[i];
-        if (!fc) return;
-        const threshold = cell.isMatch ? WIN_CELL_THRESHOLD : LOSS_CELL_THRESHOLD;
-        if (cellCoverage(mCtx, fc) >= threshold) revealedCells++;
-      });
-      if (revealedCells / formCells.length >= CARD_COMPLETE_AT) {
-        revealedRef.current = true;
-        setCompleted(true);
-        cancelAnimationFrame(animRef.current);
-        const scratchSecs = scratchStart.current
-          ? (Date.now() - scratchStart.current) / 1000
-          : null;
-        onComplete(scratchSecs);
+      for (let by = by0; by <= by1; by++) {
+        for (let bx = bx0; bx <= bx1; bx++) {
+          // Elliptical brush shape
+          const dx = (bx + 0.5 - pos.bxF) / brBlockX;
+          const dy = (by + 0.5 - pos.byF) / brBlockY;
+          if (dx * dx + dy * dy <= 1) {
+            scratchBlock(bx, by);
+          }
+        }
       }
     }
-  }, [cells, formCells, onComplete, soundScratch, brushRadius]);
 
-  // Window-level pointer listeners — scratching continues even when cursor leaves card
+    // Coverage check
+    scratchCount.current++;
+    if (scratchCount.current % CHECK_EVERY === 0) {
+      checkCoverage();
+    }
+  }, [brushRadius, scratchBlock, checkCoverage, soundScratch]);
+
+  // ── Window-level pointer listeners ────────────────────────────────────────
   useEffect(() => {
     const onMove  = (e) => { if (pointerDown.current) scratchAt(e.clientX, e.clientY); };
-    const onUp    = ()  => { pointerDown.current = false; };
+    const onUp    = ()  => { pointerDown.current = false; lastPosRef.current = null; };
     const onTMove = (e) => {
       if (!pointerDown.current) return;
       e.preventDefault();
       scratchAt(e.touches[0].clientX, e.touches[0].clientY);
     };
-    const onTEnd  = () => { pointerDown.current = false; };
+    const onTEnd  = () => { pointerDown.current = false; lastPosRef.current = null; };
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup',   onUp);
@@ -307,44 +403,45 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     };
   }, [scratchAt]);
 
-  // Spacebar: instantly reveal all LOSING cells, winning cells still need manual scratch
+  // ── Spacebar: instantly reveal all LOSING cells (block-based) ─────────────
   const autoRevealLosers = useCallback(() => {
     if (revealedRef.current || dealingRef.current || completed) return;
-    const mask = maskRef.current;
-    if (!mask) return;
-    const mCtx = mask.getContext('2d');
+    const sc = scratchedRef.current;
+    if (!sc) return;
 
-    mCtx.globalCompositeOperation = 'destination-out';
     cells.forEach((cell, i) => {
       if (cell.isMatch) return; // skip winning cells
       const fc = formCells[i];
       if (!fc) return;
-      // Fill entire cell region with transparency
-      mCtx.fillStyle = 'rgba(0,0,0,1)';
-      mCtx.fillRect(fc.x * CW, fc.y * CH, fc.w * CW, fc.h * CH);
+      const { x0, y0, x1, y1 } = cellBlockBounds(fc);
+      for (let by = y0; by <= y1; by++) {
+        for (let bx = x0; bx <= x1; bx++) {
+          const idx = by * BLOCK_COLS + bx;
+          if (!sc[idx]) { sc[idx] = 1; scratchedCountRef.current++; }
+        }
+      }
     });
-    mCtx.globalCompositeOperation = 'source-over';
 
-    // Check completion
-    let revealedCount = 0;
+    // Check if now complete
+    let revealedCells = 0;
     cells.forEach((cell, i) => {
       const fc = formCells[i];
       if (!fc) return;
       if (!cell.isMatch) {
-        revealedCount++; // auto-revealed above
+        revealedCells++; // all non-match cells were just cleared
       } else {
-        if (cellCoverage(mCtx, fc) >= WIN_CELL_THRESHOLD) revealedCount++;
+        if (cellBlockCoverage(fc) >= WIN_CELL_THRESHOLD) revealedCells++;
       }
     });
-    if (revealedCount / formCells.length >= CARD_COMPLETE_AT) {
+    if (revealedCells / formCells.length >= CARD_COMPLETE_AT) {
       revealedRef.current = true;
       setCompleted(true);
       cancelAnimationFrame(animRef.current);
       onComplete(scratchStart.current ? (Date.now() - scratchStart.current) / 1000 : null);
     }
-  }, [cells, formCells, completed, onComplete]);
+  }, [cells, formCells, completed, cellBlockCoverage, onComplete]);
 
-  // Keyboard: spacebar triggers auto-reveal of losing cells
+  // ── Keyboard: spacebar ────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => {
       if (e.code === 'Space' && !e.repeat) {
@@ -356,11 +453,10 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     return () => window.removeEventListener('keydown', onKey);
   }, [autoRevealLosers]);
 
-
   const hdBg   = `linear-gradient(135deg, ${palette.hdr[0]}, ${palette.hdr[1]}, ${palette.hdr[2]})`;
   const cardBg = `linear-gradient(170deg, ${palette.bg[0]}, ${palette.bg[1]})`;
 
-  // ── Lucky number rendering ───────────────────────────────────────────────
+  // ── Lucky number rendering ────────────────────────────────────────────────
   const renderLuckyNum = (n, i, extraClass = '', extraStyle = {}) => {
     const isMatching = completed && matchedNums.has(n);
     return (
@@ -532,8 +628,8 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
             className="scratch-canvas"
             width={CW}
             height={CH}
-            onMouseDown={(e) => { pointerDown.current = true; scratchAt(e.clientX, e.clientY); }}
-            onTouchStart={(e) => { pointerDown.current = true; scratchAt(e.touches[0].clientX, e.touches[0].clientY); }}
+            onMouseDown={(e) => { pointerDown.current = true; lastPosRef.current = null; scratchAt(e.clientX, e.clientY); }}
+            onTouchStart={(e) => { pointerDown.current = true; lastPosRef.current = null; scratchAt(e.touches[0].clientX, e.touches[0].clientY); }}
           />
         )}
       </div>

@@ -86,10 +86,12 @@ export default function App() {
   const phaseRef = useRef('intro');
 
   // ── Card / picker state ───────────────────────────────────────────────────
-  const [cardData,      setCardData]      = useState(null);
-  const [winMsg,        setWinMsg]        = useState(null);
-  const [cardFlash,     setCardFlash]     = useState('');
-  const [pickerOptions, setPickerOptions] = useState([]);
+  const [cardData,       setCardData]       = useState(null);
+  const [winMsg,         setWinMsg]         = useState(null);
+  const [cardFlash,      setCardFlash]      = useState('');
+  const [pickerOptions,  setPickerOptions]  = useState([]);
+  // Flow State: result shown inline on picker — {index, won, prize} | null
+  const [flowPickResult, setFlowPickResult] = useState(null);
 
   // ── Progression ──────────────────────────────────────────────────────────
   const [consecWins,   setConsecWins]   = useState(0);
@@ -288,15 +290,15 @@ export default function App() {
     }));
   }, [slideOut, slideInNew, stopTimer]);
 
-  // ── Card complete handler ─────────────────────────────────────────────────
+  // ── Card complete handler (normal scratch only — flow state is handled by handleFlowPick)
   const handleComplete = useCallback((scratchSecs) => {
     if (phaseRef.current !== 'playing') return;
     setPhase('result'); phaseRef.current = 'result';
 
-    const card = cardRef.current;
+    const card  = cardRef.current;
     if (!card) return;
-    const prize    = card.totalPrize;
-    const isFlow   = flowStateRef.current;
+    const prize = card.totalPrize;
+    const td    = 2000;
 
     if (prize > 0) {
       updateBalance(b => b + prize);
@@ -304,8 +306,6 @@ export default function App() {
       setBiggestWin(b => Math.max(b, prize));
       applyWinFeedback(prize);
 
-      // Win toasts
-      const td = isFlow ? 1200 : 2000;
       addToast(`💰 +${prize.toLocaleString()} coins!`, { type: 'gold', duration: td });
       if (prize > 5000) addToast('💎 JACKPOT!', { type: 'jackpot', size: 'large', duration: td });
       else if (prize > 500) addToast('🤑 Big money!', { type: 'gold', duration: td });
@@ -317,33 +317,24 @@ export default function App() {
         consecWinsRef.current = n;
         if (n === 1 && !seenRef.current.has('firstWin')) triggerMilestone('firstWin');
         if (n === 3) { triggerMilestone('onARoll'); addToast('🔥 Three in a row!', { type: 'orange', duration: td }); }
-        if (n === 5) { triggerMilestone('lucky5'); addToast("⚡ You're on FIRE!", { type: 'red', duration: td }); }
+        if (n === 5) { triggerMilestone('lucky5');  addToast("⚡ You're on FIRE!",  { type: 'red',    duration: td }); }
         if (n === 10) addToast('👑 UNSTOPPABLE', { type: 'gold', size: 'large', duration: td });
         return n;
       });
 
       if (prize >= 500) triggerMilestone('highRoller');
       setWinMsg({ text: `${prize >= 5000 ? '🏆 JACKPOT' : prize >= 500 ? '💎 BIG WIN' : prize >= 100 ? '⭐ WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`, tier: prize >= 5000 ? 'jackpot' : prize >= 500 ? 'big' : prize >= 100 ? 'medium' : 'small' });
-      if (!isFlow) updateHeat(prize >= 5000 ? 50 : prize >= 500 ? 35 : 18);
-      if (isFlow) {
-        const r = flowRoundRef.current + 1;
-        flowRoundRef.current = r;
-        setFlowRound(r);
-        if (r === 3) addToast('👀 Odds shifting...', { type: 'gold', duration: 1200 });
-        if (r === 5) addToast('😰 Getting risky...', { type: 'orange', anim: 'shake', duration: 1200 });
-        if (r >= 6) addToast('🎲 One winner left...', { type: 'red', anim: 'shake', duration: 1200 });
-      }
+      updateHeat(prize >= 5000 ? 50 : prize >= 500 ? 35 : 18);
     } else {
       consecWinsRef.current = 0;
       setConsecWins(0);
       soundRef.current?.tick(false);
-      setWinMsg({ text: isFlow ? '💔 FLOW STATE BROKEN!' : 'No match — better luck next time!', tier: 'none' });
-      if (isFlow) exitFlowState();
-      else updateHeat(-10);
+      setWinMsg({ text: 'No match — better luck next time!', tier: 'none' });
+      updateHeat(-10);
     }
 
     // Speed toasts
-    if (scratchSecs !== null && !isFlow) {
+    if (scratchSecs !== null) {
       if (scratchSecs < 3) addToast('⚡ Lightning round!', { type: 'blue' });
       if (scratchSecs < 4) {
         speedStreakRef.current++;
@@ -352,7 +343,7 @@ export default function App() {
         speedStreakRef.current = 0;
       }
     }
-    if (scratchSecs !== null && scratchSecs < 5 && !isFlow) {
+    if (scratchSecs !== null && scratchSecs < 5) {
       triggerMilestone('speedDemon');
       updateBalance(b => b + 5);
       setTotalWon(t => t + 5);
@@ -373,34 +364,92 @@ export default function App() {
     });
 
     const delay = prize > 0 ? 1500 : 1000;
-    // Pre-generate next picker during result delay
-    const pregenOptions = flowStateRef.current
-      ? generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current)
-      : generatePickerOptions(speedModeRef.current, balanceRef.current);
-    setTimeout(() => showPicker(pregenOptions), delay);
-  }, [applyWinFeedback, exitFlowState, goalAchieved, triggerMilestone, updateHeat, showPicker, addToast]);
+    setTimeout(() => showPicker(generatePickerOptions(speedModeRef.current, balanceRef.current)), delay);
+  }, [applyWinFeedback, goalAchieved, triggerMilestone, updateHeat, showPicker, addToast]);
 
-  // ── Flow state: player picks → auto-scratch ───────────────────────────────
-  const handleFlowPick = useCallback((opt) => {
-    const { card, cost } = opt;
+  // ── Flow state: player picks → resolve inline, no navigation ────────────
+  const handleFlowPick = useCallback((index) => {
+    const opt = pickerOptions[index];
+    if (!opt || !opt.canAfford) return;
+
     soundRef.current?.deal();
-    updateBalance(b => b - cost);
-    setTotalSpent(s => s + cost);
+    updateBalance(b => b - opt.cost);
+    setTotalSpent(s => s + opt.cost);
     setCardsPlayed(c => c + 1);
-    cardRef.current = card;
-    setCardData(card);
-    slideOut(() => slideInNew(() => {
-      setSlideTarget('card');
-      setPhase('playing'); phaseRef.current = 'playing';
-      setTimeout(() => handleComplete(null), 80);
-    }));
-  }, [slideOut, slideInNew, handleComplete]);
+
+    const card  = opt.card;
+    const prize = card.totalPrize;
+    const won   = prize > 0;
+    const td    = 1200;
+
+    if (won) {
+      updateBalance(b => b + prize);
+      setTotalWon(t => t + prize);
+      setBiggestWin(b => Math.max(b, prize));
+      applyWinFeedback(prize);
+
+      addToast(`💰 +${prize.toLocaleString()} coins!`, { type: 'gold', duration: td });
+      if (prize > 5000) addToast('💎 JACKPOT!', { type: 'jackpot', size: 'large', duration: td });
+      else if (prize > 500) addToast('🤑 Big money!', { type: 'gold', duration: td });
+
+      setConsecWins(c => {
+        const n = c + 1;
+        consecWinsRef.current = n;
+        if (n === 3) addToast('🔥 Three in a row!', { type: 'orange', duration: td });
+        if (n === 5) addToast("⚡ You're on FIRE!", { type: 'red', duration: td });
+        return n;
+      });
+
+      // Advance flow round and show odds-warning toasts
+      const r = flowRoundRef.current + 1;
+      flowRoundRef.current = r;
+      setFlowRound(r);
+      if (r === 3) addToast('👀 Odds shifting...', { type: 'gold', duration: td });
+      if (r === 5) addToast('😰 Getting risky...', { type: 'orange', anim: 'shake', duration: td });
+      if (r >= 6)  addToast('🎲 One winner left...', { type: 'red',  anim: 'shake', duration: td });
+    } else {
+      consecWinsRef.current = 0;
+      setConsecWins(0);
+      soundRef.current?.tick(false);
+      exitFlowState();
+    }
+
+    // Goal / low-balance checks
+    setBalance(b => {
+      if (!goalAchieved && b >= GOAL_BALANCE) {
+        setGoalAchieved(true);
+        triggerMilestone('goalHit');
+        if (!goalToastRef.current) { goalToastRef.current = true; addToast('📈 Doubled up!', { type: 'green' }); }
+        confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#D4AF37','#FFE066','#fff'] });
+      }
+      if (!lowBalanceRef.current && b < STARTING_BALANCE * 0.25 && b > 0) {
+        lowBalanceRef.current = true;
+        addToast('😬 Running low...', { type: 'red', anim: 'shake' });
+      }
+      return b;
+    });
+
+    // Show result on the picked card for 500ms, then refresh or exit
+    setFlowPickResult({ index, won, prize });
+    setTimeout(() => {
+      setFlowPickResult(null);
+      if (flowStateRef.current) {
+        // Won — stay in flow state, refresh cards in place
+        const newOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current);
+        setPickerOptions(newOpts);
+      } else {
+        // Lost — flow state ended, slide to normal picker
+        showPicker();
+      }
+    }, 500);
+  }, [pickerOptions, applyWinFeedback, exitFlowState, goalAchieved, triggerMilestone,
+      addToast, showPicker]);
 
   // ── Normal: player picks from picker ──────────────────────────────────────
   const handlePick = useCallback((index) => {
     const opt = pickerOptions[index];
     if (!opt || !opt.canAfford) return;
-    if (flowStateRef.current) { handleFlowPick(opt); return; }
+    if (flowStateRef.current) { handleFlowPick(index); return; }
 
     const { card, cost } = opt;
     soundRef.current?.deal();
@@ -449,7 +498,7 @@ export default function App() {
     seenRef.current = new Set();
     setBalance(STARTING_BALANCE);
     setTotalWon(0); setTotalSpent(0); setCardsPlayed(0); setBiggestWin(0);
-    setCardData(null); setPickerOptions([]);
+    setCardData(null); setPickerOptions([]); setFlowPickResult(null);
     setWinMsg(null); setCardFlash(''); setSlideClass(''); setSlideTarget('card');
     setConsecWins(0); setGoalAchieved(false); setMilestone(null);
     resetTimer(speedMode ? SPEED_TIME : NORMAL_TIME);
@@ -502,34 +551,29 @@ export default function App() {
         {/* Heat meter — full width, directly above card/picker */}
         {isActive && <HeatMeter heat={heat} flowState={flowState} flowRound={flowRound} />}
 
-        {/* Card view */}
+        {/* Card view — normal scratch only (never shown during flow state) */}
         {(phase === 'playing' || phase === 'result') && cardData && slideTarget === 'card' && (
           <div className={`card-area ${cardFlash} ${slideClass}`}>
-            {flowState ? (
-              /* Flow State: auto-scratched, just show result flash */
-              <div className="flow-reveal-card">
-                <div className="flow-reveal-flash" />
-                {winMsg && <div className={`result-msg tier-${winMsg.tier} flow-msg`}>{winMsg.text}</div>}
-              </div>
-            ) : (
-              <>
-                <ScratchCard
-                  key={`${cardData.theme.id}-${cardsPlayed}`}
-                  cardData={cardData}
-                  onComplete={handleComplete}
-                  soundScratch={sound.scratch}
-                  heat={heat}
-                />
-                {winMsg && <div className={`result-msg tier-${winMsg.tier}`}>{winMsg.text}</div>}
-              </>
-            )}
+            <ScratchCard
+              key={`${cardData.theme.id}-${cardsPlayed}`}
+              cardData={cardData}
+              onComplete={handleComplete}
+              soundScratch={sound.scratch}
+              heat={heat}
+            />
+            {winMsg && <div className={`result-msg tier-${winMsg.tier}`}>{winMsg.text}</div>}
           </div>
         )}
 
-        {/* Picker view */}
+        {/* Picker view — also the persistent flow state screen */}
         {phase === 'picking' && slideTarget === 'picker' && (
           <div className={`picker-area ${slideClass}`}>
-            <CardPicker options={pickerOptions} onPick={handlePick} flowState={flowState} />
+            <CardPicker
+              options={pickerOptions}
+              onPick={handlePick}
+              flowState={flowState}
+              flowPickResult={flowPickResult}
+            />
           </div>
         )}
       </main>
