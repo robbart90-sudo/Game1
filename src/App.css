@@ -262,11 +262,22 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   border-color: rgba(255,255,255,0.25);
 }
 
-/* ── Card slide animations ──────────────────────────────────────────────── */
-.card-area.slide-out-left {
-  animation: slideOutLeft 0.38s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+/* ── Picker area ────────────────────────────────────────────────────────── */
+.picker-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
 }
-.card-area.slide-in-right {
+
+/* ── Slide animations (shared by .card-area and .picker-area) ───────────── */
+.card-area.slide-out-left,
+.picker-area.slide-out-left {
+  animation: slideOutLeft 0.36s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+.card-area.slide-in-right,
+.picker-area.slide-in-right {
   animation: slideInRight 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 

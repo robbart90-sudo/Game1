@@ -1,37 +1,52 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import ScratchCard from './components/ScratchCard';
-import BalanceBar  from './components/BalanceBar';
-import PrizeTierTable   from './components/PrizeTierTable';
-import GameOverScreen   from './components/GameOverScreen';
-import TimerDisplay     from './components/TimerDisplay';
-import MilestoneBanner  from './components/MilestoneBanner';
-import GoalBar          from './components/GoalBar';
-import { useSound }     from './hooks/useSound';
+import ScratchCard    from './components/ScratchCard';
+import CardPicker     from './components/CardPicker';
+import BalanceBar     from './components/BalanceBar';
+import PrizeTierTable from './components/PrizeTierTable';
+import GameOverScreen from './components/GameOverScreen';
+import TimerDisplay   from './components/TimerDisplay';
+import MilestoneBanner from './components/MilestoneBanner';
+import GoalBar        from './components/GoalBar';
+import { useSound }   from './hooks/useSound';
 import { generateCard, STARTING_BALANCE } from './utils/lottery';
 import { getRandomTheme } from './utils/themes';
 import './App.css';
 
-const NORMAL_TIME = 60;
-const SPEED_TIME  = 30;
+const NORMAL_TIME  = 60;
+const SPEED_TIME   = 30;
 const GOAL_BALANCE = STARTING_BALANCE * 2; // 400
+const PICKER_COUNT = 6;
 
 // ─── Milestone definitions ────────────────────────────────────────────────────
 const MILESTONES = {
-  firstWin:   { emoji: '🎉', label: 'FIRST WIN!',         sub: 'OFF TO THE RACES' },
-  onARoll:    { emoji: '🔥', label: 'ON A ROLL!',          sub: '3 WINS IN A ROW'  },
-  highRoller: { emoji: '💎', label: 'HIGH ROLLER!',        sub: '500+ WIN'         },
+  firstWin:   { emoji: '🎉', label: 'FIRST WIN!',         sub: 'OFF TO THE RACES'    },
+  onARoll:    { emoji: '🔥', label: 'ON A ROLL!',          sub: '3 WINS IN A ROW'     },
+  highRoller: { emoji: '💎', label: 'HIGH ROLLER!',        sub: '500+ WIN'            },
   speedDemon: { emoji: '⚡', label: 'SPEED DEMON!',        sub: 'CARD SCRATCHED < 5S' },
-  goalHit:    { emoji: '🏆', label: 'GOAL ACHIEVED!',      sub: 'BALANCE DOUBLED'  },
-  lucky5:     { emoji: '🌟', label: '5 IN A ROW!',         sub: 'UNSTOPPABLE'      },
+  goalHit:    { emoji: '🏆', label: 'GOAL ACHIEVED!',      sub: 'BALANCE DOUBLED'     },
+  lucky5:     { emoji: '🌟', label: '5 IN A ROW!',         sub: 'UNSTOPPABLE'         },
 };
 
-// Pre-generate a card, ensuring player can afford it
-function makeCard(speedMode, balanceRef) {
+// Build one card option object
+function makeOption(speedMode, balance, forceWin = false) {
   const theme = getRandomTheme();
   const cost  = speedMode ? 1 : theme.price;
-  if (balanceRef.current < cost) return null;
-  return { card: generateCard(speedMode ? { ...theme, price: 1 } : theme), cost };
+  const card  = generateCard(speedMode ? { ...theme, price: 1 } : theme, forceWin);
+  return { theme, card, cost, canAfford: balance >= cost };
+}
+
+// Generate 6 picker options (1 guaranteed winner, 5 normal)
+function generatePickerOptions(speedMode, balance) {
+  const options = [];
+  // 1 forced winner
+  options.push(makeOption(speedMode, balance, true));
+  // 5 standard
+  for (let i = 0; i < PICKER_COUNT - 1; i++) {
+    options.push(makeOption(speedMode, balance));
+  }
+  // Shuffle
+  return options.sort(() => Math.random() - 0.5);
 }
 
 export default function App() {
@@ -42,37 +57,42 @@ export default function App() {
   const [cardsPlayed, setCardsPlayed] = useState(0);
   const [biggestWin,  setBiggestWin]  = useState(0);
 
+  // ── Phase machine ────────────────────────────────────────────────────────
+  // 'intro' | 'playing' | 'result' | 'picking' | 'transitioning'
+  const [phase,         setPhase]         = useState('intro');
+  const [slideTarget,   setSlideTarget]   = useState('card'); // 'card' | 'picker'
+  const [slideClass,    setSlideClass]    = useState('');
+
   // ── Card state ───────────────────────────────────────────────────────────
-  // phase: 'intro' | 'playing' | 'result' | 'transitioning'
-  const [phase,       setPhase]       = useState('intro');
-  const [cardData,    setCardData]    = useState(null);
-  const [nextCardData, setNextCardData] = useState(null);
-  const [winMsg,      setWinMsg]      = useState(null);
-  const [cardFlash,   setCardFlash]   = useState('');
-  const [slideClass,  setSlideClass]  = useState('');
+  const [cardData,      setCardData]      = useState(null);
+  const [winMsg,        setWinMsg]        = useState(null);
+  const [cardFlash,     setCardFlash]     = useState('');
+
+  // ── Picker state ─────────────────────────────────────────────────────────
+  const [pickerOptions, setPickerOptions] = useState([]);
 
   // ── Progression ──────────────────────────────────────────────────────────
-  const [consecWins,    setConsecWins]    = useState(0);
-  const [goalAchieved,  setGoalAchieved]  = useState(false);
-  const [milestone,     setMilestone]     = useState(null);
+  const [consecWins,   setConsecWins]   = useState(0);
+  const [goalAchieved, setGoalAchieved] = useState(false);
+  const [milestone,    setMilestone]    = useState(null);
 
   // ── Timer ────────────────────────────────────────────────────────────────
-  const [timeLeft,     setTimeLeft]     = useState(NORMAL_TIME);
-  const [timerActive,  setTimerActive]  = useState(false);
-  const [speedMode,    setSpeedMode]    = useState(false);
+  const [timeLeft,    setTimeLeft]    = useState(NORMAL_TIME);
+  const [timerActive, setTimerActive] = useState(false);
+  const [speedMode,   setSpeedMode]   = useState(false);
 
-  // ── UI state ─────────────────────────────────────────────────────────────
-  const [gameOver,   setGameOver]   = useState(false);
-  const [goReason,   setGoReason]   = useState('coins');
-  const [showTiers,  setShowTiers]  = useState(false);
-  const [shaking,    setShaking]    = useState(false);
+  // ── UI ───────────────────────────────────────────────────────────────────
+  const [gameOver,  setGameOver]  = useState(false);
+  const [goReason,  setGoReason]  = useState('coins');
+  const [showTiers, setShowTiers] = useState(false);
+  const [shaking,   setShaking]   = useState(false);
 
-  // ── Sync refs for stale-closure safety ───────────────────────────────────
-  const cardRef        = useRef(null);
-  const balanceRef     = useRef(STARTING_BALANCE);
-  const seenRef        = useRef(new Set());
-  const speedModeRef   = useRef(false);
-  const phaseRef       = useRef('intro');
+  // ── Refs ─────────────────────────────────────────────────────────────────
+  const cardRef      = useRef(null);
+  const balanceRef   = useRef(STARTING_BALANCE);
+  const seenRef      = useRef(new Set());
+  const speedModeRef = useRef(false);
+  const phaseRef     = useRef('intro');
 
   const updateBalance = (fn) => {
     setBalance(b => {
@@ -84,11 +104,10 @@ export default function App() {
 
   const sound = useSound();
 
-  // Keep refs in sync
   useEffect(() => { speedModeRef.current = speedMode; }, [speedMode]);
-  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { phaseRef.current = phase; },        [phase]);
 
-  // ── Timer countdown ──────────────────────────────────────────────────────
+  // ── Timer countdown ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!timerActive || timeLeft <= 0) return;
     const id = setTimeout(() => {
@@ -106,7 +125,7 @@ export default function App() {
     return () => clearTimeout(id);
   }, [timerActive, timeLeft, sound]);
 
-  // ── Trigger milestone banner (dedup) ─────────────────────────────────────
+  // ── Milestone banner ──────────────────────────────────────────────────────
   const triggerMilestone = useCallback((key) => {
     if (seenRef.current.has(key)) return;
     seenRef.current.add(key);
@@ -114,10 +133,9 @@ export default function App() {
     setTimeout(() => setMilestone(null), 3000);
   }, []);
 
-  // ── Win feedback by tier ──────────────────────────────────────────────────
+  // ── Win feedback ──────────────────────────────────────────────────────────
   const applyWinFeedback = useCallback((prize) => {
     if (prize <= 0) return;
-
     if (prize < 100) {
       setCardFlash('flash-gold');
       setTimeout(() => setCardFlash(''), 600);
@@ -147,11 +165,37 @@ export default function App() {
     }
   }, [sound]);
 
-  // ── Start the first card ──────────────────────────────────────────────────
+  // ── Slide helper: animate out current view, then run callback ────────────
+  const slideOut = useCallback((onDone) => {
+    setSlideClass('slide-out-left');
+    setTimeout(() => {
+      setSlideClass('');
+      onDone();
+    }, 370);
+  }, []);
+
+  const slideInNew = useCallback((onMount) => {
+    setSlideClass('slide-in-right');
+    onMount();
+    setTimeout(() => setSlideClass(''), 420);
+  }, []);
+
+  // ── Start first card (from intro) ────────────────────────────────────────
   const startFirstCard = useCallback(() => {
-    const result = makeCard(speedModeRef.current, balanceRef);
-    if (!result) return;
-    const { card, cost } = result;
+    // Immediately show the picker
+    const options = generatePickerOptions(speedModeRef.current, balanceRef.current);
+    setPickerOptions(options);
+    setSlideTarget('picker');
+    setPhase('picking');
+    setTimerActive(true);
+  }, []);
+
+  // ── Player picks a card from the picker ──────────────────────────────────
+  const handlePick = useCallback((index) => {
+    const opt = pickerOptions[index];
+    if (!opt || !opt.canAfford) return;
+
+    const { card, cost } = opt;
 
     sound.deal();
     updateBalance(b => b - cost);
@@ -161,18 +205,17 @@ export default function App() {
     setCardFlash('');
 
     cardRef.current = card;
-    setCardData(card);
-    setPhase('playing');
 
-    // Pre-generate next card
-    const nextResult = makeCard(speedModeRef.current, { current: balanceRef.current - cost });
-    setNextCardData(nextResult ? nextResult.card : null);
+    slideOut(() => {
+      slideInNew(() => {
+        setCardData(card);
+        setSlideTarget('card');
+        setPhase('playing');
+      });
+    });
+  }, [pickerOptions, sound, slideOut, slideInNew]);
 
-    // Start timer on first card
-    setTimerActive(true);
-  }, [sound]);
-
-  // ── Card completed (95% cells revealed) ──────────────────────────────────
+  // ── Card completed ────────────────────────────────────────────────────────
   const handleComplete = useCallback((scratchSecs) => {
     if (phaseRef.current !== 'playing') return;
     setPhase('result');
@@ -215,7 +258,7 @@ export default function App() {
       setTotalWon(t => t + 5);
     }
 
-    // Goal check
+    // Goal check (read latest balance via setBalance functional form)
     setBalance(b => {
       if (!goalAchieved && b >= GOAL_BALANCE) {
         setGoalAchieved(true);
@@ -225,64 +268,35 @@ export default function App() {
       return b;
     });
 
-    // Auto-progress delay: 1s for loss, 1.5s for win
+    // After brief result delay, check affordability then show picker
     const delay = prize > 0 ? 1500 : 1000;
     setTimeout(() => {
-      advanceCard();
+      showPicker();
     }, delay);
   }, [applyWinFeedback, goalAchieved, triggerMilestone, sound]);
 
-  // ── Advance to next card ──────────────────────────────────────────────────
-  const advanceCard = useCallback(() => {
-    // Check if game over (out of coins or time)
-    const lowestCost = speedModeRef.current ? 1 : 1;
-    if (balanceRef.current < lowestCost) {
+  // ── Show the picker after a card completes ────────────────────────────────
+  const showPicker = useCallback(() => {
+    // Check if out of coins (minimum card cost is 1)
+    if (balanceRef.current < 1) {
       setTimerActive(false);
       setGameOver(true);
       setGoReason('coins');
       return;
     }
 
-    // Start slide transition
-    setPhase('transitioning');
-    setSlideClass('slide-out-left');
+    const options = generatePickerOptions(speedModeRef.current, balanceRef.current);
+    setPickerOptions(options);
 
-    setTimeout(() => {
-      // Load pre-generated next card or make a new one
-      let nextCard = nextCardData;
-      let cost = speedModeRef.current ? 1 : (nextCard?.theme?.price ?? 1);
-
-      if (!nextCard) {
-        const result = makeCard(speedModeRef.current, balanceRef);
-        if (!result) {
-          setTimerActive(false);
-          setGameOver(true);
-          setGoReason('coins');
-          return;
-        }
-        nextCard = result.card;
-        cost     = result.cost;
-      }
-
-      sound.deal();
-      updateBalance(b => b - cost);
-      setTotalSpent(s => s + cost);
-      setCardsPlayed(c => c + 1);
-      setWinMsg(null);
-      setCardFlash('');
-
-      cardRef.current = nextCard;
-      setCardData(nextCard);
-      setSlideClass('slide-in-right');
-      setPhase('playing');
-
-      // Pre-generate the next card after this one
-      const afterNext = makeCard(speedModeRef.current, { current: balanceRef.current - cost });
-      setNextCardData(afterNext ? afterNext.card : null);
-
-      setTimeout(() => setSlideClass(''), 420);
-    }, 380);
-  }, [nextCardData, sound]);
+    slideOut(() => {
+      slideInNew(() => {
+        setWinMsg(null);
+        setCardFlash('');
+        setSlideTarget('picker');
+        setPhase('picking');
+      });
+    });
+  }, [slideOut, slideInNew]);
 
   // ── End session manually ──────────────────────────────────────────────────
   const handleEndSession = useCallback(() => {
@@ -291,7 +305,7 @@ export default function App() {
     setGoReason('manual');
   }, []);
 
-  // ── Speed mode toggle (only before game starts) ───────────────────────────
+  // ── Speed mode toggle (before timer starts) ───────────────────────────────
   const toggleSpeed = useCallback(() => {
     if (timerActive) return;
     setSpeedMode(s => {
@@ -301,7 +315,7 @@ export default function App() {
     });
   }, [timerActive]);
 
-  // ── Play again (full reset) ───────────────────────────────────────────────
+  // ── Play again ───────────────────────────────────────────────────────────
   const handlePlayAgain = useCallback(() => {
     balanceRef.current = STARTING_BALANCE;
     seenRef.current    = new Set();
@@ -311,10 +325,11 @@ export default function App() {
     setCardsPlayed(0);
     setBiggestWin(0);
     setCardData(null);
-    setNextCardData(null);
+    setPickerOptions([]);
     setWinMsg(null);
     setCardFlash('');
     setSlideClass('');
+    setSlideTarget('card');
     setConsecWins(0);
     setGoalAchieved(false);
     setMilestone(null);
@@ -325,28 +340,24 @@ export default function App() {
     setPhase('intro');
   }, [speedMode]);
 
-  const isPlaying = phase === 'playing' || phase === 'result' || phase === 'transitioning';
+  const isActive = phase !== 'intro';
 
   return (
     <div className={`app ${shaking ? 'shaking' : ''}`}>
 
-      {/* ── Header row ─────────────────────────── */}
+      {/* ── Header ──────────────────────────── */}
       <header className="app-header">
         <h1 className="title">🎰 Scratch &amp; Win</h1>
         <div className="header-right">
-          <TimerDisplay
-            timeLeft={timeLeft}
-            active={timerActive}
-            speedMode={speedMode}
-          />
+          <TimerDisplay timeLeft={timeLeft} active={timerActive} speedMode={speedMode} />
           <button className="info-btn" onClick={() => setShowTiers(true)}>ℹ️</button>
         </div>
       </header>
 
-      {/* ── Goal bar ───────────────────────────── */}
+      {/* ── Goal bar ────────────────────────── */}
       <GoalBar balance={balance} achieved={goalAchieved} />
 
-      {/* ── Stats bar ──────────────────────────── */}
+      {/* ── Stats bar ───────────────────────── */}
       <BalanceBar
         balance={balance}
         totalWon={totalWon}
@@ -355,8 +366,10 @@ export default function App() {
         onSpeedToggle={toggleSpeed}
       />
 
-      {/* ── Game area ──────────────────────────── */}
+      {/* ── Game area ───────────────────────── */}
       <main className="game-area">
+
+        {/* Intro */}
         {phase === 'intro' && (
           <div className="intro">
             <div className="intro-icon">🎟️</div>
@@ -368,7 +381,8 @@ export default function App() {
           </div>
         )}
 
-        {cardData && isPlaying && (
+        {/* Card view */}
+        {(phase === 'playing' || phase === 'result') && cardData && slideTarget === 'card' && (
           <div className={`card-area ${cardFlash} ${slideClass}`}>
             <ScratchCard
               key={`${cardData.theme.id}-${cardsPlayed}`}
@@ -383,10 +397,25 @@ export default function App() {
             )}
           </div>
         )}
+
+        {/* Picker view */}
+        {phase === 'picking' && slideTarget === 'picker' && (
+          <div className={`picker-area ${slideClass}`}>
+            <CardPicker
+              options={pickerOptions}
+              onPick={handlePick}
+            />
+          </div>
+        )}
+
+        {/* Transitioning — empty so slide-out clears cleanly */}
+        {phase === 'transitioning' && (
+          <div className={`card-area ${slideClass}`} />
+        )}
       </main>
 
-      {/* ── End Session button ──────────────────── */}
-      {isPlaying && !gameOver && (
+      {/* ── End Session button ───────────────── */}
+      {isActive && !gameOver && (
         <footer className="app-footer">
           <button className="end-session-btn" onClick={handleEndSession}>
             End Session
@@ -394,7 +423,7 @@ export default function App() {
         </footer>
       )}
 
-      {/* ── Overlays ───────────────────────────── */}
+      {/* ── Overlays ────────────────────────── */}
       <MilestoneBanner milestone={milestone} />
 
       {gameOver && (

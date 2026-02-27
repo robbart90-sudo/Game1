@@ -11,7 +11,14 @@ const TIERS = [
   { id: 'none',    matches: 0, mult: 0,   chance: 0.50  },
 ];
 
-function drawTier() {
+function drawTier(forceWin = false) {
+  if (forceWin) {
+    const r = Math.random();
+    if (r < 0.01) return TIERS[0]; // jackpot
+    if (r < 0.05) return TIERS[1]; // big
+    if (r < 0.20) return TIERS[2]; // medium
+    return TIERS[3];               // small
+  }
   const r = Math.random();
   let cum = 0;
   for (const t of TIERS) {
@@ -42,8 +49,8 @@ function shuffle(arr) {
   return a;
 }
 
-export function generateCard(theme) {
-  const tier = drawTier();
+export function generateCard(theme, forceWin = false) {
+  const tier = drawTier(forceWin);
   const luckyNumbers = pickUnique(1, NUMBER_MAX, LUCKY_COUNT);
   const luckySet = new Set(luckyNumbers);
   const prizeEach = tier.matches > 0 ? Math.floor((theme.price * tier.mult) / tier.matches) : 0;
