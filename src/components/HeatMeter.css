@@ -15,42 +15,42 @@
   font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.1em;
-  color: rgba(240,230,211,0.45);
+  color: rgba(0,0,0,0.38);
   font-family: 'Arial Black', Arial, sans-serif;
   transition: color 0.3s;
 }
 
 .hot .heat-label {
-  color: #ff8c00;
+  color: #D84A00;
   animation: heatFlicker 0.75s ease-in-out infinite alternate;
 }
 
 .flow .heat-label {
-  color: #FFD700;
+  color: #C08000;
   animation: flowLabelPulse 0.55s ease-in-out infinite alternate;
 }
 
 @keyframes heatFlicker {
-  from { color: #ff8c00; text-shadow: none; }
-  to   { color: #ff4500; text-shadow: 0 0 8px rgba(255,69,0,0.6); }
+  from { color: #D84A00; text-shadow: none; }
+  to   { color: #D81F26; text-shadow: 0 0 6px rgba(216,31,38,0.5); }
 }
 
 @keyframes flowLabelPulse {
-  from { color: #FFD700; text-shadow: 0 0 6px rgba(255,215,0,0.4); }
-  to   { color: #fff;    text-shadow: 0 0 18px rgba(255,215,0,0.9); }
+  from { color: #C08000; text-shadow: none; }
+  to   { color: #8B5C00; text-shadow: 0 0 8px rgba(255,210,0,0.6); }
 }
 
 .heat-pct {
   font-size: 0.62rem;
   font-weight: 700;
-  color: rgba(240,230,211,0.35);
+  color: rgba(0,0,0,0.35);
   font-family: monospace;
   letter-spacing: 0.06em;
 }
 
 .heat-track {
   height: 7px;
-  background: rgba(255,255,255,0.07);
+  background: rgba(0,0,0,0.08);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -68,7 +68,7 @@
 }
 
 .flow-fill {
-  background: linear-gradient(90deg, #6B5010, #D4AF37, #FFE066, #D4AF37, #6B5010);
+  background: linear-gradient(90deg, #A87000, #FFD200, #FFE866, #FFD200, #A87000);
   background-size: 200% 100%;
   animation: flowShimmer 1.2s linear infinite;
   transition: width 0.15s ease-out;
@@ -76,7 +76,7 @@
 
 @keyframes hotPulse {
   from { filter: brightness(1); box-shadow: none; }
-  to   { filter: brightness(1.5); box-shadow: 0 0 10px rgba(255,140,0,0.6); }
+  to   { filter: brightness(1.3); box-shadow: 0 0 8px rgba(255,100,0,0.5); }
 }
 
 @keyframes flowShimmer {

@@ -3,7 +3,7 @@
   position: fixed;
   inset: 0;
   z-index: 900;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -12,14 +12,14 @@
 .tut-card {
   width: 100%;
   max-width: 420px;
-  background: linear-gradient(160deg, #1e1000, #0e0700);
-  border: 1px solid rgba(212, 175, 55, 0.38);
+  background: #fff;
+  border: 2.5px solid #D81F26;
   border-radius: 24px 24px 0 0;
   padding: 24px 28px 34px;
   position: relative;
   box-shadow:
-    0 -20px 70px rgba(0, 0, 0, 0.8),
-    0 0 50px rgba(212, 175, 55, 0.08);
+    0 -8px 0 rgba(0,0,0,0.12),
+    0 -20px 50px rgba(0, 0, 0, 0.22);
   cursor: pointer;
   user-select: none;
 }
@@ -48,7 +48,7 @@
   right: 18px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(0, 0, 0, 0.32);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -57,14 +57,14 @@
   border-radius: 8px;
   transition: color 0.2s;
 }
-.tut-skip:hover { color: rgba(255, 255, 255, 0.65); }
+.tut-skip:hover { color: rgba(0, 0, 0, 0.55); }
 
 /* Step label */
 .tut-step-label {
   font-size: 0.6rem;
   font-weight: 900;
   letter-spacing: 0.22em;
-  color: rgba(212, 175, 55, 0.55);
+  color: rgba(216, 31, 38, 0.50);
   text-align: center;
   margin-bottom: 16px;
 }
@@ -74,16 +74,15 @@
   font-family: 'Arial Black', Arial, sans-serif;
   font-size: 1.25rem;
   font-weight: 900;
-  color: #F0E6D3;
+  color: #1A1A1A;
   text-align: center;
   margin: 14px 0 8px;
-  text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
 }
 
 .tut-body {
   font-size: 0.88rem;
   line-height: 1.55;
-  color: rgba(240, 230, 211, 0.75);
+  color: rgba(0, 0, 0, 0.55);
   text-align: center;
   max-width: 300px;
   margin: 0 auto 20px;
@@ -93,8 +92,8 @@
 .tut-next-btn {
   display: block;
   width: 100%;
-  background: linear-gradient(135deg, #D4AF37, #B8860B);
-  color: #000;
+  background: #D81F26;
+  color: #fff;
   border: none;
   border-radius: 14px;
   padding: 13px;
@@ -104,12 +103,13 @@
   letter-spacing: 0.04em;
   cursor: pointer;
   margin-bottom: 16px;
-  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35);
+  box-shadow: 0 5px 0 #8B0F20, 0 8px 16px rgba(216,31,38,0.22);
   transition: transform 0.1s, box-shadow 0.1s;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .tut-next-btn:active {
-  transform: scale(0.97);
-  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.25);
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #8B0F20, 0 2px 4px rgba(216,31,38,0.15);
 }
 
 /* Step dots */
@@ -122,11 +122,11 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.14);
   transition: background 0.25s, transform 0.25s;
 }
 .tut-dot.active {
-  background: #D4AF37;
+  background: #D81F26;
   transform: scale(1.3);
 }
 
@@ -180,7 +180,7 @@
   font-size: 0.52rem;
   font-weight: 900;
   letter-spacing: 0.2em;
-  color: rgba(212, 175, 55, 0.55);
+  color: rgba(216, 31, 38, 0.55);
 }
 .tut-num-row { display: flex; gap: 5px; }
 .tut-num {
@@ -193,31 +193,29 @@
   font-family: 'Arial Black', Arial, sans-serif;
   font-size: 0.8rem;
   font-weight: 900;
-  background: rgba(255,255,255,0.06);
-  border: 1.5px solid rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.7);
+  background: rgba(0,0,0,0.05);
+  border: 1.5px solid rgba(0,0,0,0.15);
+  color: rgba(0,0,0,0.55);
 }
 .tut-num.tut-lucky {
-  background: rgba(212, 175, 55, 0.15);
-  border-color: rgba(212, 175, 55, 0.5);
-  color: #D4AF37;
-  box-shadow: 0 0 10px rgba(212,175,55,0.25);
+  background: rgba(216,31,38,0.08);
+  border-color: rgba(216,31,38,0.4);
+  color: #D81F26;
 }
 .tut-num.tut-win {
-  background: rgba(0,255,136,0.15);
-  border-color: #00ff88;
-  color: #00ff88;
+  background: rgba(0,150,58,0.12);
+  border-color: #00963A;
+  color: #00963A;
   font-size: 0.68rem;
-  box-shadow: 0 0 12px rgba(0,255,136,0.35);
   animation: winPulse 1s ease-in-out infinite;
 }
 @keyframes winPulse {
-  0%,100% { box-shadow: 0 0 10px rgba(0,255,136,0.3); }
-  50%     { box-shadow: 0 0 22px rgba(0,255,136,0.6); }
+  0%,100% { box-shadow: 0 0 6px rgba(0,150,58,0.25); }
+  50%     { box-shadow: 0 0 16px rgba(0,150,58,0.5); }
 }
 .tut-match-arrow {
   font-size: 1.1rem;
-  color: rgba(255,255,255,0.3);
+  color: rgba(0,0,0,0.25);
 }
 
 /* Step 2: Heat meter */
@@ -231,18 +229,18 @@
 .tut-heat-lbl {
   font-size: 0.7rem;
   font-weight: 900;
-  color: #ff8c00;
+  color: #D84A00;
   letter-spacing: 0.06em;
 }
 .tut-heat-pct {
   font-size: 0.7rem;
   font-weight: 900;
-  color: rgba(255,255,255,0.55);
+  color: rgba(0,0,0,0.38);
 }
 .tut-heat-track {
   width: 100%;
   height: 8px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.08);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -259,19 +257,20 @@
 }
 .tut-flow-pill {
   padding: 5px 14px;
-  background: linear-gradient(90deg, rgba(212,175,55,0.2), rgba(255,140,0,0.15));
-  border: 1px solid rgba(212,175,55,0.4);
+  background: #FFD200;
+  border: 1.5px solid #D4A000;
   border-radius: 20px;
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.1em;
-  color: #D4AF37;
+  color: #7A5C00;
   text-align: center;
+  box-shadow: 0 2px 0 #D4A000;
   animation: flowPulse 1.3s ease-in-out infinite;
 }
 @keyframes flowPulse {
-  0%,100% { box-shadow: 0 0 8px rgba(212,175,55,0.2); }
-  50%     { box-shadow: 0 0 20px rgba(212,175,55,0.5); }
+  0%,100% { box-shadow: 0 2px 0 #D4A000; }
+  50%     { box-shadow: 0 2px 0 #D4A000, 0 4px 12px rgba(212,160,0,0.35); }
 }
 
 /* Step 3: Timer */
@@ -279,17 +278,17 @@
   font-family: 'Arial Black', Arial, sans-serif;
   font-size: 2.6rem;
   font-weight: 900;
-  color: #F0E6D3;
-  text-shadow: 0 0 30px rgba(212,175,55,0.4);
+  color: #D81F26;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.10);
   animation: clockPulse 1s steps(1) infinite;
 }
 @keyframes clockPulse {
   0%,49% { opacity: 1; }
-  50%,100% { opacity: 0.55; }
+  50%,100% { opacity: 0.45; }
 }
 .tut-clock-sub {
   font-size: 0.58rem;
   font-weight: 900;
   letter-spacing: 0.25em;
-  color: rgba(255,255,255,0.4);
+  color: rgba(0,0,0,0.35);
 }

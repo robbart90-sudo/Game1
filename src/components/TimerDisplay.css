@@ -24,7 +24,7 @@
 
 .timer-track {
   fill: none;
-  stroke: rgba(255,255,255,0.08);
+  stroke: rgba(0,0,0,0.10);
   stroke-width: 3;
 }
 
@@ -39,33 +39,34 @@
 .timer-digits {
   font-size: 0.85rem;
   font-weight: 900;
-  color: #D4AF37;
+  color: #D81F26;
   font-family: 'Courier New', monospace;
   z-index: 1;
   letter-spacing: -0.05em;
 }
 
 .timer-wrap.urgent .timer-digits {
-  color: #ff3355;
+  color: #D81F26;
   animation: timerPulse 0.5s ease-in-out infinite alternate;
 }
 
 .timer-wrap.inactive .timer-digits {
-  color: rgba(255,255,255,0.3);
+  color: rgba(0,0,0,0.28);
 }
 
 .speed-badge {
   font-size: 0.6rem;
   font-weight: 900;
-  color: #ffe066;
+  color: #1A1A1A;
   letter-spacing: 0.1em;
-  background: rgba(255, 220, 0, 0.12);
+  background: #FFD200;
   padding: 2px 6px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 220, 0, 0.3);
+  border: 1px solid #C8A400;
+  box-shadow: 0 1px 0 #C8A400;
 }
 
 @keyframes timerPulse {
   from { opacity: 1; }
-  to   { opacity: 0.5; }
+  to   { opacity: 0.45; }
 }

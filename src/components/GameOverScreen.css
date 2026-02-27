@@ -2,8 +2,8 @@
   position: fixed;
   inset: 0;
   z-index: 500;
-  background: rgba(0, 0, 0, 0.88);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,12 +18,12 @@
 .go-card {
   width: 90%;
   max-width: 340px;
-  background: linear-gradient(160deg, #0d0d0d, #1a1208);
-  border: 2px solid #D4AF37;
+  background: #fff;
+  border: 2.5px solid #D81F26;
   border-radius: 24px;
   padding: 36px 28px 28px;
   text-align: center;
-  box-shadow: 0 0 60px rgba(212, 175, 55, 0.2), 0 24px 60px rgba(0,0,0,0.7);
+  box-shadow: 0 8px 0 rgba(0,0,0,0.18), 0 16px 48px rgba(0,0,0,0.22);
   animation: goSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
 }
 
@@ -34,23 +34,22 @@
 
 .go-icon {
   font-size: 3rem;
-  filter: drop-shadow(0 0 12px rgba(212,175,55,0.6));
   margin-bottom: 12px;
 }
 
 .go-title {
   font-size: 2.2rem;
   font-weight: 900;
-  color: #D4AF37;
+  color: #D81F26;
   font-family: 'Arial Black', Arial, sans-serif;
   letter-spacing: 0.06em;
   margin: 0 0 4px;
-  text-shadow: 0 0 24px rgba(212,175,55,0.4);
+  text-shadow: 0 2px 0 rgba(0,0,0,0.12);
 }
 
 .go-sub {
   font-size: 0.82rem;
-  color: rgba(255,255,255,0.35);
+  color: rgba(0,0,0,0.38);
   margin: 0 0 24px;
   letter-spacing: 0.06em;
 }
@@ -60,7 +59,7 @@
   flex-direction: column;
   gap: 0;
   margin-bottom: 28px;
-  border: 1px solid rgba(212,175,55,0.2);
+  border: 1.5px solid rgba(0,0,0,0.10);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -70,16 +69,16 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(0,0,0,0.07);
   font-size: 0.88rem;
 }
 
 .go-row span {
-  color: rgba(255,255,255,0.5);
+  color: rgba(0,0,0,0.45);
 }
 
 .go-row strong {
-  color: #fff;
+  color: #1A1A1A;
   font-weight: 800;
 }
 
@@ -92,19 +91,18 @@
 }
 
 .go-net span {
-  color: rgba(255,255,255,0.6);
+  color: rgba(0,0,0,0.50);
   font-weight: 700;
 }
 
 .go-net.profit strong {
-  color: #00ff88;
+  color: #00963A;
   font-size: 1.15rem;
   font-weight: 900;
-  text-shadow: 0 0 10px rgba(0,255,136,0.5);
 }
 
 .go-net.loss strong {
-  color: #ff3355;
+  color: #D81F26;
   font-size: 1.15rem;
   font-weight: 900;
 }
@@ -112,9 +110,8 @@
 .go-btn {
   width: 100%;
   padding: 16px;
-  background: linear-gradient(135deg, #8B6914, #D4AF37, #FFE066, #D4AF37);
-  background-size: 200% 100%;
-  color: #0d0d0d;
+  background: #D81F26;
+  color: #fff;
   border: none;
   border-radius: 16px;
   font-size: 1.1rem;
@@ -122,14 +119,16 @@
   cursor: pointer;
   font-family: 'Arial Black', Arial, sans-serif;
   letter-spacing: 0.04em;
-  transition: background-position 0.3s, transform 0.15s;
-  box-shadow: 0 4px 20px rgba(212,175,55,0.4);
+  transition: transform 0.1s, box-shadow 0.1s;
+  box-shadow: 0 6px 0 #8B0F20, 0 8px 20px rgba(216,31,38,0.28);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
 
 .go-btn:hover {
-  background-position: 100% 0;
+  box-shadow: 0 7px 0 #8B0F20, 0 10px 24px rgba(216,31,38,0.38);
 }
 
 .go-btn:active {
-  transform: scale(0.97);
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #8B0F20, 0 3px 6px rgba(216,31,38,0.2);
 }
