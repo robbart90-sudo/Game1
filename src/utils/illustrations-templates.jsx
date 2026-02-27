@@ -245,9 +245,6 @@ export function TplCapitol({ id, bg1, bg2, mid1, mid2, fg1, fg2, acc, charm, cx,
             fill={fg1} stroke={acc} strokeWidth="1" opacity="0.75" />
         ))}
       </g>
-      {/* Animated: clouds drifting slowly past the dome */}
-      <ellipse className="ill-cloud" cx="58"  cy="34" rx="28" ry="9"  fill="rgba(255,255,255,0.28)" />
-      <ellipse className="ill-cloud" cx="294" cy="42" rx="22" ry="7"  fill="rgba(255,255,255,0.20)" />
       {/* Animated: clouds drifting past the capitol dome */}
       <ellipse className="ill-cloud" cx="55"  cy="36" rx="26" ry="9"  fill="rgba(255,255,255,0.26)" />
       <ellipse className="ill-cloud" cx="298" cy="42" rx="22" ry="7"  fill="rgba(255,255,255,0.20)" />
