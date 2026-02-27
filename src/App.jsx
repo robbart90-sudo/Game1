@@ -41,10 +41,14 @@ function makeOption(speedMode, balance, forceWin = false, isDark = false) {
   return { theme, card, cost, canAfford: balance >= cost, isDark };
 }
 
+function sortOptions(opts) {
+  return opts.sort((a, b) => a.cost - b.cost || a.theme.name.localeCompare(b.theme.name));
+}
+
 function generatePickerOptions(speedMode, balance) {
   const options = [makeOption(speedMode, balance, true)];
   for (let i = 0; i < PICKER_COUNT - 1; i++) options.push(makeOption(speedMode, balance));
-  return options.sort(() => Math.random() - 0.5);
+  return sortOptions(options);
 }
 
 // Flow State: descending winner guarantee per round
@@ -56,7 +60,7 @@ function generateFlowPickerOptions(speedMode, balance, flowRound) {
     opts.push(makeOption(speedMode, balance, true, false));
   for (let i = 0; i < loserCount; i++)
     opts.push(makeOption(speedMode, balance, false, flowRound >= 4));
-  return opts.sort(() => Math.random() - 0.5);
+  return sortOptions(opts);
 }
 
 export default function App() {
