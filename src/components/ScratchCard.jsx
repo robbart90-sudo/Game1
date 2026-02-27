@@ -365,50 +365,67 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     const cx = (clientX - rect.left) * sx;
     const cy = (clientY - rect.top)  * sy;
 
-    // Convert to block coordinates (centre of brush in block-space)
+    // Convert to block coordinates (used for coverage / debris)
     const bxF = cx / BLOCK_W;
     const byF = cy / BLOCK_H;
 
-    // Brush radius in block-space
-    const BR  = brushRadius;
-    const brBlockX = BR / BLOCK_W;
-    const brBlockY = BR / BLOCK_H;
+    // ── Capsule brush ─────────────────────────────────────────────────────
+    // Scratch every block whose centre falls within `hw` pixels of the
+    // line segment from the last pointer position to the current one.
+    // This produces a realistic directional swipe rather than dot-stamps.
+    const hw  = brushRadius;   // half-width of scratch strip, in pixels
+    const hw2 = hw * hw;
 
-    // Line interpolation — fill gaps for fast swipes
-    const positions = [];
     if (lastPosRef.current) {
-      const { bxF: lbx, byF: lby } = lastPosRef.current;
-      const dist = Math.sqrt((bxF - lbx) ** 2 + (byF - lby) ** 2);
-      const steps = Math.ceil(dist / 0.5); // one step per 0.5 block
-      for (let s = 1; s <= steps; s++) {
-        positions.push({
-          bxF: lbx + (bxF - lbx) * (s / steps),
-          byF: lby + (byF - lby) * (s / steps),
-        });
-      }
-    } else {
-      positions.push({ bxF, byF });
-    }
-    lastPosRef.current = { bxF, byF };
+      const { cx: lcx, cy: lcy } = lastPosRef.current;
 
-    // Scratch all blocks within brush radius at each interpolated position
-    for (const pos of positions) {
-      const bx0 = Math.floor(pos.bxF - brBlockX);
-      const by0 = Math.floor(pos.byF - brBlockY);
-      const bx1 = Math.ceil(pos.bxF  + brBlockX);
-      const by1 = Math.ceil(pos.byF  + brBlockY);
+      const segDx  = cx - lcx;
+      const segDy  = cy - lcy;
+      const segLen2 = segDx * segDx + segDy * segDy;
+
+      // Bounding box of the capsule, clamped to the block grid
+      const bx0 = Math.max(0,              Math.floor((Math.min(lcx, cx) - hw) / BLOCK_W));
+      const by0 = Math.max(0,              Math.floor((Math.min(lcy, cy) - hw) / BLOCK_H));
+      const bx1 = Math.min(BLOCK_COLS - 1, Math.ceil( (Math.max(lcx, cx) + hw) / BLOCK_W));
+      const by1 = Math.min(BLOCK_ROWS - 1, Math.ceil( (Math.max(lcy, cy) + hw) / BLOCK_H));
 
       for (let by = by0; by <= by1; by++) {
         for (let bx = bx0; bx <= bx1; bx++) {
-          // Elliptical brush shape
-          const dx = (bx + 0.5 - pos.bxF) / brBlockX;
-          const dy = (by + 0.5 - pos.byF) / brBlockY;
-          if (dx * dx + dy * dy <= 1) {
-            scratchBlock(bx, by);
+          // Block centre in pixel space, relative to segment start
+          const px = (bx + 0.5) * BLOCK_W - lcx;
+          const py = (by + 0.5) * BLOCK_H - lcy;
+
+          let distSq;
+          if (segLen2 < 0.25) {
+            // Near-stationary tap — circle fallback
+            distSq = px * px + py * py;
+          } else {
+            const t     = Math.max(0, Math.min(1, (px * segDx + py * segDy) / segLen2));
+            const nearX = px - t * segDx;
+            const nearY = py - t * segDy;
+            distSq = nearX * nearX + nearY * nearY;
           }
+
+          if (distSq <= hw2) scratchBlock(bx, by);
+        }
+      }
+    } else {
+      // First touch — circle stamp for immediate feedback
+      const bx0 = Math.max(0,              Math.floor((cx - hw) / BLOCK_W));
+      const by0 = Math.max(0,              Math.floor((cy - hw) / BLOCK_H));
+      const bx1 = Math.min(BLOCK_COLS - 1, Math.ceil( (cx + hw) / BLOCK_W));
+      const by1 = Math.min(BLOCK_ROWS - 1, Math.ceil( (cy + hw) / BLOCK_H));
+
+      for (let by = by0; by <= by1; by++) {
+        for (let bx = bx0; bx <= bx1; bx++) {
+          const dx = (bx + 0.5) * BLOCK_W - cx;
+          const dy = (by + 0.5) * BLOCK_H - cy;
+          if (dx * dx + dy * dy <= hw2) scratchBlock(bx, by);
         }
       }
     }
+    lastPosRef.current = { bxF, byF, cx, cy };
+    // ─────────────────────────────────────────────────────────────────────
 
     // Coverage check
     scratchCount.current++;
