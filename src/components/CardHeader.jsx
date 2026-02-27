@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { getIllustration } from '../utils/illustrations';
 import './CardHeader.css';
 
 // ─── DESIGNER CONFIGURATION GUIDE ────────────────────────────────────────────
@@ -229,17 +230,19 @@ export default function CardHeader({ theme, illustrationLayer = null }) {
 
   const hdBg = `linear-gradient(135deg, ${palette.hdr[0]}, ${palette.hdr[1]}, ${palette.hdr[2]})`;
 
+  // Auto-resolve illustration from theme id; explicit prop overrides.
+  const resolvedLayer = illustrationLayer || getIllustration(theme.id);
+
   return (
     <div className="card-header" style={{ background: hdBg }}>
 
       {/* ── Illustration slot ─────────────────────────────────────────── */}
       {/* Rendered at z-index 0 — beneath price badge, title, and guilloche.
-          Designers inject PNG / SVG / Lottie assets here via the render prop.
-          The slot receives live palette data so assets can respond to theme
-          colors without hardcoded values.  See ILLUSTRATION LAYER above. */}
-      {illustrationLayer && (
+          Resolved from theme.id automatically; override via illustrationLayer prop.
+          See DESIGNER CONFIGURATION GUIDE at the top of this file. */}
+      {resolvedLayer && (
         <div className="card-header__illustration" aria-hidden="true">
-          {illustrationLayer({ width: GW, height: '100%', palette })}
+          {resolvedLayer({ width: GW, height: '100%', palette })}
         </div>
       )}
 
