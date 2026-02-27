@@ -364,7 +364,8 @@ export default function App() {
     });
 
     const delay = prize > 0 ? 1500 : 1000;
-    setTimeout(() => showPicker(generatePickerOptions(speedModeRef.current, balanceRef.current)), delay);
+    // No pre-generated options — let showPicker check flowStateRef and pick the right generator
+    setTimeout(() => showPicker(), delay);
   }, [applyWinFeedback, goalAchieved, triggerMilestone, updateHeat, showPicker, addToast]);
 
   // ── Flow state: player picks → resolve inline, no navigation ────────────
