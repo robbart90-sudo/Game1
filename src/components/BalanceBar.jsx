@@ -1,5 +1,4 @@
 import './BalanceBar.css';
-import { CARD_COST } from '../utils/lottery';
 
 export default function BalanceBar({ balance, totalWon, cardsPlayed }) {
   return (

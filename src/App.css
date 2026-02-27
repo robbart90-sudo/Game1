@@ -85,6 +85,12 @@
   color: #fde68a;
 }
 
+.intro-sub {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.45);
+  margin-top: -4px;
+}
+
 /* Card area */
 .card-area {
   display: flex;

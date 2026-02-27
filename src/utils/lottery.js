@@ -1,41 +1,71 @@
-export const PRIZE_TIERS = [
-  { id: 'jackpot',    label: '🏆 JACKPOT',   amount: 1000, chance: 0.01,  color: '#FFD700' },
-  { id: 'big',        label: '💎 BIG WIN',    amount: 500,  chance: 0.05,  color: '#C0C0FF' },
-  { id: 'medium',     label: '⭐ NICE WIN',   amount: 100,  chance: 0.15,  color: '#90EE90' },
-  { id: 'small',      label: '🎉 SMALL WIN',  amount: 20,   chance: 0.30,  color: '#ADD8E6' },
-  { id: 'no_win',     label: '😔 NO WIN',     amount: 0,    chance: 0.49,  color: '#D3D3D3' },
+export const STARTING_BALANCE = 200;
+export const LUCKY_COUNT = 5;
+export const CELL_COUNT = 9;
+export const NUMBER_MAX = 30;
+
+// Prize tiers — multiplier applied to card price
+const TIERS = [
+  { id: 'jackpot', matches: 3, mult: 500, chance: 0.01  },
+  { id: 'big',     matches: 2, mult: 150, chance: 0.04  },
+  { id: 'medium',  matches: 1, mult: 30,  chance: 0.15  },
+  { id: 'small',   matches: 1, mult: 8,   chance: 0.30  },
+  { id: 'none',    matches: 0, mult: 0,   chance: 0.50  },
 ];
 
-export const CARD_COST = 10;
-export const STARTING_BALANCE = 200;
-export const SCRATCH_THRESHOLD = 0.6; // 60% scratched to reveal result
-
-export function drawPrize() {
-  const rand = Math.random();
-  let cumulative = 0;
-  for (const tier of PRIZE_TIERS) {
-    cumulative += tier.chance;
-    if (rand < cumulative) return tier;
+function drawTier() {
+  const r = Math.random();
+  let cum = 0;
+  for (const t of TIERS) {
+    cum += t.chance;
+    if (r < cum) return t;
   }
-  return PRIZE_TIERS[PRIZE_TIERS.length - 1];
+  return TIERS[TIERS.length - 1];
 }
 
-export function getSymbolsForPrize(prize) {
-  const winSymbols = ['🍒', '🍋', '🎰', '💰', '🌟'];
-  const loseSymbols = ['🍊', '🍇', '🃏', '🎲', '🌈'];
+function pickUnique(min, max, count) {
+  const set = new Set();
+  while (set.size < count) set.add(Math.floor(Math.random() * (max - min + 1)) + min);
+  return [...set];
+}
 
-  const winning = winSymbols[Math.floor(Math.random() * winSymbols.length)];
-  const losing1 = loseSymbols[Math.floor(Math.random() * loseSymbols.length)];
-  let losing2 = loseSymbols[Math.floor(Math.random() * loseSymbols.length)];
-  while (losing2 === losing1) {
-    losing2 = loseSymbols[Math.floor(Math.random() * loseSymbols.length)];
+function pickNonLucky(luckySet) {
+  let n;
+  do { n = Math.floor(Math.random() * NUMBER_MAX) + 1; } while (luckySet.has(n));
+  return n;
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export function generateCard(theme) {
+  const tier = drawTier();
+  const luckyNumbers = pickUnique(1, NUMBER_MAX, LUCKY_COUNT);
+  const luckySet = new Set(luckyNumbers);
+  const prizeEach = tier.matches > 0 ? Math.floor((theme.price * tier.mult) / tier.matches) : 0;
+
+  const cells = [];
+
+  // Plant winning cells using actual lucky numbers
+  for (let i = 0; i < tier.matches; i++) {
+    cells.push({ number: luckyNumbers[i], prize: prizeEach, isMatch: true, scratched: false });
   }
 
-  if (prize.amount > 0) {
-    // 3 matching symbols for a win
-    return [winning, winning, winning];
-  } else {
-    // 3 non-matching symbols for a loss
-    return [winning, losing1, losing2];
+  // Fill remaining cells with non-lucky numbers
+  for (let i = tier.matches; i < CELL_COUNT; i++) {
+    cells.push({ number: pickNonLucky(luckySet), prize: 0, isMatch: false, scratched: false });
   }
+
+  return {
+    theme,
+    tier,
+    luckyNumbers,
+    cells: shuffle(cells),
+    totalPrize: prizeEach * tier.matches,
+  };
 }

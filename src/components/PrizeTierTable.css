@@ -21,8 +21,19 @@
 }
 
 .tier-modal h3 {
-  margin: 0 0 16px;
+  margin: 0 0 10px;
   font-size: 1.3rem;
+  color: #fde68a;
+}
+
+.how-to {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.7);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.how-to strong {
   color: #fde68a;
 }
 
