@@ -51,62 +51,10 @@
   z-index: 11;
 }
 
-/* ── Header ──────────────────────────────────── */
-.ticket-header {
-  position: relative;
-  z-index: 12; /* Above ::before grain (z-index:10) in ticket stacking context */
-  padding: 11px 10px 9px;
-  border-bottom: 1px solid rgba(255,255,255,0.12);
-}
-
-.ticket-price-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  font-size: 0.76rem;
-  font-weight: 900;
-  color: rgba(255,255,255,0.95);
-  background: rgba(0,0,0,0.38);
-  padding: 3px 8px;
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.18);
-  letter-spacing: 0.02em;
-}
-
-.ticket-title-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 0 56px;
-}
-
-.ticket-emoji {
-  font-size: 1.75rem;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.45));
-  line-height: 1;
-}
-
-.ticket-name {
-  font-size: 1rem;
-  font-weight: 900;
-  color: #fff;
-  text-align: center;
-  text-shadow:
-    0 1px 6px rgba(0,0,0,0.7),
-    0 0 20px rgba(255,255,255,0.15);
-  letter-spacing: 0.02em;
-  line-height: 1.2;
-}
-
-.ticket-top-prize {
-  text-align: center;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.65);
-  letter-spacing: 0.14em;
-  margin-top: 4px;
-}
+/* ── Header ──────────────────────────────────────────────────────────────────
+   Styles moved to CardHeader.css — see src/components/CardHeader.jsx.
+   .card-header and all .card-header__* rules live there.
+─────────────────────────────────────────────────────────────────────────────── */
 
 /* ── Lucky Numbers — HERO ELEMENT ────────────── */
 .ticket-lucky {

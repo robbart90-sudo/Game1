@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import Sparkles from './Sparkles';
+import Sparkles    from './Sparkles';
+import CardHeader  from './CardHeader';
 import './ScratchCard.css';
 
 const CW = 320;
@@ -619,14 +620,7 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
       <Sparkles active={sparkles} />
 
       {/* ── Header ───────────────────────────────── */}
-      <div className="ticket-header" style={{ background: hdBg }}>
-        <div className="ticket-price-badge">{theme.price}🪙</div>
-        <div className="ticket-title-block">
-          <span className="ticket-emoji">{theme.emoji}</span>
-          <span className="ticket-name">{theme.name}</span>
-        </div>
-        <div className="ticket-top-prize">TOP PRIZE: {theme.topPrize}</div>
-      </div>
+      <CardHeader theme={theme} />
 
       {/* ── Lucky Numbers ─────────────────────────── */}
       <div

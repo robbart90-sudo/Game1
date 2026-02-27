@@ -1,0 +1,154 @@
+/* ── CardHeader ──────────────────────────────────────────────────────────────
+   Standalone header component for lottery ticket cards.
+   All color values are injected via inline `style` from the theme palette —
+   this file contains only structural / typographic rules.
+
+   Height target: 28% of the full card.
+   The card does not have a fixed pixel height (it is flow-based), so
+   min-height: 112px approximates 28% of a typical rendered card (~400 px).
+   If a future piece introduces a fixed card height, replace min-height with
+   a percentage set on the parent's flex layout.
+─────────────────────────────────────────────────────────────────────────────── */
+
+.card-header {
+  /* Layout */
+  position: relative;
+  width: 100%;
+  min-height: 112px;          /* ≈ 28% of a ~400 px card — see note above */
+  overflow: hidden;           /* clips illustration bleed and guilloche extremes */
+
+  /* Flex stack: emoji → name → top-prize, vertically centered */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  /* Bottom padding reserved for the guilloche SVG (GH = 18px) so it
+     doesn't overlap the top-prize text */
+  padding: 12px 10px 20px;
+
+  /* Stacking context for z-indexed children */
+  isolation: isolate;
+
+  border-bottom: none;  /* guilloche border replaces any CSS border-bottom */
+}
+
+
+/* ── Illustration slot ───────────────────────────────────────────────────────
+   Full-bleed behind all text.  Designers replace the contents of this node
+   via the illustrationLayer render prop — the node itself is never removed.
+   z-index 0 keeps artwork behind the price badge (z:2), title (z:2),
+   top-prize (z:2) and guilloche border (z:3).
+─────────────────────────────────────────────────────────────────────────────── */
+
+.card-header__illustration {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* Clip so illustration never bleeds into sibling components */
+  overflow: hidden;
+}
+
+
+/* ── Price badge ─────────────────────────────────────────────────────────────
+   Pill in the top-left corner showing cost-to-play.
+─────────────────────────────────────────────────────────────────────────────── */
+
+.card-header__price {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.95);
+
+  background: rgba(0, 0, 0, 0.38);
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+
+/* ── Title block ─────────────────────────────────────────────────────────────
+   Centred column: emoji on top, name below.
+   56 px horizontal padding avoids the price badge on the left.
+─────────────────────────────────────────────────────────────────────────────── */
+
+.card-header__title {
+  position: relative;
+  z-index: 2;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 56px;
+  width: 100%;
+}
+
+.card-header__emoji {
+  font-size: 1.75rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+
+.card-header__name {
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: #fff;
+  text-align: center;
+  text-shadow:
+    0 1px 6px rgba(0, 0, 0, 0.70),
+    0 0 20px rgba(255, 255, 255, 0.15);
+}
+
+
+/* ── Top prize ───────────────────────────────────────────────────────────────
+   Small label directly beneath the title block.
+   Color is injected by the component via inline style (palette.accent).
+─────────────────────────────────────────────────────────────────────────────── */
+
+.card-header__top-prize {
+  position: relative;
+  z-index: 2;
+  margin-top: 4px;
+
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 0.60rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-align: center;
+  /* color set by inline style from palette.accent */
+}
+
+
+/* ── Guilloche border ────────────────────────────────────────────────────────
+   Mathematically generated SVG that visually separates the header from the
+   play area.  Rendered above the illustration (z:3) but beneath the text
+   layers is not required — it sits at the absolute bottom of the header,
+   so it does not intersect text in normal flow.
+
+   preserveAspectRatio="none" on the SVG means this element stretches to
+   fill any card width without distorting the vertical scale of the curves.
+─────────────────────────────────────────────────────────────────────────────── */
+
+.card-header__guilloche {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 18px;          /* matches GH constant in CardHeader.jsx */
+  display: block;
+  z-index: 3;
+
+  /* Subtle glow amplifies the fine centre thread and curve intersections */
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.18));
+}
