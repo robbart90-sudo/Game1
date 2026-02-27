@@ -26,6 +26,14 @@ const MILESTONES = {
   lucky5:     { emoji: '🌟', label: '5 IN A ROW!',         sub: 'UNSTOPPABLE'      },
 };
 
+// Pre-generate a card, ensuring player can afford it
+function makeCard(speedMode, balanceRef) {
+  const theme = getRandomTheme();
+  const cost  = speedMode ? 1 : theme.price;
+  if (balanceRef.current < cost) return null;
+  return { card: generateCard(speedMode ? { ...theme, price: 1 } : theme), cost };
+}
+
 export default function App() {
   // ── Balance & stats ──────────────────────────────────────────────────────
   const [balance,     setBalance]     = useState(STARTING_BALANCE);
@@ -34,17 +42,19 @@ export default function App() {
   const [cardsPlayed, setCardsPlayed] = useState(0);
   const [biggestWin,  setBiggestWin]  = useState(0);
 
-  // ── Card ─────────────────────────────────────────────────────────────────
+  // ── Card state ───────────────────────────────────────────────────────────
+  // phase: 'intro' | 'playing' | 'result' | 'transitioning'
+  const [phase,       setPhase]       = useState('intro');
   const [cardData,    setCardData]    = useState(null);
-  const [revealed,    setRevealed]    = useState(false);
-  const [winMsg,      setWinMsg]      = useState(null);   // { text, tier }
-  const [cardFlash,   setCardFlash]   = useState('');     // CSS class for flash
+  const [nextCardData, setNextCardData] = useState(null);
+  const [winMsg,      setWinMsg]      = useState(null);
+  const [cardFlash,   setCardFlash]   = useState('');
+  const [slideClass,  setSlideClass]  = useState('');
 
   // ── Progression ──────────────────────────────────────────────────────────
   const [consecWins,    setConsecWins]    = useState(0);
   const [goalAchieved,  setGoalAchieved]  = useState(false);
   const [milestone,     setMilestone]     = useState(null);
-  const [seenMilestones, setSeenMilestones] = useState(new Set());
 
   // ── Timer ────────────────────────────────────────────────────────────────
   const [timeLeft,     setTimeLeft]     = useState(NORMAL_TIME);
@@ -58,9 +68,11 @@ export default function App() {
   const [shaking,    setShaking]    = useState(false);
 
   // ── Sync refs for stale-closure safety ───────────────────────────────────
-  const cardRef      = useRef(null);
-  const balanceRef   = useRef(STARTING_BALANCE);
-  const seenRef      = useRef(new Set());
+  const cardRef        = useRef(null);
+  const balanceRef     = useRef(STARTING_BALANCE);
+  const seenRef        = useRef(new Set());
+  const speedModeRef   = useRef(false);
+  const phaseRef       = useRef('intro');
 
   const updateBalance = (fn) => {
     setBalance(b => {
@@ -71,6 +83,10 @@ export default function App() {
   };
 
   const sound = useSound();
+
+  // Keep refs in sync
+  useEffect(() => { speedModeRef.current = speedMode; }, [speedMode]);
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   // ── Timer countdown ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -94,7 +110,6 @@ export default function App() {
   const triggerMilestone = useCallback((key) => {
     if (seenRef.current.has(key)) return;
     seenRef.current.add(key);
-    setSeenMilestones(new Set(seenRef.current));
     setMilestone(MILESTONES[key]);
     setTimeout(() => setMilestone(null), 3000);
   }, []);
@@ -104,24 +119,20 @@ export default function App() {
     if (prize <= 0) return;
 
     if (prize < 100) {
-      // Small win: gold flash + ching
       setCardFlash('flash-gold');
       setTimeout(() => setCardFlash(''), 600);
       sound.ching(1);
     } else if (prize < 500) {
-      // Medium win: confetti + animated text
       setCardFlash('flash-medium');
       setTimeout(() => setCardFlash(''), 800);
       confetti({ particleCount: 80, spread: 65, origin: { y: 0.65 } });
       sound.ching(2);
     } else if (prize < 5000) {
-      // Big win: screen shake + big confetti + fanfare
       setShaking(true);
       setTimeout(() => setShaking(false), 500);
       confetti({ particleCount: 150, spread: 90, origin: { y: 0.55 } });
       sound.fanfare(true);
     } else {
-      // Jackpot: full takeover confetti + jackpot sound
       sound.jackpot();
       let count = 0;
       const iv = setInterval(() => {
@@ -136,12 +147,11 @@ export default function App() {
     }
   }, [sound]);
 
-  // ── Buy a card ────────────────────────────────────────────────────────────
-  const buyCard = useCallback(() => {
-    const theme    = getRandomTheme();
-    const cost     = speedMode ? 1 : theme.price;
-    const curBal   = balanceRef.current;
-    if (curBal < cost) return;
+  // ── Start the first card ──────────────────────────────────────────────────
+  const startFirstCard = useCallback(() => {
+    const result = makeCard(speedModeRef.current, balanceRef);
+    if (!result) return;
+    const { card, cost } = result;
 
     sound.deal();
     updateBalance(b => b - cost);
@@ -150,21 +160,25 @@ export default function App() {
     setWinMsg(null);
     setCardFlash('');
 
-    const newCard = generateCard(speedMode ? { ...theme, price: 1 } : theme);
-    cardRef.current = newCard;
-    setCardData(newCard);
-    setRevealed(false);
+    cardRef.current = card;
+    setCardData(card);
+    setPhase('playing');
+
+    // Pre-generate next card
+    const nextResult = makeCard(speedModeRef.current, { current: balanceRef.current - cost });
+    setNextCardData(nextResult ? nextResult.card : null);
 
     // Start timer on first card
-    if (!timerActive && timeLeft > 0) setTimerActive(true);
-  }, [speedMode, timerActive, timeLeft, sound]);
+    setTimerActive(true);
+  }, [sound]);
 
-  // ── Card revealed (85% scratched) ────────────────────────────────────────
-  const handleRevealed = useCallback((scratchSecs) => {
+  // ── Card completed (95% cells revealed) ──────────────────────────────────
+  const handleComplete = useCallback((scratchSecs) => {
+    if (phaseRef.current !== 'playing') return;
+    setPhase('result');
+
     const card = cardRef.current;
     if (!card) return;
-
-    setRevealed(true);
 
     const prize = card.totalPrize;
 
@@ -176,9 +190,7 @@ export default function App() {
 
       setConsecWins(c => {
         const next = c + 1;
-        if (next === 1 && !seenRef.current.has('firstWin')) {
-          triggerMilestone('firstWin');
-        }
+        if (next === 1 && !seenRef.current.has('firstWin')) triggerMilestone('firstWin');
         if (next === 3) triggerMilestone('onARoll');
         if (next === 5) triggerMilestone('lucky5');
         return next;
@@ -187,7 +199,7 @@ export default function App() {
       if (prize >= 500) triggerMilestone('highRoller');
 
       setWinMsg({
-        text: `${prize >= 5000 ? '🏆 JACKPOT' : prize >= 500 ? '💎 BIG WIN' : prize >= 100 ? '⭐ WIN'  : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`,
+        text: `${prize >= 5000 ? '🏆 JACKPOT' : prize >= 500 ? '💎 BIG WIN' : prize >= 100 ? '⭐ WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`,
         tier: prize >= 5000 ? 'jackpot' : prize >= 500 ? 'big' : prize >= 100 ? 'medium' : 'small',
       });
     } else {
@@ -196,14 +208,14 @@ export default function App() {
       setWinMsg({ text: 'No match — better luck next time!', tier: 'none' });
     }
 
-    // Speed demon bonus: < 5s scratch
+    // Speed demon bonus
     if (scratchSecs !== null && scratchSecs < 5) {
       triggerMilestone('speedDemon');
       updateBalance(b => b + 5);
       setTotalWon(t => t + 5);
     }
 
-    // Goal check (once)
+    // Goal check
     setBalance(b => {
       if (!goalAchieved && b >= GOAL_BALANCE) {
         setGoalAchieved(true);
@@ -213,20 +225,75 @@ export default function App() {
       return b;
     });
 
-    // Game over if out of coins (check after prize credit)
+    // Auto-progress delay: 1s for loss, 1.5s for win
+    const delay = prize > 0 ? 1500 : 1000;
     setTimeout(() => {
-      const lowestCost = speedMode ? 1 : 1;
-      if (balanceRef.current < lowestCost && timeLeft > 0) {
-        setTimerActive(false);
-        setGameOver(true);
-        setGoReason('coins');
+      advanceCard();
+    }, delay);
+  }, [applyWinFeedback, goalAchieved, triggerMilestone, sound]);
+
+  // ── Advance to next card ──────────────────────────────────────────────────
+  const advanceCard = useCallback(() => {
+    // Check if game over (out of coins or time)
+    const lowestCost = speedModeRef.current ? 1 : 1;
+    if (balanceRef.current < lowestCost) {
+      setTimerActive(false);
+      setGameOver(true);
+      setGoReason('coins');
+      return;
+    }
+
+    // Start slide transition
+    setPhase('transitioning');
+    setSlideClass('slide-out-left');
+
+    setTimeout(() => {
+      // Load pre-generated next card or make a new one
+      let nextCard = nextCardData;
+      let cost = speedModeRef.current ? 1 : (nextCard?.theme?.price ?? 1);
+
+      if (!nextCard) {
+        const result = makeCard(speedModeRef.current, balanceRef);
+        if (!result) {
+          setTimerActive(false);
+          setGameOver(true);
+          setGoReason('coins');
+          return;
+        }
+        nextCard = result.card;
+        cost     = result.cost;
       }
-    }, 800);
-  }, [applyWinFeedback, goalAchieved, speedMode, timeLeft, triggerMilestone, sound]);
+
+      sound.deal();
+      updateBalance(b => b - cost);
+      setTotalSpent(s => s + cost);
+      setCardsPlayed(c => c + 1);
+      setWinMsg(null);
+      setCardFlash('');
+
+      cardRef.current = nextCard;
+      setCardData(nextCard);
+      setSlideClass('slide-in-right');
+      setPhase('playing');
+
+      // Pre-generate the next card after this one
+      const afterNext = makeCard(speedModeRef.current, { current: balanceRef.current - cost });
+      setNextCardData(afterNext ? afterNext.card : null);
+
+      setTimeout(() => setSlideClass(''), 420);
+    }, 380);
+  }, [nextCardData, sound]);
+
+  // ── End session manually ──────────────────────────────────────────────────
+  const handleEndSession = useCallback(() => {
+    setTimerActive(false);
+    setGameOver(true);
+    setGoReason('manual');
+  }, []);
 
   // ── Speed mode toggle (only before game starts) ───────────────────────────
   const toggleSpeed = useCallback(() => {
-    if (timerActive) return; // locked once timer starts
+    if (timerActive) return;
     setSpeedMode(s => {
       const next = !s;
       setTimeLeft(next ? SPEED_TIME : NORMAL_TIME);
@@ -244,24 +311,21 @@ export default function App() {
     setCardsPlayed(0);
     setBiggestWin(0);
     setCardData(null);
-    setRevealed(false);
+    setNextCardData(null);
     setWinMsg(null);
     setCardFlash('');
+    setSlideClass('');
     setConsecWins(0);
     setGoalAchieved(false);
     setMilestone(null);
-    setSeenMilestones(new Set());
     setTimeLeft(speedMode ? SPEED_TIME : NORMAL_TIME);
     setTimerActive(false);
     setGameOver(false);
     setShaking(false);
+    setPhase('intro');
   }, [speedMode]);
 
-  const cardCost = speedMode
-    ? 1
-    : cardData && !revealed ? cardData.theme.price : 1;
-  const lowestCost  = speedMode ? 1 : 1;
-  const canBuy      = balance >= lowestCost && !gameOver;
+  const isPlaying = phase === 'playing' || phase === 'result' || phase === 'transitioning';
 
   return (
     <div className={`app ${shaking ? 'shaking' : ''}`}>
@@ -293,21 +357,23 @@ export default function App() {
 
       {/* ── Game area ──────────────────────────── */}
       <main className="game-area">
-        {!cardData && (
+        {phase === 'intro' && (
           <div className="intro">
             <div className="intro-icon">🎟️</div>
             <p>120 themed cards — scratch to reveal your prize</p>
             <p className="intro-sub">Match numbers · 1–20 🪙 per card · ⚡ for speed mode</p>
+            <button className="action-btn buy-btn start-btn" onClick={startFirstCard}>
+              🎟️ Start Scratching
+            </button>
           </div>
         )}
 
-        {cardData && (
-          <div className={`card-area ${cardFlash}`}>
+        {cardData && isPlaying && (
+          <div className={`card-area ${cardFlash} ${slideClass}`}>
             <ScratchCard
               key={`${cardData.theme.id}-${cardsPlayed}`}
               cardData={cardData}
-              onRevealed={handleRevealed}
-              revealed={revealed}
+              onComplete={handleComplete}
               soundScratch={sound.scratch}
             />
             {winMsg && (
@@ -319,20 +385,14 @@ export default function App() {
         )}
       </main>
 
-      {/* ── Buy button ─────────────────────────── */}
-      <footer className="app-footer">
-        <button
-          className="action-btn buy-btn"
-          onClick={buyCard}
-          disabled={!canBuy}
-        >
-          {cardData && !revealed
-            ? '🎟️ New Card'
-            : cardData && revealed
-              ? '🎟️ Next Card'
-              : '🎟️ Buy Card'}
-        </button>
-      </footer>
+      {/* ── End Session button ──────────────────── */}
+      {isPlaying && !gameOver && (
+        <footer className="app-footer">
+          <button className="end-session-btn" onClick={handleEndSession}>
+            End Session
+          </button>
+        </footer>
+      )}
 
       {/* ── Overlays ───────────────────────────── */}
       <MilestoneBanner milestone={milestone} />

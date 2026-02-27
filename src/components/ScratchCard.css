@@ -10,6 +10,45 @@
     0 0 0 1px rgba(255,255,255,0.05);
   font-family: 'Arial Black', Arial, sans-serif;
   user-select: none;
+  /* Paper/cardstock grain texture overlay */
+  background-blend-mode: multiply;
+}
+
+/* Deal animation */
+.ticket.dealing {
+  animation: dealIn 0.45s cubic-bezier(0.34, 1.45, 0.64, 1) both;
+}
+
+@keyframes dealIn {
+  from { transform: rotate(-8deg) scale(0.88) translateY(-24px); opacity: 0.3; }
+  to   { transform: rotate(var(--tilt, 0deg)) scale(1) translateY(0); opacity: 1; }
+}
+
+/* Paper texture pseudo-element */
+.ticket::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+}
+
+/* Corner curl effect */
+.ticket::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(225deg, rgba(255,255,255,0.12) 45%, transparent 45%);
+  border-radius: 0 0 18px 0;
+  pointer-events: none;
+  z-index: 11;
 }
 
 /* ── Header ───────────────────────────────────── */
@@ -70,8 +109,12 @@
 
 /* ── Lucky Numbers ────────────────────────────── */
 .ticket-lucky {
-  padding: 9px 12px;
+  padding: 7px 10px;
   border-bottom: 1px dashed;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .section-label {
@@ -79,8 +122,17 @@
   font-weight: 900;
   letter-spacing: 0.2em;
   text-align: center;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   opacity: 0.9;
+}
+
+/* Row style (default) */
+.ticket-lucky-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
 }
 
 .lucky-row {
@@ -89,20 +141,103 @@
   justify-content: center;
 }
 
+/* Lucky number pill */
 .lucky-num {
-  width: 44px;
-  height: 44px;
+  min-width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 900;
   border: 2px solid;
   box-shadow:
     inset 0 2px 5px rgba(0,0,0,0.45),
-    0 2px 6px rgba(0,0,0,0.35);
+    0 2px 6px rgba(0,0,0,0.35),
+    0 0 10px currentColor;
   letter-spacing: 0.02em;
+  /* Glow + pulse animation */
+  animation: luckyPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes luckyPulse {
+  0%,100% { filter: brightness(1) drop-shadow(0 0 4px currentColor); }
+  50%      { filter: brightness(1.3) drop-shadow(0 0 10px currentColor); }
+}
+
+/* Split style */
+.lucky-split {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+.lucky-split-side {
+  display: flex;
+  gap: 4px;
+}
+.lucky-split .section-label {
+  margin-bottom: 0;
+  font-size: 0.52rem;
+  white-space: nowrap;
+}
+
+/* Column styles */
+.lucky-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.lucky-col-nums {
+  display: flex;
+  gap: 4px;
+}
+.lucky-col-nums .lucky-num {
+  min-width: 32px;
+  height: 32px;
+  font-size: 0.78rem;
+}
+
+/* Scattered style */
+.lucky-scattered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.lucky-scattered-nums {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.lucky-scattered-item {
+  transition: transform 0.2s;
+}
+
+/* Top-bottom style */
+.lucky-topbottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+.lucky-topbottom-row {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+.lucky-topbottom .lucky-num {
+  min-width: 34px;
+  height: 34px;
+  font-size: 0.82rem;
+}
+.lucky-topbottom .section-label {
+  margin-bottom: 0;
 }
 
 /* ── Scratch Zone ────────────────────────────── */
@@ -113,43 +248,44 @@
   overflow: hidden;
 }
 
-/* Card art — prize grid beneath canvas */
+/* Card art */
 .card-art {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px;
+  overflow: hidden;
 }
 
 .art-label {
-  font-size: 0.58rem;
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.55rem;
   font-weight: 900;
   letter-spacing: 0.2em;
   opacity: 0.85;
-  margin-bottom: 2px;
+  white-space: nowrap;
+  z-index: 1;
 }
 
-.art-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  width: 100%;
+/* Cells absolutely positioned */
+.art-cells {
+  position: absolute;
+  inset: 0;
 }
 
 .art-cell {
-  border-radius: 8px;
+  position: absolute;
+  border-radius: 6px;
   border: 1.5px solid;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6px 4px;
-  gap: 2px;
+  padding: 2px;
+  gap: 1px;
   transition: box-shadow 0.3s;
+  box-sizing: border-box;
 }
 
 .art-cell.match {
@@ -162,26 +298,91 @@
 }
 
 .art-num {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 900;
   line-height: 1;
+  /* Ink-bleed printed cardstock effect */
+  text-shadow: 0 0 1px currentColor, 0 0 3px rgba(0,0,0,0.3);
 }
 
 .art-prize {
-  font-size: 0.58rem;
+  font-size: 0.5rem;
   font-weight: 800;
   color: #00ff88;
   letter-spacing: 0.02em;
 }
 
-/* Scratch canvas (interactive overlay) */
+/* Circled/stamped winning numbers */
+.art-cell.match .art-num {
+  position: relative;
+}
+.art-cell.match .art-num::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid #00ff88;
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: stampPop 0.4s 0.1s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+@keyframes stampPop {
+  from { transform: scale(0.3); opacity: 0; }
+  to   { transform: scale(1); opacity: 0.7; }
+}
+
+/* Scratch canvas overlay */
 .scratch-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='12' fill='rgba(255,255,255,0.15)' stroke='rgba(255,255,255,0.5)' stroke-width='2'/%3E%3C/svg%3E") 16 16, crosshair;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='10' fill='rgba(200,200,200,0.2)' stroke='rgba(255,255,255,0.6)' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='rgba(255,255,255,0.5)'/%3E%3C/svg%3E") 16 16, crosshair;
   touch-action: none;
+}
+
+/* In-card result overlay */
+.card-result-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: overlayFade 0.3s ease-out;
+  z-index: 5;
+}
+
+@keyframes overlayFade {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.card-result-overlay.tier-jackpot {
+  background: rgba(20,10,0,0.82);
+}
+.card-result-overlay.tier-big {
+  background: rgba(5,10,25,0.80);
+}
+.card-result-overlay.tier-medium {
+  background: rgba(5,20,10,0.80);
+}
+.card-result-overlay.tier-small {
+  background: rgba(15,12,0,0.78);
+}
+.card-result-overlay.tier-none {
+  background: rgba(0,0,0,0.72);
+}
+
+.card-result-text {
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 12px 24px;
+  border-radius: 12px;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }
 
 /* ── Footer tagline ──────────────────────────── */

@@ -232,3 +232,49 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   box-shadow: 0 6px 32px rgba(212,175,55,0.6);
 }
 .buy-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+/* ── Start button (intro) ──────────────────────────────────────────────── */
+.start-btn {
+  margin-top: 8px;
+  width: auto;
+  padding: 15px 40px;
+  font-size: 1.05rem;
+}
+
+/* ── End Session button ─────────────────────────────────────────────────── */
+.end-session-btn {
+  display: block;
+  margin: 0 auto;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(240,230,211,0.3);
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.06em;
+  transition: color 0.2s, border-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.end-session-btn:hover {
+  color: rgba(240,230,211,0.6);
+  border-color: rgba(255,255,255,0.25);
+}
+
+/* ── Card slide animations ──────────────────────────────────────────────── */
+.card-area.slide-out-left {
+  animation: slideOutLeft 0.38s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+.card-area.slide-in-right {
+  animation: slideInRight 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0);     opacity: 1; }
+  to   { transform: translateX(-110%); opacity: 0; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(110%);  opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}

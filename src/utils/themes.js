@@ -1,3 +1,5 @@
+import { FORMATIONS, FORMATION_KEYS } from './formations.js';
+
 // ─── Base Palettes ────────────────────────────────────────────────────────────
 const P = {
   gold:    { bg: ['#1a0a00', '#5a3500'], hdr: ['#8B6000', '#FFD700', '#8B6000'], border: '#DAA520', scratch: '#8B6914', text: '#FFF8DC', numBg: '#2d1800', numText: '#FFD700', accent: '#FFE55C' },
@@ -165,10 +167,15 @@ function fmtTopPrize(price) {
   return v.toLocaleString() + ' COINS';
 }
 
-export const THEMES = raw.map(t => ({
+// Tilt values cycling across themes: alternating subtle angles
+const TILTS = [-1.2, 0.8, -0.5, 1.5, -1.0, 0.6, -1.8, 1.1, -0.7, 1.3];
+
+export const THEMES = raw.map((t, i) => ({
   ...t,
   palette: P[t.p],
   topPrize: fmtTopPrize(t.price),
+  formation: FORMATIONS[FORMATION_KEYS[i % FORMATION_KEYS.length]],
+  tilt: TILTS[i % TILTS.length],
 }));
 
 export function getRandomTheme() {

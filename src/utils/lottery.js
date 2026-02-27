@@ -1,6 +1,5 @@
 export const STARTING_BALANCE = 200;
 export const LUCKY_COUNT = 5;
-export const CELL_COUNT = 9;
 export const NUMBER_MAX = 30;
 
 // Prize tiers — multiplier applied to card price
@@ -48,6 +47,7 @@ export function generateCard(theme) {
   const luckyNumbers = pickUnique(1, NUMBER_MAX, LUCKY_COUNT);
   const luckySet = new Set(luckyNumbers);
   const prizeEach = tier.matches > 0 ? Math.floor((theme.price * tier.mult) / tier.matches) : 0;
+  const cellCount = theme.formation ? theme.formation.cellCount : 9;
 
   const cells = [];
 
@@ -57,7 +57,7 @@ export function generateCard(theme) {
   }
 
   // Fill remaining cells with non-lucky numbers
-  for (let i = tier.matches; i < CELL_COUNT; i++) {
+  for (let i = tier.matches; i < cellCount; i++) {
     cells.push({ number: pickNonLucky(luckySet), prize: 0, isMatch: false, scratched: false });
   }
 
