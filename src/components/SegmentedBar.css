@@ -92,6 +92,24 @@
   animation: segFlowLabel 0.55s ease-in-out infinite alternate;
 }
 
+/* -- fries: warm amber countdown ----------------------------------------- */
+.seg-bar--fries .seg-block--on {
+  background: #F5A623;
+  animation: segFriesGlow 0.8s ease-in-out infinite alternate;
+}
+.seg-bar--fries .seg-bar-label {
+  color: #B87800;
+}
+
+/* -- slushee: icy cyan countdown ----------------------------------------- */
+.seg-bar--slushee .seg-block--on {
+  background: #00ADEF;
+  animation: segSlusheeShine 1s ease-in-out infinite alternate;
+}
+.seg-bar--slushee .seg-bar-label {
+  color: #007EAF;
+}
+
 /* ── Keyframes ───────────────────────────────────────────────────────────── */
 @keyframes segBlockPulse {
   from { opacity: 1; }
@@ -121,4 +139,14 @@
 @keyframes segFlowLabel {
   from { color: #C08000; text-shadow: none; }
   to   { color: #8B5C00; text-shadow: 0 0 8px rgba(255, 210, 0, 0.6); }
+}
+
+@keyframes segFriesGlow {
+  from { background: #E8920A; box-shadow: none; }
+  to   { background: #FFB83A; box-shadow: 0 0 4px rgba(245, 166, 35, 0.6); }
+}
+
+@keyframes segSlusheeShine {
+  from { background: #008EC4; box-shadow: none; }
+  to   { background: #33C5F5; box-shadow: 0 0 5px rgba(0, 173, 239, 0.65); }
 }

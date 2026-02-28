@@ -1,0 +1,97 @@
+/* ── Wrapper — full-width, matches status-panel/card width ──────────────── */
+.gss-wrap {
+  width: 100%;
+  max-width: 352px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-radius: 12px;
+  padding: 8px 6px;
+}
+
+/* ── Horizontal scroll row ───────────────────────────────────────────────── */
+.gss-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;   /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.gss-row::-webkit-scrollbar { display: none; }
+
+/* ── Individual item button ──────────────────────────────────────────────── */
+.gss-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 8px 6px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(0, 0, 0, 0.10);
+  background: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  min-width: 58px;
+  flex-shrink: 0;
+  /* dimmed until affordable */
+  opacity: 0.38;
+  transition: opacity 0.15s, border-color 0.15s, background 0.15s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* affordable but not yet bought */
+.gss-btn--affordable {
+  opacity: 1;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.10);
+}
+.gss-btn--affordable:hover {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.20);
+}
+.gss-btn--affordable:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* can't afford — clearly faded, no pointer */
+.gss-btn--broke {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+/* active powerup — highlighted gold ring */
+.gss-btn--active {
+  opacity: 1;
+  border-color: #F0B800;
+  background: rgba(255, 222, 0, 0.18);
+  cursor: default;
+  box-shadow: 0 0 0 2px rgba(240, 184, 0, 0.30);
+}
+
+/* ── Content inside each button ─────────────────────────────────────────── */
+.gss-emoji {
+  font-size: 1.4rem;
+  line-height: 1;
+  display: block;
+}
+
+.gss-name {
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: rgba(0, 0, 0, 0.50);
+  font-family: 'Arial Black', Arial, sans-serif;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.gss-cost {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.42);
+  font-family: monospace;
+  line-height: 1;
+}
+
+/* cost is more prominent when affordable */
+.gss-btn--affordable .gss-cost {
+  color: rgba(0, 0, 0, 0.60);
+}

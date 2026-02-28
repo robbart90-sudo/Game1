@@ -64,14 +64,14 @@ function hotspotBlocks(fc) {
   };
 }
 
-export default function ScratchCard({ cardData, onComplete, soundScratch, heat = 0 }) {
+export default function ScratchCard({ cardData, onComplete, soundScratch, heat = 0, brushBoost = 1, hotDogTrigger = 0 }) {
   const { theme, luckyNumbers, cells } = cardData;
   const { palette, formation, tilt } = theme;
   const formCells  = formation ? formation.cells : [];
   const luckyStyle = formation ? formation.luckyStyle : 'row';
 
-  // Brush radius scales with heat: +20% at ≥75 heat
-  const brushRadius = heat >= 75 ? BASE_BRUSH_R * 1.2 : BASE_BRUSH_R;
+  // Brush radius scales with heat (+20% at ≥75) and Fries boost (×brushBoost)
+  const brushRadius = (heat >= 75 ? BASE_BRUSH_R * 1.2 : BASE_BRUSH_R) * brushBoost;
 
   // Which lucky numbers are actual matches (for post-reveal flash)
   const matchedNums = new Set(cells.filter(c => c.isMatch).map(c => c.number));
@@ -490,6 +490,29 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
 
     checkCoverage();
   }, [cells, formCells, completed, checkCoverage]);
+
+  // ── Hot Dog: auto-scratch every hotspot spread over ~1 second ────────────
+  const autoRevealAll = useCallback(() => {
+    if (revealedRef.current || dealingRef.current || completed) return;
+    const sc = scratchedRef.current;
+    if (!sc) return;
+    const stepMs = Math.max(80, Math.floor(1000 / (formCells.length || 1)));
+    formCells.forEach((fc, i) => {
+      setTimeout(() => {
+        const { x0, y0, x1, y1 } = hotspotBlocks(fc);
+        for (let by = y0; by <= y1; by++)
+          for (let bx = x0; bx <= x1; bx++) {
+            const idx = by * BLOCK_COLS + bx;
+            if (!sc[idx]) { sc[idx] = 1; scratchedCountRef.current++; }
+          }
+        checkCoverage();
+      }, i * stepMs);
+    });
+  }, [formCells, completed, checkCoverage]);
+
+  useEffect(() => {
+    if (hotDogTrigger > 0) autoRevealAll();
+  }, [hotDogTrigger, autoRevealAll]);
 
   // ── Keyboard: spacebar ────────────────────────────────────────────────────
   useEffect(() => {

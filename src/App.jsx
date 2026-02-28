@@ -11,6 +11,7 @@ import MilestoneBanner from './components/MilestoneBanner';
 import GoalBar         from './components/GoalBar';
 import Tutorial, { tutorialHasSeen } from './components/Tutorial';
 import AttendantCutscene from './components/AttendantCutscene';
+import GasStationShop, { SHOP_ITEMS } from './components/GasStationShop';
 import ToastManager, { useToast } from './components/ToastManager';
 import { useSound }    from './hooks/useSound';
 import { generateCard, STARTING_BALANCE } from './utils/lottery';
@@ -122,6 +123,16 @@ export default function App() {
   const flowRoundRef = useRef(0);
   const flowDrainRef = useRef(null);
 
+  // ── Shop / powerup state ─────────────────────────────────────────────────
+  const [brushBoostSecs, setBrushBoostSecs] = useState(0);
+  const [slusheeSecs,    setSlusheeSecs]    = useState(0);
+  const [nextCardWin,    setNextCardWin]    = useState(false);
+  const [hotDogTrigger,  setHotDogTrigger]  = useState(0);
+  const nextCardWinRef  = useRef(false);
+  const friesTimerRef   = useRef(null);
+  const slusheeTimerRef = useRef(null);
+  const brushBoost = brushBoostSecs > 0 ? 1.5 : 1.0;
+
   // ── UI ────────────────────────────────────────────────────────────────────
   const [gameOver,  setGameOver]  = useState(false);
   const [goReason,  setGoReason]  = useState('coins');
@@ -134,6 +145,7 @@ export default function App() {
   const seenRef      = useRef(new Set());
   const speedModeRef = useRef(false);
   const soundRef     = useRef(null);
+  const gameOverRef  = useRef(false);
   const sound        = useSound();
   soundRef.current   = sound;
 
@@ -146,8 +158,10 @@ export default function App() {
   const firstWinRef     = useRef(false);
   const goalToastRef    = useRef(false);
 
-  useEffect(() => { speedModeRef.current = speedMode; }, [speedMode]);
-  useEffect(() => { phaseRef.current = phase; },        [phase]);
+  useEffect(() => { speedModeRef.current = speedMode; },   [speedMode]);
+  useEffect(() => { phaseRef.current = phase; },           [phase]);
+  useEffect(() => { nextCardWinRef.current = nextCardWin; }, [nextCardWin]);
+  useEffect(() => { gameOverRef.current = gameOver; },     [gameOver]);
 
   const updateBalance = (fn) => setBalance(b => {
     const next = fn(b);
@@ -299,6 +313,42 @@ export default function App() {
       setPhase('picking'); phaseRef.current = 'picking';
     }));
   }, [slideOut, slideInNew, stopTimer]);
+
+  // ── Shop buy handler ──────────────────────────────────────────────────────
+  const handleShopBuy = useCallback((id) => {
+    const item = SHOP_ITEMS.find(i => i.id === id);
+    if (!item || balanceRef.current < item.cost) return;
+    updateBalance(b => b - item.cost);
+    switch (id) {
+      case 'coffee':
+        timeLeftRef.current += 10;
+        setTimeLeft(t => t + 10);
+        addToast('☕ +10 seconds!', { type: 'blue' });
+        break;
+      case 'fries':
+        setBrushBoostSecs(10);
+        addToast('🍟 Big brush · 10s', { type: 'gold' });
+        break;
+      case 'gas':
+        updateHeat(100);
+        addToast('⛽ Heat maxed!', { type: 'orange' });
+        break;
+      case 'hotdog':
+        setHotDogTrigger(t => t + 1);
+        addToast('🌭 Auto-scratching!', { type: 'gold' });
+        break;
+      case 'slushee':
+        setSlusheeSecs(5);
+        stopTimer();
+        addToast('🥤 Timer frozen · 5s', { type: 'blue' });
+        break;
+      case 'luckystar':
+        setNextCardWin(true);
+        addToast('⭐ Next card wins!', { type: 'gold' });
+        break;
+      default: break;
+    }
+  }, [addToast, updateHeat, stopTimer]);
 
   // ── Card complete handler (normal scratch only — flow state is handled by handleFlowPick)
   const handleComplete = useCallback((scratchSecs) => {
@@ -462,7 +512,14 @@ export default function App() {
     if (!opt || !opt.canAfford) return;
     if (flowStateRef.current) { handleFlowPick(index); return; }
 
-    const { card, cost } = opt;
+    const { cost } = opt;
+    // Lucky Star: regenerate the chosen card as a guaranteed winner
+    let card = opt.card;
+    if (nextCardWinRef.current) {
+      card = generateCard(opt.theme, true);
+      setNextCardWin(false);
+    }
+
     soundRef.current?.deal();
     updateBalance(b => b - cost);
     setTotalSpent(s => s + cost);
@@ -515,6 +572,11 @@ export default function App() {
     resetTimer(speedMode ? SPEED_TIME : NORMAL_TIME);
     setGameOver(false); setShaking(false);
     setPhase('intro'); phaseRef.current = 'intro';
+    // Reset shop state
+    setBrushBoostSecs(0); setSlusheeSecs(0); setNextCardWin(false); setHotDogTrigger(0);
+    nextCardWinRef.current = false;
+    if (friesTimerRef.current)   { clearInterval(friesTimerRef.current);   friesTimerRef.current   = null; }
+    if (slusheeTimerRef.current) { clearInterval(slusheeTimerRef.current); slusheeTimerRef.current = null; }
     // Reset toast tracking refs
     consecWinsRef.current  = 0;
     speedStreakRef.current  = 0;
@@ -525,8 +587,40 @@ export default function App() {
     goalToastRef.current   = false;
   }, [stopTimer, exitFlowState, resetTimer, speedMode]);
 
+  // ── Fries: 50% bigger brush countdown (10 s) ─────────────────────────────
+  useEffect(() => {
+    if (brushBoostSecs <= 0 || friesTimerRef.current) return;
+    friesTimerRef.current = setInterval(() => {
+      setBrushBoostSecs(s => {
+        if (s <= 1) { clearInterval(friesTimerRef.current); friesTimerRef.current = null; return 0; }
+        return s - 1;
+      });
+    }, 1000);
+  }, [brushBoostSecs]);
+
+  // ── Slushee: freeze main timer countdown (5 s) ────────────────────────────
+  useEffect(() => {
+    if (slusheeSecs <= 0 || slusheeTimerRef.current) return;
+    slusheeTimerRef.current = setInterval(() => {
+      setSlusheeSecs(s => {
+        if (s <= 1) {
+          clearInterval(slusheeTimerRef.current);
+          slusheeTimerRef.current = null;
+          if (!flowStateRef.current && !gameOverRef.current && phaseRef.current !== 'intro') startTimer();
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  }, [slusheeSecs, startTimer]);
+
   // Cleanup on unmount
-  useEffect(() => () => { stopTimer(); clearInterval(flowDrainRef.current); }, [stopTimer]);
+  useEffect(() => () => {
+    stopTimer();
+    clearInterval(flowDrainRef.current);
+    clearInterval(friesTimerRef.current);
+    clearInterval(slusheeTimerRef.current);
+  }, [stopTimer]);
 
   const isActive = phase !== 'intro';
 
@@ -565,11 +659,29 @@ export default function App() {
               count={timeLeft}
               maxCount={speedMode ? SPEED_TIME : NORMAL_TIME}
               color={timeLeft <= 10 && !!timerIntervalRef.current ? 'timer-urgent' : 'timer'}
-              label={speedMode ? '⚡ SPEED' : '⏱ TIMER'}
+              label={speedMode ? '⚡ SPEED' : slusheeSecs > 0 ? '🥤 FROZEN' : '⏱ TIMER'}
               rightLabel={`${timeLeft}s`}
             />
             <HeatMeter heat={heat} flowState={flowState} flowRound={flowRound} />
+            {brushBoostSecs > 0 && (
+              <SegmentedBar count={brushBoostSecs} maxCount={10} color="fries"   label="🍟 BIG BRUSH" rightLabel={`${brushBoostSecs}s`} />
+            )}
+            {slusheeSecs > 0 && (
+              <SegmentedBar count={slusheeSecs}    maxCount={5}  color="slushee" label="🥤 FROZEN"    rightLabel={`${slusheeSecs}s`}    />
+            )}
           </div>
+        )}
+
+        {/* ── Gas Station Shop ─────────────────────────────────────── */}
+        {isActive && !gameOver && (
+          <GasStationShop
+            balance={balance}
+            phase={phase}
+            brushBoostSecs={brushBoostSecs}
+            slusheeSecs={slusheeSecs}
+            nextCardWin={nextCardWin}
+            onBuy={handleShopBuy}
+          />
         )}
 
         {/* Card view — normal scratch only (never shown during flow state) */}
@@ -581,6 +693,8 @@ export default function App() {
               onComplete={handleComplete}
               soundScratch={sound.scratch}
               heat={heat}
+              brushBoost={brushBoost}
+              hotDogTrigger={hotDogTrigger}
             />
             {winMsg && <div className={`result-msg tier-${winMsg.tier}`}>{winMsg.text}</div>}
           </div>
