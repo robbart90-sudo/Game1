@@ -22,7 +22,7 @@ const P = {
 // ─── 120 Themes ───────────────────────────────────────────────────────────────
 const raw = [
   // Money / Finance
-  { id: 't001', name: 'A Milli A Milli A Milli',       price: 20, emoji: '💵', tagline: '9 CHANCES TO WIN A MILLI!',          p: 'gold'    },
+  { id: 't001', name: 'A Milli A Milli A Milli',       price: 20, emoji: '💵', tagline: '9 CHANCES TO WIN A MILLI!',          p: 'gold',   illustrationImage: '/illustrations/IllT001.png' },
   { id: 't002', name: 'Debt Breaker',                   price: 10, emoji: '✂️', tagline: 'CUT YOUR DEBT — WIN BIG!',            p: 'red'     },
   { id: 't003', name: "Bob Dole's Bank Roll",           price: 10, emoji: '🇺🇸', tagline: 'AMERICA RUNS ON JACKPOTS!',           p: 'blue'    },
   { id: 't004', name: '401-Ka-Ching',                   price:  5, emoji: '📈', tagline: 'RETIRE A MILLIONAIRE!',               p: 'green'   },

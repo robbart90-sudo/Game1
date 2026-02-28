@@ -233,8 +233,18 @@ export default function CardHeader({ theme, illustrationLayer = null }) {
 
   const hdBg = `linear-gradient(135deg, ${palette.hdr[0]}, ${palette.hdr[1]}, ${palette.hdr[2]})`;
 
-  // Auto-resolve illustration from theme id; explicit prop overrides.
-  const resolvedLayer = illustrationLayer || getIllustration(theme.id);
+  // Auto-resolve illustration: explicit prop > theme image > generated SVG.
+  const resolvedLayer = illustrationLayer
+    || (theme.illustrationImage
+        ? () => (
+            <img
+              src={theme.illustrationImage}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover',
+                       mixBlendMode: 'overlay', opacity: 0.72 }}
+            />
+          )
+        : getIllustration(theme.id));
 
   // Parallax — shifts illustration ±4 px / ±2.5 px on mouse move.
   const [px, setPx] = useState({ x: 0, y: 0 });
