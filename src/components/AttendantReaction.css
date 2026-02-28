@@ -1,0 +1,108 @@
+/* ── Wrapper: fixed to bottom-right, slides in/out from the right edge ────── */
+.ar-wrap {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 8500;        /* below cutscene (9000), above game UI */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  padding-right: 10px;
+  pointer-events: none; /* doesn't block clicks on game elements */
+
+  /* Hidden state: shifted fully off-screen to the right */
+  transform: translateX(calc(100% + 20px));
+  transition: transform 230ms ease-out;
+}
+
+/* Visible state: slide in — applied one frame after mount */
+.ar-wrap--visible {
+  transform: translateX(0);
+  transition: transform 230ms ease-out;
+}
+
+/* Exiting: when visible class is removed, this transition fires automatically */
+.ar-wrap:not(.ar-wrap--visible) {
+  transition: transform 260ms ease-in;
+}
+
+/* ── Speech bubble ───────────────────────────────────────────────────────── */
+.ar-bubble {
+  position: relative;
+  background: #fff;
+  border: 2px solid #1a1a1a;
+  /* Sharp bottom-right corner — indicates speech direction toward character below-right */
+  border-radius: 12px 12px 2px 12px;
+  padding: 9px 13px;
+  max-width: 218px;
+  font-family: Arial, 'Helvetica Neue', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #111;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18);
+  word-break: break-word;
+}
+
+/* Bubble tail — downward triangle, aligned to the right side toward the character */
+.ar-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  right: 14px;
+  border: 10px solid transparent;
+  border-top-color: #1a1a1a;
+  border-bottom: none;
+}
+
+.ar-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  right: 15px;
+  border: 9px solid transparent;
+  border-top-color: #fff;
+  border-bottom: none;
+  z-index: 1;
+}
+
+/* ── Typewriter cursor ───────────────────────────────────────────────────── */
+.ar-cursor {
+  display: inline-block;
+  color: #999;
+  margin-left: 1px;
+  animation: ar-blink 0.65s step-end infinite;
+}
+
+@keyframes ar-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Character placeholder (swap for real illustration) ──────────────────── */
+/*    See comment in AttendantReaction.jsx for replacement instructions.      */
+.ar-char-placeholder {
+  width: 110px;
+  height: 140px;
+  background: linear-gradient(160deg, #555 0%, #333 100%);
+  border-radius: 8px 8px 0 0;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-bottom: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Real illustration image, when the placeholder is replaced */
+.ar-char-img {
+  width: 120px;
+  height: 150px;
+  object-fit: contain;
+  object-position: bottom center;
+  display: block;
+}

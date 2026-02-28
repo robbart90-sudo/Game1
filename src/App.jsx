@@ -11,8 +11,8 @@ import MilestoneBanner from './components/MilestoneBanner';
 import GoalBar         from './components/GoalBar';
 import Tutorial, { tutorialHasSeen } from './components/Tutorial';
 import AttendantCutscene from './components/AttendantCutscene';
+import AttendantReaction from './components/AttendantReaction';
 import GasStationShop, { SHOP_ITEMS } from './components/GasStationShop';
-import ToastManager, { useToast } from './components/ToastManager';
 import { useSound }    from './hooks/useSound';
 import { generateCard, STARTING_BALANCE } from './utils/lottery';
 import { getRandomTheme } from './utils/themes';
@@ -66,14 +66,16 @@ function generateFlowPickerOptions(speedMode, balance, flowRound) {
 }
 
 export default function App() {
-  // ── Toast system ──────────────────────────────────────────────────────────
-  const { toasts, addToast: _addToast } = useToast();
-  // Wrap addToast to play a subtle sound cue
+  // ── Attendant reaction (replaces toast system) ───────────────────────────
+  const attendantSeqRef = useRef(0);
+  const [attendantMsg, setAttendantMsg] = useState(null);
+  // addToast keeps the same call-site signature throughout the codebase.
+  // opts.type / opts.anim are still read for the warning-sound heuristic.
   const addToast = useCallback((text, opts = {}) => {
-    _addToast(text, opts);
     const isWarn = opts.anim === 'shake' || opts.type === 'red';
     soundRef.current?.tick(isWarn ? false : true);
-  }, [_addToast]); // soundRef is a ref so no dep needed
+    setAttendantMsg({ text, seq: ++attendantSeqRef.current });
+  }, []); // soundRef is a ref so no dep needed
 
   // ── Opening cutscene (first visit only) ──────────────────────────────────
   const [showCutscene, setShowCutscene] = useState(() => !localStorage.getItem('cutscene_seen'));
@@ -720,7 +722,7 @@ export default function App() {
       )}
 
       <MilestoneBanner milestone={milestone} />
-      <ToastManager toasts={toasts} />
+      <AttendantReaction msg={attendantMsg} />
       {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} onPlayAgain={handlePlayAgain} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
       {showTutorial && <Tutorial onDone={() => setShowTutorial(false)} />}
