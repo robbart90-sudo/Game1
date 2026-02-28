@@ -13,21 +13,6 @@
   animation: titleShimmer 0.6s ease-in-out infinite alternate;
 }
 
-/* Auto-select countdown bar */
-.auto-select-track {
-  width: 100%;
-  height: 3px;
-  background: rgba(0,0,0,0.08);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.auto-select-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #D4A000, #FFD200);
-  border-radius: 2px;
-  transition: width 0.05s linear;
-}
-
 /* Dark shimmer overlay — barely perceptible on non-winner in flow round 4+ */
 .dark-shimmer-overlay {
   position: absolute;
