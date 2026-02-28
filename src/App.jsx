@@ -596,7 +596,16 @@ export default function App() {
 
   // ── Play again ────────────────────────────────────────────────────────────
   const handlePlayAgain = useCallback(() => {
-    stopTimer(); exitFlowState();
+    // Reset flow state inline — do NOT call exitFlowState() here because it
+    // calls startTimer(), which would restart the timer with the stale value
+    // from the previous game before resetTimer() gets a chance to fix it.
+    stopTimer(); stopDrain();
+    flowStateRef.current = false; setFlowState(false);
+    flowRoundRef.current = 0;    setFlowRound(0);
+    flowLevelRef.current = 0;    setFlowLevel(0);
+    clearInterval(flowDrainRef.current); flowDrainRef.current = null;
+    flowLevelToast50Ref.current = false;
+    flowLevelToast75Ref.current = false;
     balanceRef.current = STARTING_BALANCE;
     seenRef.current = new Set();
     setBalance(STARTING_BALANCE);
@@ -621,7 +630,7 @@ export default function App() {
     lowBalanceRef.current  = false;
     firstWinRef.current    = false;
     goalToastRef.current   = false;
-  }, [stopTimer, exitFlowState, resetTimer, speedMode]);
+  }, [stopTimer, stopDrain, resetTimer, speedMode]);
 
   // ── Fries: 50% bigger brush countdown (10 s) ─────────────────────────────
   useEffect(() => {
