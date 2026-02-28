@@ -13,8 +13,10 @@ const BLOCK_W    = CW / BLOCK_COLS;   // 8px
 const BLOCK_H    = CH / BLOCK_ROWS;   // 7.6px
 const TOTAL_BLOCKS = BLOCK_COLS * BLOCK_ROWS; // 1000
 
-// Base half-width of the scratch brush (px). Velocity elongates the stroke.
-const BASE_BRUSH_R = 28;
+// Base brush radius (px) — at rest the brush is a circle of this size.
+const BASE_BRUSH_R = 22;
+// Speed (px/pointer-event in canvas coords) at which the brush reaches max 3:1 ratio.
+const MAX_SPEED    = 10;
 
 // Coverage thresholds
 const WIN_CELL_THRESHOLD  = 0.50;
@@ -80,6 +82,7 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
   const scratchedCountRef = useRef(0);
   const lastPosRef     = useRef(null);  // { bxF, byF, cx, cy } — last pointer position
   const velRef         = useRef({ nx: 1, ny: 0 }); // smoothed velocity unit-vector
+  const speedRef       = useRef(0);                // smoothed speed (px/event, canvas coords)
   const animRef        = useRef(null);
   const pointerDown    = useRef(false);
   const scratchCount   = useRef(0);
@@ -102,6 +105,7 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     particlesRef.current    = [];
     lastPosRef.current      = null;
     velRef.current          = { nx: 1, ny: 0 };
+    speedRef.current        = 0;
     scratchCount.current    = 0;
     scratchStart.current    = null;
     scratchedCountRef.current = 0;
@@ -362,34 +366,35 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     const bxF = cx / BLOCK_W;
     const byF = cy / BLOCK_H;
 
-    // ── Velocity: direction + speed ───────────────────────────────────────
-    // Blend raw frame-delta direction into a smoothed unit vector so the
-    // brush orientation follows direction changes without flickering.
-    let speed = 0;
+    // ── Velocity: direction + smoothed speed ──────────────────────────────
+    // Direction is blended into a smoothed unit vector (snappy but stable).
+    // Speed is an EMA so the oval doesn't snap back to a circle instantly.
     if (lastPosRef.current) {
       const { cx: lcx, cy: lcy } = lastPosRef.current;
-      const dvx = cx - lcx;
-      const dvy = cy - lcy;
-      speed = Math.sqrt(dvx * dvx + dvy * dvy);
-      if (speed > 0.5) {
-        const alpha  = 0.65; // higher = snappier direction tracking
-        const rawNx  = dvx / speed;
-        const rawNy  = dvy / speed;
-        const bx     = alpha * rawNx + (1 - alpha) * velRef.current.nx;
-        const by_    = alpha * rawNy + (1 - alpha) * velRef.current.ny;
-        const blen   = Math.sqrt(bx * bx + by_ * by_) || 1;
+      const dvx      = cx - lcx;
+      const dvy      = cy - lcy;
+      const rawSpeed = Math.sqrt(dvx * dvx + dvy * dvy);
+      speedRef.current = speedRef.current * 0.55 + rawSpeed * 0.45;
+      if (rawSpeed > 0.5) {
+        const alpha = 0.65; // higher = snappier direction tracking
+        const rawNx = dvx / rawSpeed;
+        const rawNy = dvy / rawSpeed;
+        const bx    = alpha * rawNx + (1 - alpha) * velRef.current.nx;
+        const by_   = alpha * rawNy + (1 - alpha) * velRef.current.ny;
+        const blen  = Math.sqrt(bx * bx + by_ * by_) || 1;
         velRef.current = { nx: bx / blen, ny: by_ / blen };
       }
     }
     const { nx: nvx, ny: nvy } = velRef.current;
 
-    // ── Speed-shaped brush ellipse ────────────────────────────────────────
-    // At rest  → near-circle (~19px radius)
-    // At speed → thin streak (long axis up to ~56px, perp as low as ~11px)
-    // MAX_SPEED ~28 px/frame = fast full-card swipe at 60 fps
-    const t        = Math.min(speed / 28, 1);
-    const halfLong = brushRadius * (0.68 + 1.32 * t); // 19 → 56 px
-    const halfPerp = brushRadius * (0.68 - 0.28 * t); // 19 → 11 px
+    // ── Speed-shaped brush ellipse (coin-rubbing feel) ────────────────────
+    // At rest  → circle  (1:1, both axes = brushRadius)
+    // At speed → oval up to 3:1 in the direction of motion
+    // Area is conserved: halfLong × halfPerp = brushRadius² throughout.
+    const t        = Math.min(speedRef.current / MAX_SPEED, 1);
+    const ratio    = 1 + 2 * t;                      // 1 → 3
+    const halfLong = brushRadius * Math.sqrt(ratio);  // brushRadius → brushRadius√3
+    const halfPerp = brushRadius / Math.sqrt(ratio);  // brushRadius → brushRadius/√3
     const hl2      = halfLong * halfLong;
     const hp2      = halfPerp * halfPerp;
 
@@ -450,13 +455,13 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
   // ── Window-level pointer listeners ────────────────────────────────────────
   useEffect(() => {
     const onMove  = (e) => { if (pointerDown.current) scratchAt(e.clientX, e.clientY); };
-    const onUp    = ()  => { pointerDown.current = false; lastPosRef.current = null; };
+    const onUp    = ()  => { pointerDown.current = false; lastPosRef.current = null; speedRef.current = 0; };
     const onTMove = (e) => {
       if (!pointerDown.current) return;
       e.preventDefault();
       scratchAt(e.touches[0].clientX, e.touches[0].clientY);
     };
-    const onTEnd  = () => { pointerDown.current = false; lastPosRef.current = null; };
+    const onTEnd  = () => { pointerDown.current = false; lastPosRef.current = null; speedRef.current = 0; };
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup',   onUp);
