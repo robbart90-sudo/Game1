@@ -15,8 +15,8 @@ const TOTAL_BLOCKS = BLOCK_COLS * BLOCK_ROWS; // 1000
 
 // Base brush radius (px) — at rest the brush is a circle of this size.
 const BASE_BRUSH_R = 22;
-// Speed (px/pointer-event in canvas coords) at which the brush reaches max 3:1 ratio.
-const MAX_SPEED    = 10;
+// Speed (px/pointer-event in canvas coords) at which the capsule reaches full stretch.
+const MAX_SPEED    = 5;
 
 // Coverage thresholds
 const WIN_CELL_THRESHOLD  = 0.50;
@@ -374,7 +374,7 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
       const dvx      = cx - lcx;
       const dvy      = cy - lcy;
       const rawSpeed = Math.sqrt(dvx * dvx + dvy * dvy);
-      speedRef.current = speedRef.current * 0.55 + rawSpeed * 0.45;
+      speedRef.current = speedRef.current * 0.35 + rawSpeed * 0.65;
       if (rawSpeed > 0.5) {
         const alpha = 0.65; // higher = snappier direction tracking
         const rawNx = dvx / rawSpeed;
@@ -387,24 +387,25 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     }
     const { nx: nvx, ny: nvy } = velRef.current;
 
-    // ── Speed-shaped brush ellipse (coin-rubbing feel) ────────────────────
-    // At rest  → circle  (1:1, both axes = brushRadius)
-    // At speed → oval up to 3:1 in the direction of motion
-    // Area is conserved: halfLong × halfPerp = brushRadius² throughout.
-    const t        = Math.min(speedRef.current / MAX_SPEED, 1);
-    const ratio    = 1 + 2 * t;                      // 1 → 3
-    const halfLong = brushRadius * Math.sqrt(ratio);  // brushRadius → brushRadius√3
-    const halfPerp = brushRadius / Math.sqrt(ratio);  // brushRadius → brushRadius/√3
-    const hl2      = halfLong * halfLong;
-    const hp2      = halfPerp * halfPerp;
+    // ── Coin-shaped capsule brush ─────────────────────────────────────────
+    // Shape: stadium / pill — two semicircular caps joined by a straight band.
+    //   coinR = radius of the rounded caps (coin half-width)
+    //   coinH = half-length of the straight centre section
+    // At rest (t=0): coinH=0 → pure circle (coin lying flat).
+    // Moving (t→1): coinH grows while coinR shrinks → long pill, flat sides,
+    //               curved ends — exactly like a coin dragged across a scratcher.
+    const t     = Math.min(speedRef.current / MAX_SPEED, 1);
+    const coinR = brushRadius * (0.60 - 0.15 * t);  // 13.2px → 9.9px
+    const coinH = brushRadius * 1.2  * t;            // 0px    → 26.4px
+    const coinR2 = coinR * coinR;
 
-    // ── Stamp one oriented ellipse at canvas position (scx, scy) ─────────
+    // ── Stamp one oriented capsule at canvas position (scx, scy) ──────────
     const stampAt = (scx, scy) => {
-      // Bounding box in block indices (use halfLong for both axes — safe over-estimate)
-      const bx0 = Math.max(0,              Math.floor((scx - halfLong) / BLOCK_W));
-      const by0 = Math.max(0,              Math.floor((scy - halfLong) / BLOCK_H));
-      const bx1 = Math.min(BLOCK_COLS - 1, Math.ceil( (scx + halfLong) / BLOCK_W));
-      const by1 = Math.min(BLOCK_ROWS - 1, Math.ceil( (scy + halfLong) / BLOCK_H));
+      const halfExtent = coinR + coinH; // max reach along motion axis
+      const bx0 = Math.max(0,              Math.floor((scx - halfExtent) / BLOCK_W));
+      const by0 = Math.max(0,              Math.floor((scy - halfExtent) / BLOCK_H));
+      const bx1 = Math.min(BLOCK_COLS - 1, Math.ceil( (scx + halfExtent) / BLOCK_W));
+      const by1 = Math.min(BLOCK_ROWS - 1, Math.ceil( (scy + halfExtent) / BLOCK_H));
 
       for (let by = by0; by <= by1; by++) {
         for (let bx = bx0; bx <= bx1; bx++) {
@@ -413,11 +414,14 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
           const px = (bx + 0.5) * BLOCK_W - scx + j.dx * 1.2;
           const py = (by + 0.5) * BLOCK_H - scy + j.dy * 1.2;
 
-          // Rotate into velocity-aligned ellipse frame
+          // Rotate into motion-aligned frame
           const along = px *  nvx + py * nvy;
           const perp  = px * -nvy + py * nvx;
 
-          if ((along * along) / hl2 + (perp * perp) / hp2 <= 1.0) {
+          // Capsule test: clamp along to the straight section, then check radius
+          const ca = Math.max(-coinH, Math.min(coinH, along));
+          const da = along - ca;
+          if (da * da + perp * perp <= coinR2) {
             scratchBlock(bx, by);
           }
         }
@@ -425,12 +429,11 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     };
 
     // ── Interpolate stamps along the stroke ───────────────────────────────
-    // Step = halfPerp × 0.55 — just enough overlap in the narrow axis so
-    // no gaps appear, without redundant stamps in the long axis.
+    // Step = coinR × 0.55 — snug enough in the narrow axis to leave no gaps.
     if (lastPosRef.current) {
       const { cx: lcx, cy: lcy } = lastPosRef.current;
       const dist     = Math.sqrt((cx - lcx) ** 2 + (cy - lcy) ** 2);
-      const stepSize = Math.max(halfPerp * 0.55, 2);
+      const stepSize = Math.max(coinR * 0.55, 2);
       const steps    = Math.max(1, Math.ceil(dist / stepSize));
       for (let s = 1; s <= steps; s++) {
         stampAt(
