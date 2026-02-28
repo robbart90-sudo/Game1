@@ -96,12 +96,13 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   75%       { transform: translate(-2px, -0.5px) rotate(-0.5deg); }
 }
 
-.app.pressure-low      { animation: shakePressureLow      3s   ease-in-out infinite; }
-.app.pressure-medium   { animation: shakePressureMedium   1.5s ease-in-out infinite; }
-.app.pressure-high     { animation: shakePressureHigh     0.8s ease-in-out infinite; }
-.app.pressure-critical { animation: shakePressureCritical 0.4s ease-in-out infinite; }
+/* Pressure shake lives on the card area, not the whole screen */
+.card-area.pressure-low      { animation: shakePressureLow      3s   ease-in-out infinite; }
+.card-area.pressure-medium   { animation: shakePressureMedium   1.5s ease-in-out infinite; }
+.card-area.pressure-high     { animation: shakePressureHigh     0.8s ease-in-out infinite; }
+.card-area.pressure-critical { animation: shakePressureCritical 0.4s ease-in-out infinite; }
 
-/* Win-feedback shake defined AFTER pressure rules so it takes precedence */
+/* Win-feedback shake on the whole screen stays — short burst, rarely fires */
 .app.shaking { animation: screenShake 0.45s ease-out; }
 
 @keyframes screenShake {

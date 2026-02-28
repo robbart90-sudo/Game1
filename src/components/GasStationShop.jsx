@@ -6,12 +6,12 @@ import './GasStationShop.css';
 // ─────────────────────────────────────────────────────────────────────────────
 // ── BALANCE CONSTANTS — shop prices; edit here to tune economy ────────────────
 export const SHOP_ITEMS = [
-  { id: 'coffee',    emoji: '☕', name: 'Coffee',     cost: 25, desc: '+10 sec'          },
-  { id: 'fries',     emoji: '🍟', name: 'Fries',      cost: 15, desc: 'Big brush · 10s'  },
-  { id: 'gas',       emoji: '⛽', name: 'Gas',        cost: 30, desc: 'Fill Flow State'  },
-  { id: 'hotdog',    emoji: '🌭', name: 'Hot Dog',    cost: 20, desc: 'Auto-scratch'     },
-  { id: 'slushee',   emoji: '🥤', name: 'Slushee',    cost: 35, desc: 'Freeze timer · 5s'},
-  { id: 'luckystar', emoji: '⭐', name: 'Lucky Star', cost: 50, desc: 'Next card wins'   },
+  { id: 'coffee',    emoji: '☕', name: 'Coffee',     cost: 25, label: 'More Time'            },
+  { id: 'fries',     emoji: '🍟', name: 'Fries',      cost: 15, label: 'Bigger Brush'         },
+  { id: 'gas',       emoji: '⛽', name: 'Gas',        cost: 30, label: 'Fill Flow State'      },
+  { id: 'hotdog',    emoji: '🌭', name: 'Hot Dog',    cost: 20, label: 'Auto Scratch'         },
+  { id: 'slushee',   emoji: '🥤', name: 'Slushee',    cost: 35, label: 'Freeze Timer'         },
+  { id: 'luckystar', emoji: '⭐', name: 'Lucky Star', cost: 50, label: 'Next Win Guaranteed'  },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ export default function GasStationShop({
   return (
     <div className="gss-wrap">
       <div className="gss-row">
-        {SHOP_ITEMS.map(({ id, emoji, name, cost, desc }) => {
+        {SHOP_ITEMS.map(({ id, emoji, name, cost, label }) => {
           const isActive =
             (id === 'fries'     && brushBoostSecs > 0) ||
             (id === 'slushee'   && slusheeSecs    > 0) ||
@@ -33,22 +33,23 @@ export default function GasStationShop({
           const disabled   = cantAfford || notAvail || isActive;
 
           return (
-            <button
-              key={id}
-              className={[
-                'gss-btn',
-                isActive   ? 'gss-btn--active'     : '',
-                !disabled  ? 'gss-btn--affordable' : '',
-                cantAfford ? 'gss-btn--broke'      : '',
-              ].join(' ')}
-              disabled={disabled}
-              onClick={() => onBuy(id)}
-              title={desc}
-            >
-              <span className="gss-emoji">{emoji}</span>
-              <span className="gss-name">{name}</span>
-              <span className="gss-cost">{cost}🪙</span>
-            </button>
+            <div key={id} className="gss-item">
+              <span className="gss-label">{label}</span>
+              <button
+                className={[
+                  'gss-btn',
+                  isActive   ? 'gss-btn--active'     : '',
+                  !disabled  ? 'gss-btn--affordable' : '',
+                  cantAfford ? 'gss-btn--broke'      : '',
+                ].join(' ')}
+                disabled={disabled}
+                onClick={() => onBuy(id)}
+              >
+                <span className="gss-emoji">{emoji}</span>
+                <span className="gss-name">{name}</span>
+                <span className="gss-cost">{cost}🪙</span>
+              </button>
+            </div>
           );
         })}
       </div>

@@ -7,8 +7,6 @@ import BalanceBar      from './components/BalanceBar';
 import PrizeTierTable  from './components/PrizeTierTable';
 import GameOverScreen  from './components/GameOverScreen';
 import SegmentedBar    from './components/SegmentedBar';
-import MilestoneBanner from './components/MilestoneBanner';
-import GoalBar         from './components/GoalBar';
 import Tutorial, { tutorialHasSeen } from './components/Tutorial';
 import AttendantCutscene from './components/AttendantCutscene';
 import AttendantReaction from './components/AttendantReaction';
@@ -24,7 +22,6 @@ const SLIDE_IN_MS  = 236;
 
 const NORMAL_TIME  = 60;
 const SPEED_TIME   = 30;
-const GOAL_BALANCE = STARTING_BALANCE * 2;
 const PICKER_COUNT = 6;
 
 // ── BALANCE CONSTANTS — tweak economy here without touching game logic ─────────
@@ -32,14 +29,22 @@ const PASSIVE_DRAIN_COINS      = 1;  // coins deducted per tick
 const PASSIVE_DRAIN_INTERVAL_S = 3;  // seconds between drain ticks
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MILESTONES = {
-  firstWin:   { emoji: '🎉', label: 'FIRST WIN!',         sub: 'OFF TO THE RACES'    },
-  onARoll:    { emoji: '🔥', label: 'ON A ROLL!',          sub: '3 WINS IN A ROW'     },
-  highRoller: { emoji: '💎', label: 'HIGH ROLLER!',        sub: '200+ WIN'            },
-  speedDemon: { emoji: '⚡', label: 'SPEED DEMON!',        sub: 'CARD SCRATCHED < 5S' },
-  goalHit:    { emoji: '🏆', label: 'GOAL ACHIEVED!',      sub: 'BALANCE DOUBLED'     },
-  lucky5:     { emoji: '🌟', label: '5 IN A ROW!',         sub: 'UNSTOPPABLE'         },
-};
+// ── Attendant dialogue lines ─────────────────────────────────────────────
+const DIALOGUE_LINES = [
+  "Clean up aisle 5.",
+  "They should come pre-scratched.",
+  "Take my card.",
+  "We're going to need a new roll.",
+  "Chicken dinner, and all that.",
+  "Winner?",
+  "Loser?",
+  "I love my job.",
+  "Good luck.",
+  "Smells like gas.",
+  "Nice one.",
+  "New roll.",
+];
+const FLOW_MILESTONE_LINES = ["Hmm\u2026", "Never seen this\u2026", "My goodness!"];
 
 // ── Pressure helpers (pure — outside component) ───────────────────────────
 const PRESSURE_CLASS = ['', 'pressure-low', 'pressure-medium', 'pressure-high', 'pressure-critical'];
@@ -104,16 +109,45 @@ function generateFlowPickerOptions(speedMode, balance, flowRound) {
 }
 
 export default function App() {
-  // ── Attendant reaction (replaces toast system) ───────────────────────────
+  // ── Attendant dialogue ────────────────────────────────────────────────────
   const attendantSeqRef = useRef(0);
   const [attendantMsg, setAttendantMsg] = useState(null);
-  // addToast keeps the same call-site signature throughout the codebase.
-  // opts.type / opts.anim are still read for the warning-sound heuristic.
-  const addToast = useCallback((text, opts = {}) => {
-    const isWarn = opts.anim === 'shake' || opts.type === 'red';
-    soundRef.current?.tick(isWarn ? false : true);
+
+  // Low-level: deliver a specific line to the attendant bubble
+  const speakDialogue = useCallback((text) => {
+    lastAttendantLineRef.current = text;
     setAttendantMsg({ text, seq: ++attendantSeqRef.current });
-  }, []); // soundRef is a ref so no dep needed
+  }, []);
+
+  // Ordered flow-state milestone lines ("Hmm…" / "Never seen this…" / "My goodness!")
+  const triggerFlowMilestone = useCallback(() => {
+    const idx  = Math.min(flowMilestoneCountRef.current, FLOW_MILESTONE_LINES.length - 1);
+    flowMilestoneCountRef.current++;
+    speakDialogue(FLOW_MILESTONE_LINES[idx]);
+  }, [speakDialogue]);
+
+  // Random quip from pool — no consecutive repeat; gas smell triggers follow-up
+  const triggerAttendantDialogue = useCallback(() => {
+    let line;
+    if (nextIsGasReplyRef.current) {
+      line = "Gas doesn't have a smell.";
+      nextIsGasReplyRef.current = false;
+    } else {
+      const pool = DIALOGUE_LINES.filter(l => l !== lastAttendantLineRef.current);
+      line = pool[Math.floor(Math.random() * pool.length)];
+      if (line === "Smells like gas.") nextIsGasReplyRef.current = true;
+    }
+    speakDialogue(line);
+  }, [speakDialogue]);
+
+  // Called after every card — fires the attendant every 4th card
+  const maybeShowAttendant = useCallback(() => {
+    cardsSinceAttendantRef.current++;
+    if (cardsSinceAttendantRef.current >= 4) {
+      cardsSinceAttendantRef.current = 0;
+      triggerAttendantDialogue();
+    }
+  }, [triggerAttendantDialogue]);
 
   // ── Opening cutscene (first visit only) ──────────────────────────────────
   const [showCutscene, setShowCutscene] = useState(() => !localStorage.getItem('cutscene_seen'));
@@ -141,11 +175,6 @@ export default function App() {
   const [pickerOptions,  setPickerOptions]  = useState([]);
   // Flow State: result shown inline on picker — {index, won, prize} | null
   const [flowPickResult, setFlowPickResult] = useState(null);
-
-  // ── Progression ──────────────────────────────────────────────────────────
-  const [consecWins,   setConsecWins]   = useState(0);
-  const [goalAchieved, setGoalAchieved] = useState(false);
-  const [milestone,    setMilestone]    = useState(null);
 
   // ── Timer — lives in a ref, NEVER pauses for any reason ─────────────────
   const [timeLeft,       setTimeLeft]       = useState(NORMAL_TIME);
@@ -185,21 +214,17 @@ export default function App() {
   // ── Stable refs ───────────────────────────────────────────────────────────
   const cardRef      = useRef(null);
   const balanceRef   = useRef(STARTING_BALANCE);
-  const seenRef      = useRef(new Set());
   const speedModeRef = useRef(false);
   const soundRef     = useRef(null);
   const gameOverRef  = useRef(false);
   const sound        = useSound();
   soundRef.current   = sound;
 
-  // ── Toast tracking refs (avoid re-triggering same toast) ──────────────────
-  const consecWinsRef    = useRef(0);   // mirrors consecWins state for callbacks
-  const speedStreakRef   = useRef(0);   // consecutive fast cards (< 4s)
-  const flowLevelToast50Ref = useRef(false);
-  const flowLevelToast75Ref = useRef(false);
-  const lowBalanceRef   = useRef(false);
-  const firstWinRef     = useRef(false);
-  const goalToastRef    = useRef(false);
+  // ── Attendant dialogue state ──────────────────────────────────────────────
+  const cardsSinceAttendantRef = useRef(0);   // resets to 0 after each quip
+  const lastAttendantLineRef   = useRef(null); // prevent consecutive repeats
+  const nextIsGasReplyRef      = useRef(false);// "Smells like gas." follow-up flag
+  const flowMilestoneCountRef  = useRef(0);    // 0=Hmm, 1=Never seen, 2+=My goodness
 
   useEffect(() => { speedModeRef.current = speedMode; },   [speedMode]);
   useEffect(() => { phaseRef.current = phase; },           [phase]);
@@ -264,7 +289,6 @@ export default function App() {
 
   // ── Flow State Meter logic ────────────────────────────────────────────────
   const exitFlowState = useCallback(() => {
-    const cardsInFlow = flowRoundRef.current - 1; // rounds completed before exit
     flowStateRef.current = false;
     setFlowState(false);
     setFlowRound(0);
@@ -273,13 +297,8 @@ export default function App() {
     flowDrainRef.current = null;
     flowLevelRef.current = 0;
     setFlowLevel(0);
-    flowLevelToast50Ref.current = false;
-    flowLevelToast75Ref.current = false;
     startTimer(); // resume the countdown that was frozen on flow state entry
-    if (cardsInFlow > 0) {
-      addToast(`💨 Flow State over — ${cardsInFlow} card${cardsInFlow !== 1 ? 's' : ''} cashed`, { type: 'blue' });
-    }
-  }, [addToast, startTimer]);
+  }, [startTimer]);
 
   const enterFlowState = useCallback(() => {
     flowStateRef.current = true;
@@ -290,36 +309,20 @@ export default function App() {
     setTimeout(() => setShowFlowBanner(false), 1000);
     clearInterval(flowDrainRef.current);
     stopTimer(); // freeze countdown during flow state
-    addToast('⚡ FLOW STATE!', { type: 'gold', size: 'large' });
+    triggerFlowMilestone();
     // Drain ~8 pts/s
     flowDrainRef.current = setInterval(() => {
       flowLevelRef.current = Math.max(0, flowLevelRef.current - 1.2);
       setFlowLevel(Math.round(flowLevelRef.current));
       if (flowLevelRef.current <= 0 && flowStateRef.current) exitFlowState();
     }, 150);
-  }, [exitFlowState, addToast, stopTimer]);
+  }, [exitFlowState, stopTimer, triggerFlowMilestone]);
 
   const updateFlowLevel = useCallback((delta) => {
     flowLevelRef.current = Math.max(0, Math.min(100, flowLevelRef.current + delta));
     setFlowLevel(Math.round(flowLevelRef.current));
-    const h = flowLevelRef.current;
-    if (delta > 0) {
-      if (!flowLevelToast50Ref.current && h >= 50) { flowLevelToast50Ref.current = true; addToast('⚡ Charging up...', { type: 'gold' }); }
-      if (!flowLevelToast75Ref.current && h >= 75) { flowLevelToast75Ref.current = true; addToast('🔥 Almost there!', { type: 'orange' }); }
-    } else {
-      if (h < 50) flowLevelToast50Ref.current = false;
-      if (h < 75) flowLevelToast75Ref.current = false;
-    }
-    if (h >= 100 && !flowStateRef.current) enterFlowState();
-  }, [enterFlowState, addToast]);
-
-  // ── Milestone banner ──────────────────────────────────────────────────────
-  const triggerMilestone = useCallback((key) => {
-    if (seenRef.current.has(key)) return;
-    seenRef.current.add(key);
-    setMilestone(MILESTONES[key]);
-    setTimeout(() => setMilestone(null), 3000);
-  }, []);
+    if (flowLevelRef.current >= 100 && !flowStateRef.current) enterFlowState();
+  }, [enterFlowState]);
 
   // ── Win feedback ──────────────────────────────────────────────────────────
   const applyWinFeedback = useCallback((prize) => {
@@ -363,7 +366,6 @@ export default function App() {
   // ── Show picker (normal or flow, with optional pre-gen) ───────────────────
   const showPicker = useCallback((pregenOptions = null) => {
     if (balanceRef.current < 1) {
-      addToast("You're tapped out, man.", { type: 'red', anim: 'shake' });
       stopTimer();
       stopDrain();
       setGameOver(true);
@@ -380,7 +382,7 @@ export default function App() {
       setSlideTarget('picker');
       setPhase('picking'); phaseRef.current = 'picking';
     }));
-  }, [slideOut, slideInNew, stopTimer, stopDrain, addToast]);
+  }, [slideOut, slideInNew, stopTimer, stopDrain]);
 
   // ── Shop buy handler ──────────────────────────────────────────────────────
   const handleShopBuy = useCallback((id) => {
@@ -388,35 +390,15 @@ export default function App() {
     if (!item || balanceRef.current < item.cost) return;
     updateBalance(b => b - item.cost);
     switch (id) {
-      case 'coffee':
-        timeLeftRef.current += 10;
-        setTimeLeft(t => t + 10);
-        addToast('☕ +10 seconds!', { type: 'blue' });
-        break;
-      case 'fries':
-        setBrushBoostSecs(10);
-        addToast('🍟 Big brush · 10s', { type: 'gold' });
-        break;
-      case 'gas':
-        updateFlowLevel(100);
-        addToast('⛽ Flow State maxed!', { type: 'orange' });
-        break;
-      case 'hotdog':
-        setHotDogTrigger(t => t + 1);
-        addToast('🌭 Auto-scratching!', { type: 'gold' });
-        break;
-      case 'slushee':
-        setSlusheeSecs(5);
-        stopTimer();
-        addToast('🥤 Timer frozen · 5s', { type: 'blue' });
-        break;
-      case 'luckystar':
-        setNextCardWin(true);
-        addToast('⭐ Next card wins!', { type: 'gold' });
-        break;
+      case 'coffee':   timeLeftRef.current += 10; setTimeLeft(t => t + 10); break;
+      case 'fries':    setBrushBoostSecs(10); break;
+      case 'gas':      updateFlowLevel(100); break;
+      case 'hotdog':   setHotDogTrigger(t => t + 1); break;
+      case 'slushee':  setSlusheeSecs(5); stopTimer(); break;
+      case 'luckystar': setNextCardWin(true); break;
       default: break;
     }
-  }, [addToast, updateFlowLevel, stopTimer]);
+  }, [updateFlowLevel, stopTimer]);
 
   // ── Card complete handler (normal scratch only — flow state is handled by handleFlowPick)
   const handleComplete = useCallback((scratchSecs) => {
@@ -426,75 +408,24 @@ export default function App() {
     const card  = cardRef.current;
     if (!card) return;
     const prize = card.totalPrize;
-    const td    = 2000;
 
     if (prize > 0) {
       updateBalance(b => b + prize);
       setTotalWon(t => t + prize);
       setBiggestWin(b => Math.max(b, prize));
       applyWinFeedback(prize);
-
-      addToast(`💰 +${prize.toLocaleString()} coins!`, { type: 'gold', duration: td });
-      if (prize >= 500) addToast('💎 JACKPOT!', { type: 'jackpot', size: 'large', duration: td });
-      else if (prize >= 30) addToast('🤑 Big money!', { type: 'gold', duration: td });
-
-      if (!firstWinRef.current) { firstWinRef.current = true; addToast('🎉 First blood!', { type: 'green', duration: td }); }
-
-      setConsecWins(c => {
-        const n = c + 1;
-        consecWinsRef.current = n;
-        if (n === 1 && !seenRef.current.has('firstWin')) triggerMilestone('firstWin');
-        if (n === 3) { triggerMilestone('onARoll'); addToast('🔥 Three in a row!', { type: 'orange', duration: td }); }
-        if (n === 5) { triggerMilestone('lucky5');  addToast("⚡ You're on FIRE!",  { type: 'red',    duration: td }); }
-        if (n === 10) addToast('👑 UNSTOPPABLE', { type: 'gold', size: 'large', duration: td });
-        return n;
-      });
-
-      if (prize >= 200) triggerMilestone('highRoller');
       setWinMsg({ text: `${prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`, tier: prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small' });
       updateFlowLevel((prize >= 500 ? 50 : prize >= 30 ? 35 : 18) * pressureMult(timeLeftRef.current, balanceRef.current));
     } else {
-      consecWinsRef.current = 0;
-      setConsecWins(0);
       soundRef.current?.tick(false);
       setWinMsg({ text: 'No match — better luck next time!', tier: 'none' });
       updateFlowLevel(-10);
     }
 
-    // Speed toasts
-    if (scratchSecs !== null) {
-      if (scratchSecs < 3) addToast('⚡ Lightning round!', { type: 'blue' });
-      if (scratchSecs < 4) {
-        speedStreakRef.current++;
-        if (speedStreakRef.current === 5) addToast('🚀 Speed demon!', { type: 'purple' });
-      } else {
-        speedStreakRef.current = 0;
-      }
-    }
-    if (scratchSecs !== null && scratchSecs < 5) {
-      triggerMilestone('speedDemon');
-      updateBalance(b => b + 5);
-      setTotalWon(t => t + 5);
-    }
-
-    setBalance(b => {
-      if (!goalAchieved && b >= GOAL_BALANCE) {
-        setGoalAchieved(true);
-        triggerMilestone('goalHit');
-        if (!goalToastRef.current) { goalToastRef.current = true; addToast('📈 Doubled up!', { type: 'green' }); }
-        confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#D4AF37','#FFE066','#fff'] });
-      }
-      if (!lowBalanceRef.current && b < STARTING_BALANCE * 0.25 && b > 0) {
-        lowBalanceRef.current = true;
-        addToast('😬 Running low...', { type: 'red', anim: 'shake' });
-      }
-      return b;
-    });
-
+    maybeShowAttendant();
     const delay = prize > 0 ? 1200 : 800;
-    // No pre-generated options — let showPicker check flowStateRef and pick the right generator
     setTimeout(() => showPicker(), delay);
-  }, [applyWinFeedback, goalAchieved, triggerMilestone, updateFlowLevel, showPicker, addToast]);
+  }, [applyWinFeedback, updateFlowLevel, showPicker, maybeShowAttendant]);
 
   // ── Flow state: player picks → resolve inline, no navigation ────────────
   const handleFlowPick = useCallback((index) => {
@@ -509,70 +440,34 @@ export default function App() {
     const card  = opt.card;
     const prize = card.totalPrize;
     const won   = prize > 0;
-    const td    = 1200;
 
     if (won) {
       updateBalance(b => b + prize);
       setTotalWon(t => t + prize);
       setBiggestWin(b => Math.max(b, prize));
       applyWinFeedback(prize);
-
-      addToast(`💰 +${prize.toLocaleString()} coins!`, { type: 'gold', duration: td });
-      if (prize >= 500) addToast('💎 JACKPOT!', { type: 'jackpot', size: 'large', duration: td });
-      else if (prize >= 30) addToast('🤑 Big money!', { type: 'gold', duration: td });
-
-      setConsecWins(c => {
-        const n = c + 1;
-        consecWinsRef.current = n;
-        if (n === 3) addToast('🔥 Three in a row!', { type: 'orange', duration: td });
-        if (n === 5) addToast("⚡ You're on FIRE!", { type: 'red', duration: td });
-        return n;
-      });
-
-      // Advance flow round and show odds-warning toasts
       const r = flowRoundRef.current + 1;
       flowRoundRef.current = r;
       setFlowRound(r);
-      if (r === 3) addToast('👀 Odds shifting...', { type: 'gold', duration: td });
-      if (r === 5) addToast('😰 Getting risky...', { type: 'orange', anim: 'shake', duration: td });
-      if (r >= 6)  addToast('🎲 One winner left...', { type: 'red',  anim: 'shake', duration: td });
     } else {
-      consecWinsRef.current = 0;
-      setConsecWins(0);
       soundRef.current?.tick(false);
       exitFlowState();
     }
 
-    // Goal / low-balance checks
-    setBalance(b => {
-      if (!goalAchieved && b >= GOAL_BALANCE) {
-        setGoalAchieved(true);
-        triggerMilestone('goalHit');
-        if (!goalToastRef.current) { goalToastRef.current = true; addToast('📈 Doubled up!', { type: 'green' }); }
-        confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#D4AF37','#FFE066','#fff'] });
-      }
-      if (!lowBalanceRef.current && b < STARTING_BALANCE * 0.25 && b > 0) {
-        lowBalanceRef.current = true;
-        addToast('😬 Running low...', { type: 'red', anim: 'shake' });
-      }
-      return b;
-    });
+    maybeShowAttendant();
 
     // Show result on the picked card for 400ms, then refresh or exit
     setFlowPickResult({ index, won, prize });
     setTimeout(() => {
       setFlowPickResult(null);
       if (flowStateRef.current) {
-        // Won — stay in flow state, refresh cards in place
         const newOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current);
         setPickerOptions(newOpts);
       } else {
-        // Lost — flow state ended, slide to normal picker
         showPicker();
       }
     }, 400);
-  }, [pickerOptions, applyWinFeedback, exitFlowState, goalAchieved, triggerMilestone,
-      addToast, showPicker]);
+  }, [pickerOptions, applyWinFeedback, exitFlowState, maybeShowAttendant, showPicker]);
 
   // ── Normal: player picks from picker ──────────────────────────────────────
   const handlePick = useCallback((index) => {
@@ -639,15 +534,11 @@ export default function App() {
     flowRoundRef.current = 0;    setFlowRound(0);
     flowLevelRef.current = 0;    setFlowLevel(0);
     clearInterval(flowDrainRef.current); flowDrainRef.current = null;
-    flowLevelToast50Ref.current = false;
-    flowLevelToast75Ref.current = false;
     balanceRef.current = STARTING_BALANCE;
-    seenRef.current = new Set();
     setBalance(STARTING_BALANCE);
     setTotalWon(0); setTotalSpent(0); setCardsPlayed(0); setBiggestWin(0);
     setCardData(null); setPickerOptions([]); setFlowPickResult(null);
     setWinMsg(null); setCardFlash(''); setSlideClass(''); setSlideTarget('card');
-    setConsecWins(0); setGoalAchieved(false); setMilestone(null);
     resetTimer(speedMode ? SPEED_TIME : NORMAL_TIME);
     setGameOver(false); setShaking(false);
     setPhase('intro'); phaseRef.current = 'intro';
@@ -657,14 +548,11 @@ export default function App() {
     if (friesTimerRef.current)   { clearInterval(friesTimerRef.current);   friesTimerRef.current   = null; }
     if (slusheeTimerRef.current) { clearInterval(slusheeTimerRef.current); slusheeTimerRef.current = null; }
     if (drainIntervalRef.current) { clearInterval(drainIntervalRef.current); drainIntervalRef.current = null; }
-    // Reset toast tracking refs
-    consecWinsRef.current  = 0;
-    speedStreakRef.current  = 0;
-    flowLevelToast50Ref.current = false;
-    flowLevelToast75Ref.current = false;
-    lowBalanceRef.current  = false;
-    firstWinRef.current    = false;
-    goalToastRef.current   = false;
+    // Reset dialogue state
+    cardsSinceAttendantRef.current = 0;
+    lastAttendantLineRef.current   = null;
+    nextIsGasReplyRef.current      = false;
+    flowMilestoneCountRef.current  = 0;
   }, [stopTimer, stopDrain, resetTimer, speedMode]);
 
   // ── Fries: 50% bigger brush countdown (10 s) ─────────────────────────────
@@ -716,7 +604,7 @@ export default function App() {
   const isActive = phase !== 'intro';
 
   return (
-    <div className={`app ${shaking ? 'shaking' : ''} ${flowState ? 'flow-state' : ''} ${!flowState && pressureLvl > 0 ? PRESSURE_CLASS[pressureLvl] : ''}`}>
+    <div className={`app ${shaking ? 'shaking' : ''} ${flowState ? 'flow-state' : ''}`}>
 
       {/* ── Flow State banner ─────────────────── */}
       {showFlowBanner && <div className="flow-state-banner">⚡ FLOW STATE ⚡</div>}
@@ -730,7 +618,6 @@ export default function App() {
         </div>
       </header>
 
-      <GoalBar balance={balance} achieved={goalAchieved} />
       <BalanceBar balance={balance} totalWon={totalWon} cardsPlayed={cardsPlayed} speedMode={speedMode} onSpeedToggle={toggleSpeed} />
 
       <main className="game-area">
@@ -777,7 +664,7 @@ export default function App() {
 
         {/* Card view — normal scratch only (never shown during flow state) */}
         {(phase === 'playing' || phase === 'result') && cardData && slideTarget === 'card' && (
-          <div className={`card-area ${cardFlash} ${slideClass}`}>
+          <div className={`card-area ${cardFlash} ${slideClass} ${!flowState && pressureLvl > 0 ? PRESSURE_CLASS[pressureLvl] : ''}`}>
             <ScratchCard
               key={`${cardData.theme.id}-${cardsPlayed}`}
               cardData={cardData}
@@ -810,7 +697,6 @@ export default function App() {
         </footer>
       )}
 
-      <MilestoneBanner milestone={milestone} />
       <AttendantReaction msg={attendantMsg} />
       {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} onPlayAgain={handlePlayAgain} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
