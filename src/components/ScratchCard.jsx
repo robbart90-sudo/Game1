@@ -383,7 +383,7 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     // Moving (t→1): coinH grows while coinR shrinks → long pill, flat sides,
     //               curved ends — exactly like a coin dragged across a scratcher.
     const t     = Math.min(speedRef.current / MAX_SPEED, 1);
-    const coinR = 6 - 2 * t;                         // 6px → 4px (thin coin edge)
+    const coinR = 9 - 3 * t;                         // 9px → 6px (coin edge)
     const coinH = brushRadius * 1.1 * t;             // 0px → ~24px
     const coinR2 = coinR * coinR;
     // Trail offset: shift the capsule centre back so the front cap sits at the
