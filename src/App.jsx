@@ -41,6 +41,39 @@ const MILESTONES = {
   lucky5:     { emoji: '🌟', label: '5 IN A ROW!',         sub: 'UNSTOPPABLE'         },
 };
 
+// ── Pressure helpers (pure — outside component) ───────────────────────────
+const PRESSURE_CLASS = ['', 'pressure-low', 'pressure-medium', 'pressure-high', 'pressure-critical'];
+
+function lerpC(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
+
+function timerPressure(t) {
+  if (t > 45) return 0;
+  if (t > 30)  return lerpC(0,  25, (45 - t) / 15);
+  if (t > 15)  return lerpC(25, 50, (30 - t) / 15);
+  if (t > 8)   return lerpC(50, 75, (15 - t) / 7);
+  return               lerpC(75, 100, (8 - t) / 8);
+}
+function coinPressure(c) {
+  if (c > 40) return 0;
+  if (c > 25)  return lerpC(0,  25, (40 - c) / 15);
+  if (c > 15)  return lerpC(25, 50, (25 - c) / 10);
+  if (c > 8)   return lerpC(50, 75, (15 - c) / 7);
+  return               lerpC(75, 100, (8 - c) / 8);
+}
+function pressureScore(t, c) { return (timerPressure(t) + coinPressure(c)) / 2; }
+function pressureMult(t, c) {
+  const s = pressureScore(t, c);
+  if (s <= 0)  return 1;
+  if (s <= 25) return lerpC(1,   1.5, s / 25);
+  if (s <= 50) return lerpC(1.5, 2,   (s - 25) / 25);
+  if (s <= 75) return lerpC(2,   3,   (s - 50) / 25);
+  return              lerpC(3,   5,   (s - 75) / 25);
+}
+function calcPressureLvl(t, c) {
+  const s = pressureScore(t, c);
+  return s <= 0 ? 0 : s < 25 ? 1 : s < 50 ? 2 : s < 75 ? 3 : 4;
+}
+
 function makeOption(speedMode, balance, forceWin = false, isDark = false) {
   const theme = getRandomTheme();
   const cost  = speedMode ? 1 : theme.price;
@@ -146,6 +179,8 @@ export default function App() {
   const [goReason,  setGoReason]  = useState('coins');
   const [showTiers, setShowTiers] = useState(false);
   const [shaking,   setShaking]   = useState(false);
+  const [pressureLvl, setPressureLvl] = useState(0);
+  const prevPressureLvlRef = useRef(0);
 
   // ── Stable refs ───────────────────────────────────────────────────────────
   const cardRef      = useRef(null);
@@ -417,7 +452,7 @@ export default function App() {
 
       if (prize >= 200) triggerMilestone('highRoller');
       setWinMsg({ text: `${prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`, tier: prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small' });
-      updateFlowLevel(prize >= 500 ? 50 : prize >= 30 ? 35 : 18);
+      updateFlowLevel((prize >= 500 ? 50 : prize >= 30 ? 35 : 18) * pressureMult(timeLeftRef.current, balanceRef.current));
     } else {
       consecWinsRef.current = 0;
       setConsecWins(0);
@@ -659,6 +694,16 @@ export default function App() {
     }, 1000);
   }, [slusheeSecs, startTimer]);
 
+  // ── Pressure level — drives shake CSS class and flow fill-rate multiplier ──
+  useEffect(() => {
+    const active = phase !== 'intro' && !gameOver && !flowState;
+    const lvl = active ? calcPressureLvl(timeLeft, balance) : 0;
+    if (lvl !== prevPressureLvlRef.current) {
+      prevPressureLvlRef.current = lvl;
+      setPressureLvl(lvl);
+    }
+  }, [timeLeft, balance, flowState, gameOver, phase]);
+
   // Cleanup on unmount
   useEffect(() => () => {
     stopTimer();
@@ -671,7 +716,7 @@ export default function App() {
   const isActive = phase !== 'intro';
 
   return (
-    <div className={`app ${shaking ? 'shaking' : ''} ${flowState ? 'flow-state' : ''}`}>
+    <div className={`app ${shaking ? 'shaking' : ''} ${flowState ? 'flow-state' : ''} ${!flowState && pressureLvl > 0 ? PRESSURE_CLASS[pressureLvl] : ''}`}>
 
       {/* ── Flow State banner ─────────────────── */}
       {showFlowBanner && <div className="flow-state-banner">⚡ FLOW STATE ⚡</div>}
