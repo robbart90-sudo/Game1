@@ -27,10 +27,15 @@ const SPEED_TIME   = 30;
 const GOAL_BALANCE = STARTING_BALANCE * 2;
 const PICKER_COUNT = 6;
 
+// ── BALANCE CONSTANTS — tweak economy here without touching game logic ─────────
+const PASSIVE_DRAIN_COINS      = 1;  // coins deducted per tick
+const PASSIVE_DRAIN_INTERVAL_S = 3;  // seconds between drain ticks
+// ─────────────────────────────────────────────────────────────────────────────
+
 const MILESTONES = {
   firstWin:   { emoji: '🎉', label: 'FIRST WIN!',         sub: 'OFF TO THE RACES'    },
   onARoll:    { emoji: '🔥', label: 'ON A ROLL!',          sub: '3 WINS IN A ROW'     },
-  highRoller: { emoji: '💎', label: 'HIGH ROLLER!',        sub: '500+ WIN'            },
+  highRoller: { emoji: '💎', label: 'HIGH ROLLER!',        sub: '200+ WIN'            },
   speedDemon: { emoji: '⚡', label: 'SPEED DEMON!',        sub: 'CARD SCRATCHED < 5S' },
   goalHit:    { emoji: '🏆', label: 'GOAL ACHIEVED!',      sub: 'BALANCE DOUBLED'     },
   lucky5:     { emoji: '🌟', label: '5 IN A ROW!',         sub: 'UNSTOPPABLE'         },
@@ -133,6 +138,7 @@ export default function App() {
   const nextCardWinRef  = useRef(false);
   const friesTimerRef   = useRef(null);
   const slusheeTimerRef = useRef(null);
+  const drainIntervalRef = useRef(null);
   const brushBoost = brushBoostSecs > 0 ? 1.5 : 1.0;
 
   // ── UI ────────────────────────────────────────────────────────────────────
@@ -198,6 +204,29 @@ export default function App() {
     setTimeLeft(duration);
   }, [stopTimer]);
 
+  const stopDrain = useCallback(() => {
+    clearInterval(drainIntervalRef.current);
+    drainIntervalRef.current = null;
+  }, []);
+
+  const startDrain = useCallback(() => {
+    if (drainIntervalRef.current) return;
+    drainIntervalRef.current = setInterval(() => {
+      if (!timerIntervalRef.current) return; // timer paused (flow state or slushee) — skip tick
+      if (balanceRef.current <= 0) return;
+      const next = Math.max(0, balanceRef.current - PASSIVE_DRAIN_COINS);
+      balanceRef.current = next;
+      setBalance(next);
+      if (next <= 0) {
+        clearInterval(drainIntervalRef.current);
+        drainIntervalRef.current = null;
+        stopTimer();
+        setGameOver(true);
+        setGoReason('coins');
+      }
+    }, PASSIVE_DRAIN_INTERVAL_S * 1000);
+  }, [stopTimer]);
+
   // ── Flow State Meter logic ────────────────────────────────────────────────
   const exitFlowState = useCallback(() => {
     const cardsInFlow = flowRoundRef.current - 1; // rounds completed before exit
@@ -260,16 +289,16 @@ export default function App() {
   // ── Win feedback ──────────────────────────────────────────────────────────
   const applyWinFeedback = useCallback((prize) => {
     if (prize <= 0) return;
-    if (prize < 100) {
+    if (prize < 20) {
       setCardFlash('flash-gold');
       setTimeout(() => setCardFlash(''), 600);
       soundRef.current?.ching(1);
-    } else if (prize < 500) {
+    } else if (prize < 100) {
       setCardFlash('flash-medium');
       setTimeout(() => setCardFlash(''), 800);
       confetti({ particleCount: 80, spread: 65, origin: { y: 0.65 } });
       soundRef.current?.ching(2);
-    } else if (prize < 5000) {
+    } else if (prize < 500) {
       setShaking(true);
       setTimeout(() => setShaking(false), 500);
       confetti({ particleCount: 150, spread: 90, origin: { y: 0.55 } });
@@ -299,7 +328,9 @@ export default function App() {
   // ── Show picker (normal or flow, with optional pre-gen) ───────────────────
   const showPicker = useCallback((pregenOptions = null) => {
     if (balanceRef.current < 1) {
+      addToast("You're tapped out, man.", { type: 'red', anim: 'shake' });
       stopTimer();
+      stopDrain();
       setGameOver(true);
       setGoReason('coins');
       return;
@@ -314,7 +345,7 @@ export default function App() {
       setSlideTarget('picker');
       setPhase('picking'); phaseRef.current = 'picking';
     }));
-  }, [slideOut, slideInNew, stopTimer]);
+  }, [slideOut, slideInNew, stopTimer, stopDrain, addToast]);
 
   // ── Shop buy handler ──────────────────────────────────────────────────────
   const handleShopBuy = useCallback((id) => {
@@ -369,8 +400,8 @@ export default function App() {
       applyWinFeedback(prize);
 
       addToast(`💰 +${prize.toLocaleString()} coins!`, { type: 'gold', duration: td });
-      if (prize > 5000) addToast('💎 JACKPOT!', { type: 'jackpot', size: 'large', duration: td });
-      else if (prize > 500) addToast('🤑 Big money!', { type: 'gold', duration: td });
+      if (prize >= 500) addToast('💎 JACKPOT!', { type: 'jackpot', size: 'large', duration: td });
+      else if (prize >= 30) addToast('🤑 Big money!', { type: 'gold', duration: td });
 
       if (!firstWinRef.current) { firstWinRef.current = true; addToast('🎉 First blood!', { type: 'green', duration: td }); }
 
@@ -384,9 +415,9 @@ export default function App() {
         return n;
       });
 
-      if (prize >= 500) triggerMilestone('highRoller');
-      setWinMsg({ text: `${prize >= 5000 ? '🏆 JACKPOT' : prize >= 500 ? '💎 BIG WIN' : prize >= 100 ? '⭐ WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`, tier: prize >= 5000 ? 'jackpot' : prize >= 500 ? 'big' : prize >= 100 ? 'medium' : 'small' });
-      updateFlowLevel(prize >= 5000 ? 50 : prize >= 500 ? 35 : 18);
+      if (prize >= 200) triggerMilestone('highRoller');
+      setWinMsg({ text: `${prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`, tier: prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small' });
+      updateFlowLevel(prize >= 500 ? 50 : prize >= 30 ? 35 : 18);
     } else {
       consecWinsRef.current = 0;
       setConsecWins(0);
@@ -452,8 +483,8 @@ export default function App() {
       applyWinFeedback(prize);
 
       addToast(`💰 +${prize.toLocaleString()} coins!`, { type: 'gold', duration: td });
-      if (prize > 5000) addToast('💎 JACKPOT!', { type: 'jackpot', size: 'large', duration: td });
-      else if (prize > 500) addToast('🤑 Big money!', { type: 'gold', duration: td });
+      if (prize >= 500) addToast('💎 JACKPOT!', { type: 'jackpot', size: 'large', duration: td });
+      else if (prize >= 30) addToast('🤑 Big money!', { type: 'gold', duration: td });
 
       setConsecWins(c => {
         const n = c + 1;
@@ -541,15 +572,17 @@ export default function App() {
     setSlideTarget('picker');
     setPhase('picking'); phaseRef.current = 'picking';
     startTimer();
-  }, [startTimer]);
+    startDrain();
+  }, [startTimer, startDrain]);
 
   // ── End session ────────────────────────────────────────────────────────────
   const handleEndSession = useCallback(() => {
     stopTimer();
+    stopDrain();
     clearInterval(flowDrainRef.current);
     setGameOver(true);
     setGoReason('manual');
-  }, [stopTimer]);
+  }, [stopTimer, stopDrain]);
 
   // ── Speed mode toggle ──────────────────────────────────────────────────────
   const toggleSpeed = useCallback(() => {
@@ -579,6 +612,7 @@ export default function App() {
     nextCardWinRef.current = false;
     if (friesTimerRef.current)   { clearInterval(friesTimerRef.current);   friesTimerRef.current   = null; }
     if (slusheeTimerRef.current) { clearInterval(slusheeTimerRef.current); slusheeTimerRef.current = null; }
+    if (drainIntervalRef.current) { clearInterval(drainIntervalRef.current); drainIntervalRef.current = null; }
     // Reset toast tracking refs
     consecWinsRef.current  = 0;
     speedStreakRef.current  = 0;
@@ -622,6 +656,7 @@ export default function App() {
     clearInterval(flowDrainRef.current);
     clearInterval(friesTimerRef.current);
     clearInterval(slusheeTimerRef.current);
+    clearInterval(drainIntervalRef.current);
   }, [stopTimer]);
 
   const isActive = phase !== 'intro';
