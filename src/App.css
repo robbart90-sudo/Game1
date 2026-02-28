@@ -117,6 +117,15 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   gap: 16px;
 }
 
+/* ── Status panel — timer bar directly above heat bar ──────────────── */
+.status-panel {
+  width: 100%;
+  max-width: 352px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* ── Intro ──────────────────────────────────────────────────────────── */
 .intro {
   display: flex;

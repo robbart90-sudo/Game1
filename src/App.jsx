@@ -6,7 +6,7 @@ import HeatMeter       from './components/HeatMeter';
 import BalanceBar      from './components/BalanceBar';
 import PrizeTierTable  from './components/PrizeTierTable';
 import GameOverScreen  from './components/GameOverScreen';
-import TimerDisplay    from './components/TimerDisplay';
+import SegmentedBar    from './components/SegmentedBar';
 import MilestoneBanner from './components/MilestoneBanner';
 import GoalBar         from './components/GoalBar';
 import Tutorial, { tutorialHasSeen } from './components/Tutorial';
@@ -540,7 +540,6 @@ export default function App() {
       <header className="app-header">
         <h1 className="title">🎰 Scratch &amp; Win</h1>
         <div className="header-right">
-          <TimerDisplay timeLeft={timeLeft} active={!!timerIntervalRef.current} speedMode={speedMode} />
           <button className="info-btn" onClick={() => setShowTutorial(true)} title="How to play">?</button>
           <button className="info-btn" onClick={() => setShowTiers(true)}>ℹ️</button>
         </div>
@@ -559,8 +558,19 @@ export default function App() {
           </div>
         )}
 
-        {/* Heat meter — full width, directly above card/picker */}
-        {isActive && <HeatMeter heat={heat} flowState={flowState} flowRound={flowRound} />}
+        {/* ── Status panel: timer bar (top) + heat bar (bottom) ── */}
+        {isActive && (
+          <div className="status-panel">
+            <SegmentedBar
+              count={timeLeft}
+              maxCount={speedMode ? SPEED_TIME : NORMAL_TIME}
+              color={timeLeft <= 10 && !!timerIntervalRef.current ? 'timer-urgent' : 'timer'}
+              label={speedMode ? '⚡ SPEED' : '⏱ TIMER'}
+              rightLabel={`${timeLeft}s`}
+            />
+            <HeatMeter heat={heat} flowState={flowState} flowRound={flowRound} />
+          </div>
+        )}
 
         {/* Card view — normal scratch only (never shown during flow state) */}
         {(phase === 'playing' || phase === 'result') && cardData && slideTarget === 'card' && (

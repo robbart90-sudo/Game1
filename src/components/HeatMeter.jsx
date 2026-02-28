@@ -1,25 +1,21 @@
-import './HeatMeter.css';
+import SegmentedBar from './SegmentedBar';
+
+const HEAT_SEGS = 30; // 30 blocks — each ≈ 3.3% heat; matches timer in speed mode
 
 export default function HeatMeter({ heat, flowState, flowRound }) {
   const isHot  = heat >= 75;
-  const pct    = Math.min(Math.round(heat), 100);
+  const count  = Math.round(Math.min(heat, 100) / 100 * HEAT_SEGS);
+  const color  = flowState ? 'flow' : isHot ? 'heat-hot' : 'heat';
+  const label  = flowState ? `⚡ FLOW STATE — RD ${flowRound}` : '🔥 HEAT';
+  const right  = flowState ? 'DRAINING' : `${Math.round(Math.min(heat, 100))}%`;
 
   return (
-    <div className={`heat-meter-wrap ${isHot ? 'hot' : ''} ${flowState ? 'flow' : ''}`}>
-      <div className="heat-meter-row">
-        <span className="heat-label">
-          {flowState ? `⚡ FLOW STATE — RD ${flowRound}` : '🔥 HEAT'}
-        </span>
-        <span className="heat-pct">
-          {flowState ? 'DRAINING' : `${pct}%`}
-        </span>
-      </div>
-      <div className="heat-track">
-        <div
-          className={`heat-fill ${isHot && !flowState ? 'hot-fill' : ''} ${flowState ? 'flow-fill' : ''}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
+    <SegmentedBar
+      count={count}
+      maxCount={HEAT_SEGS}
+      color={color}
+      label={label}
+      rightLabel={right}
+    />
   );
 }
