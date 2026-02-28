@@ -398,6 +398,11 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     const coinR = brushRadius * (0.60 - 0.15 * t);  // 13.2px → 9.9px
     const coinH = brushRadius * 1.2  * t;            // 0px    → 26.4px
     const coinR2 = coinR * coinR;
+    // Trail offset: shift the capsule centre back so the front cap sits at the
+    // pointer, like a coin whose leading edge is under your finger.
+    // At rest (coinH=0) this is zero, so the resting circle stays centred.
+    const offX = nvx * coinH;
+    const offY = nvy * coinH;
 
     // ── Stamp one oriented capsule at canvas position (scx, scy) ──────────
     const stampAt = (scx, scy) => {
@@ -436,13 +441,12 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
       const stepSize = Math.max(coinR * 0.55, 2);
       const steps    = Math.max(1, Math.ceil(dist / stepSize));
       for (let s = 1; s <= steps; s++) {
-        stampAt(
-          lcx + (cx - lcx) * (s / steps),
-          lcy + (cy - lcy) * (s / steps),
-        );
+        const ix = lcx + (cx - lcx) * (s / steps);
+        const iy = lcy + (cy - lcy) * (s / steps);
+        stampAt(ix - offX, iy - offY);
       }
     } else {
-      stampAt(cx, cy);
+      stampAt(cx - offX, cy - offY);
     }
 
     lastPosRef.current = { bxF, byF, cx, cy };
