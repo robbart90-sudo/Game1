@@ -10,6 +10,7 @@ import TimerDisplay    from './components/TimerDisplay';
 import MilestoneBanner from './components/MilestoneBanner';
 import GoalBar         from './components/GoalBar';
 import Tutorial, { tutorialHasSeen } from './components/Tutorial';
+import AttendantCutscene from './components/AttendantCutscene';
 import ToastManager, { useToast } from './components/ToastManager';
 import { useSound }    from './hooks/useSound';
 import { generateCard, STARTING_BALANCE } from './utils/lottery';
@@ -72,6 +73,9 @@ export default function App() {
     const isWarn = opts.anim === 'shake' || opts.type === 'red';
     soundRef.current?.tick(isWarn ? false : true);
   }, [_addToast]); // soundRef is a ref so no dep needed
+
+  // ── Opening cutscene (first visit only) ──────────────────────────────────
+  const [showCutscene, setShowCutscene] = useState(() => !localStorage.getItem('cutscene_seen'));
 
   // ── Tutorial ──────────────────────────────────────────────────────────────
   const [showTutorial, setShowTutorial] = useState(() => !tutorialHasSeen());
@@ -596,6 +600,12 @@ export default function App() {
       {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} onPlayAgain={handlePlayAgain} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
       {showTutorial && <Tutorial onDone={() => setShowTutorial(false)} />}
+      {showCutscene && (
+        <AttendantCutscene onDone={() => {
+          localStorage.setItem('cutscene_seen', '1');
+          setShowCutscene(false);
+        }} />
+      )}
     </div>
   );
 }
