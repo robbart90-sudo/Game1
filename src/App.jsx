@@ -309,6 +309,7 @@ export default function App() {
     setTimeout(() => setShowFlowBanner(false), 1000);
     clearInterval(flowDrainRef.current);
     stopTimer(); // freeze countdown during flow state
+    soundRef.current?.flowActivate();
     triggerFlowMilestone();
     // Drain ~8 pts/s
     flowDrainRef.current = setInterval(() => {
@@ -417,7 +418,7 @@ export default function App() {
       setWinMsg({ text: `${prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`, tier: prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small' });
       updateFlowLevel((prize >= 500 ? 50 : prize >= 30 ? 35 : 18) * pressureMult(timeLeftRef.current, balanceRef.current));
     } else {
-      soundRef.current?.tick(false);
+      soundRef.current?.thud();
       setWinMsg({ text: 'No match — better luck next time!', tier: 'none' });
       updateFlowLevel(-10);
     }
@@ -450,7 +451,7 @@ export default function App() {
       flowRoundRef.current = r;
       setFlowRound(r);
     } else {
-      soundRef.current?.tick(false);
+      soundRef.current?.thud();
       exitFlowState();
     }
 
@@ -613,6 +614,7 @@ export default function App() {
       <header className="app-header">
         <h1 className="title">🎰 Scratch &amp; Win</h1>
         <div className="header-right">
+          <button className="info-btn" onClick={sound.toggleMute} title={sound.muted ? 'Unmute' : 'Mute'}>{sound.muted ? '🔇' : '🔊'}</button>
           <button className="info-btn" onClick={() => setShowTutorial(true)} title="How to play">?</button>
           <button className="info-btn" onClick={() => setShowTiers(true)}>ℹ️</button>
         </div>

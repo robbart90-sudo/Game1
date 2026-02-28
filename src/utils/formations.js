@@ -10,6 +10,54 @@
 
 export const FORMATIONS = {
 
+  // ── Trio (1×3) — 3 large cells for $1–3 tickets ────────────────
+  trio: {
+    id: 'trio',
+    cellCount: 3,
+    luckyStyle: 'top-bottom',
+    cells: (() => {
+      const pw = 0.26, ph = 0.60;
+      const gx = (1 - 3 * pw) / 4;
+      return [0, 1, 2].map(c => ({ x: gx + c * (pw + gx), y: 0.19, w: pw, h: ph }));
+    })(),
+  },
+
+  // ── Quad (2×2) — 4 cells for $4–7 tickets ─────────────────────
+  quad: {
+    id: 'quad',
+    cellCount: 4,
+    luckyStyle: 'row',
+    cells: (() => {
+      const result = [];
+      const cols = 2, rows = 2;
+      const pw = 0.40, ph = 0.38;
+      const gx = (1 - cols * pw) / (cols + 1);
+      const gy = (1 - rows * ph) / (rows + 1);
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          result.push({ x: gx + c * (pw + gx), y: gy + r * (ph + gy), w: pw, h: ph });
+      return result;
+    })(),
+  },
+
+  // ── Hex (3×2) — 6 cells for $8–12 tickets ─────────────────────
+  hex: {
+    id: 'hex',
+    cellCount: 6,
+    luckyStyle: 'split',
+    cells: (() => {
+      const result = [];
+      const cols = 3, rows = 2;
+      const pw = 0.27, ph = 0.36;
+      const gx = (1 - cols * pw) / (cols + 1);
+      const gy = (1 - rows * ph) / (rows + 1);
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          result.push({ x: gx + c * (pw + gx), y: gy + r * (ph + gy), w: pw, h: ph });
+      return result;
+    })(),
+  },
+
   // ── Classic 3×3 ────────────────────────────────────────────────
   classic: {
     id: 'classic',

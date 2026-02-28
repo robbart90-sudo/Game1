@@ -167,6 +167,15 @@ function fmtTopPrize(price) {
   return v.toLocaleString() + ' COINS';
 }
 
+// Formation scales with price: more cells = more complex = higher stakes
+function formationForPrice(price) {
+  if (price <= 3)  return FORMATIONS.trio;   // 3 cells
+  if (price <= 7)  return FORMATIONS.quad;   // 4 cells
+  if (price <= 12) return FORMATIONS.hex;    // 6 cells
+  if (price <= 17) return FORMATIONS.lshape; // 8 cells
+  return FORMATIONS.wide;                    // 10 cells ($18–20)
+}
+
 // Tilt values cycling across themes: alternating subtle angles
 const TILTS = [-1.2, 0.8, -0.5, 1.5, -1.0, 0.6, -1.8, 1.1, -0.7, 1.3];
 
@@ -174,7 +183,7 @@ export const THEMES = raw.map((t, i) => ({
   ...t,
   palette: P[t.p],
   topPrize: fmtTopPrize(t.price),
-  formation: FORMATIONS[FORMATION_KEYS[i % FORMATION_KEYS.length]],
+  formation: formationForPrice(t.price),
   tilt: TILTS[i % TILTS.length],
 }));
 

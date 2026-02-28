@@ -1,8 +1,10 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 
 export function useSound() {
   const ctxRef = useRef(null);
   const lastScratchRef = useRef(0);
+  const mutedRef = useRef(false);
+  const [muted, setMuted] = useState(false);
 
   const ctx = useCallback(() => {
     if (!ctxRef.current) {
@@ -12,8 +14,14 @@ export function useSound() {
     return ctxRef.current;
   }, []);
 
+  const toggleMute = useCallback(() => {
+    mutedRef.current = !mutedRef.current;
+    setMuted(mutedRef.current);
+  }, []);
+
   // "shhhk" scratch noise — throttled to avoid audio spam
   const scratch = useCallback(() => {
+    if (mutedRef.current) return;
     const now = Date.now();
     if (now - lastScratchRef.current < 55) return;
     lastScratchRef.current = now;
@@ -43,6 +51,7 @@ export function useSound() {
 
   // Coin "ching" — pitch scales with win size
   const ching = useCallback((level = 1) => {
+    if (mutedRef.current) return;
     try {
       const ac = ctx();
       const freqs = level === 1
@@ -68,6 +77,7 @@ export function useSound() {
 
   // Fanfare for big/medium wins
   const fanfare = useCallback((big = false) => {
+    if (mutedRef.current) return;
     try {
       const ac = ctx();
       const notes = big
@@ -92,6 +102,7 @@ export function useSound() {
 
   // Jackpot — ascending arpeggio + harmonics
   const jackpot = useCallback(() => {
+    if (mutedRef.current) return;
     try {
       const ac = ctx();
       const notes = [261.63, 329.63, 392, 523.25, 659.25, 783.99, 1046.5, 1318.5];
@@ -114,6 +125,7 @@ export function useSound() {
 
   // Timer tick — urgent when time is low
   const tick = useCallback((urgent = false) => {
+    if (mutedRef.current) return;
     try {
       const ac = ctx();
       const osc = ac.createOscillator();
@@ -129,6 +141,7 @@ export function useSound() {
 
   // Small "whoosh" on card deal
   const deal = useCallback(() => {
+    if (mutedRef.current) return;
     try {
       const ac = ctx();
       const bufSize = Math.floor(ac.sampleRate * 0.18);
@@ -150,5 +163,45 @@ export function useSound() {
     } catch {}
   }, [ctx]);
 
-  return { scratch, ching, fanfare, jackpot, tick, deal };
+  // Low bass thud — played on no-match result
+  const thud = useCallback(() => {
+    if (mutedRef.current) return;
+    try {
+      const ac = ctx();
+      const osc = ac.createOscillator();
+      const g   = ac.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(110, ac.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(38, ac.currentTime + 0.22);
+      g.gain.setValueAtTime(0.55, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.35);
+      osc.connect(g); g.connect(ac.destination);
+      osc.start(); osc.stop(ac.currentTime + 0.38);
+    } catch {}
+  }, [ctx]);
+
+  // Rising tone sweep — played when Flow State activates
+  const flowActivate = useCallback(() => {
+    if (mutedRef.current) return;
+    try {
+      const ac = ctx();
+      // Two stacked oscillators for a richer sweep
+      [220, 330].forEach((startFreq, i) => {
+        const osc = ac.createOscillator();
+        const g   = ac.createGain();
+        const t   = ac.currentTime + i * 0.04;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(startFreq, t);
+        osc.frequency.exponentialRampToValueAtTime(startFreq * 3.5, t + 0.65);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.28, t + 0.08);
+        g.gain.setValueAtTime(0.28, t + 0.45);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+        osc.connect(g); g.connect(ac.destination);
+        osc.start(t); osc.stop(t + 0.9);
+      });
+    } catch {}
+  }, [ctx]);
+
+  return { scratch, ching, fanfare, jackpot, tick, deal, thud, flowActivate, muted, toggleMute };
 }

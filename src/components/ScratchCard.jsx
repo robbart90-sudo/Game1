@@ -266,24 +266,39 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, flowLe
       ctx.globalCompositeOperation = 'source-over';
       ctx.drawImage(bc, 0, 0);
 
-      // ── 2. Erase scratched blocks (destination-out) ──────────────────────
-      // Each block is erased at a slightly jittered position — this creates
-      // jagged/chunky edges at the scratch boundary while the interior stays
-      // clean. Oversize by 5px ensures adjacent scratched blocks overlap so
-      // no thin lines appear inside a fully-scratched region.
+      // ── 2. Erase scratched blocks (destination-out, clipped per cell) ───────
+      // Each cell gets its own clipping rect so erasure never bleeds into
+      // neighbouring cells. Jagged edge jitter (BLOCK_JITTER) is clipped at
+      // the cell boundary — the foil between cells is never erased.
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = 'rgba(0,0,0,1)';
-      for (let by = 0; by < BLOCK_ROWS; by++) {
-        for (let bx = 0; bx < BLOCK_COLS; bx++) {
-          if (!sc[by * BLOCK_COLS + bx]) continue;
-          const { dx, dy } = BLOCK_JITTER[by * BLOCK_COLS + bx];
-          ctx.fillRect(
-            Math.floor(bx * BLOCK_W + dx),
-            Math.floor(by * BLOCK_H + dy),
-            BLOCK_W + 5,
-            BLOCK_H + 5,
-          );
+      for (const fc of formCells) {
+        const cellX = fc.x * CW;
+        const cellY = fc.y * CH;
+        const cellW = fc.w * CW;
+        const cellH = fc.h * CH;
+        // Block range that overlaps this cell
+        const bx0 = Math.max(0,              Math.floor(cellX / BLOCK_W));
+        const by0 = Math.max(0,              Math.floor(cellY / BLOCK_H));
+        const bx1 = Math.min(BLOCK_COLS - 1, Math.ceil((cellX + cellW) / BLOCK_W));
+        const by1 = Math.min(BLOCK_ROWS - 1, Math.ceil((cellY + cellH) / BLOCK_H));
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(cellX, cellY, cellW, cellH);
+        ctx.clip();
+        for (let by = by0; by <= by1; by++) {
+          for (let bx = bx0; bx <= bx1; bx++) {
+            if (!sc[by * BLOCK_COLS + bx]) continue;
+            const { dx, dy } = BLOCK_JITTER[by * BLOCK_COLS + bx];
+            ctx.fillRect(
+              Math.floor(bx * BLOCK_W + dx),
+              Math.floor(by * BLOCK_H + dy),
+              BLOCK_W + 5,
+              BLOCK_H + 5,
+            );
+          }
         }
+        ctx.restore();
       }
 
       // ── 3. Iridescent shimmer + specular (source-atop = only on unscratched foil) ──
