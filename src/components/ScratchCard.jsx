@@ -18,11 +18,7 @@ const BASE_BRUSH_R = 22;
 // Speed (px/pointer-event in canvas coords) at which the capsule reaches full stretch.
 const MAX_SPEED    = 5;
 
-// Coverage thresholds
-const WIN_CELL_THRESHOLD  = 0.20;
-const LOSS_CELL_THRESHOLD = 0.20;
-const CARD_COMPLETE_AT    = 0.95;
-const CHECK_EVERY         = 3; // check more often since block ops are cheap
+const CHECK_EVERY = 3; // how often to run the hotspot completion check
 
 // Silver/foil debris colors
 const SILVER_COLORS = ['#e8e8e8', '#c0c0c0', '#d4d4d4', '#f0f0f0', '#aaaaaa', '#b8b8b8'];
@@ -55,13 +51,17 @@ function lighten(hex, amt) {
   } catch { return hex; }
 }
 
-// Convert cell fractional coords to block-grid indices
-function cellBlockBounds(fc) {
-  const x0 = Math.floor(fc.x * BLOCK_COLS);
-  const y0 = Math.floor(fc.y * BLOCK_ROWS);
-  const x1 = Math.min(BLOCK_COLS - 1, Math.ceil((fc.x + fc.w) * BLOCK_COLS));
-  const y1 = Math.min(BLOCK_ROWS - 1, Math.ceil((fc.y + fc.h) * BLOCK_ROWS));
-  return { x0, y0, x1, y1 };
+// 20×20 px hotspot centered on a formCell, returned as block-grid indices.
+// The player only needs to scratch through this central target zone.
+function hotspotBlocks(fc) {
+  const cx = (fc.x + fc.w * 0.5) * CW;
+  const cy = (fc.y + fc.h * 0.5) * CH;
+  return {
+    x0: Math.max(0,              Math.floor((cx - 10) / BLOCK_W)),
+    y0: Math.max(0,              Math.floor((cy - 10) / BLOCK_H)),
+    x1: Math.min(BLOCK_COLS - 1, Math.floor((cx + 10) / BLOCK_W)),
+    y1: Math.min(BLOCK_ROWS - 1, Math.floor((cy + 10) / BLOCK_H)),
+  };
 }
 
 export default function ScratchCard({ cardData, onComplete, soundScratch, heat = 0 }) {
@@ -227,39 +227,27 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     }
   }, []);
 
-  // ── Block-based cell coverage (no pixel reads) ────────────────────────────
-  const cellBlockCoverage = useCallback((fc) => {
-    const { x0, y0, x1, y1 } = cellBlockBounds(fc);
-    let total = 0, scratched = 0;
-    for (let by = y0; by <= y1; by++) {
-      for (let bx = x0; bx <= x1; bx++) {
-        total++;
-        if (scratchedRef.current[by * BLOCK_COLS + bx]) scratched++;
-      }
-    }
-    return total > 0 ? scratched / total : 0;
-  }, []);
-
-  // ── Check overall coverage and fire onComplete ────────────────────────────
+  // ── Hotspot check: fire onComplete when every cell's centre has been scratched ─
+  // Each formCell has a 20×20 px hotspot at its centre. A hotspot is cleared
+  // as soon as any block within it is scratched — the player just needs one
+  // stroke through the middle of each number, not broad coverage.
   const checkCoverage = useCallback(() => {
     if (revealedRef.current || formCells.length === 0) return;
-    let revealedCells = 0;
-    cells.forEach((cell, i) => {
-      const fc = formCells[i];
-      if (!fc) return;
-      const threshold = cell.isMatch ? WIN_CELL_THRESHOLD : LOSS_CELL_THRESHOLD;
-      if (cellBlockCoverage(fc) >= threshold) revealedCells++;
+    const sc = scratchedRef.current;
+    const allCleared = formCells.every(fc => {
+      const { x0, y0, x1, y1 } = hotspotBlocks(fc);
+      for (let by = y0; by <= y1; by++)
+        for (let bx = x0; bx <= x1; bx++)
+          if (sc[by * BLOCK_COLS + bx]) return true;
+      return false;
     });
-    if (revealedCells / formCells.length >= CARD_COMPLETE_AT) {
+    if (allCleared) {
       revealedRef.current = true;
       setCompleted(true);
       cancelAnimationFrame(animRef.current);
-      const scratchSecs = scratchStart.current
-        ? (Date.now() - scratchStart.current) / 1000
-        : null;
-      onComplete(scratchSecs);
+      onComplete(scratchStart.current ? (Date.now() - scratchStart.current) / 1000 : null);
     }
-  }, [cells, formCells, cellBlockCoverage, onComplete]);
+  }, [formCells, onComplete]);
 
   // ── Canvas render loop ────────────────────────────────────────────────────
   useEffect(() => {
@@ -482,43 +470,26 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     };
   }, [scratchAt]);
 
-  // ── Spacebar: instantly reveal all LOSING cells (block-based) ─────────────
+  // ── Spacebar: instantly clear hotspots of all LOSING cells ───────────────
   const autoRevealLosers = useCallback(() => {
     if (revealedRef.current || dealingRef.current || completed) return;
     const sc = scratchedRef.current;
     if (!sc) return;
 
     cells.forEach((cell, i) => {
-      if (cell.isMatch) return; // skip winning cells
+      if (cell.isMatch) return; // winning cells must be scratched manually
       const fc = formCells[i];
       if (!fc) return;
-      const { x0, y0, x1, y1 } = cellBlockBounds(fc);
-      for (let by = y0; by <= y1; by++) {
+      const { x0, y0, x1, y1 } = hotspotBlocks(fc);
+      for (let by = y0; by <= y1; by++)
         for (let bx = x0; bx <= x1; bx++) {
           const idx = by * BLOCK_COLS + bx;
           if (!sc[idx]) { sc[idx] = 1; scratchedCountRef.current++; }
         }
-      }
     });
 
-    // Check if now complete
-    let revealedCells = 0;
-    cells.forEach((cell, i) => {
-      const fc = formCells[i];
-      if (!fc) return;
-      if (!cell.isMatch) {
-        revealedCells++; // all non-match cells were just cleared
-      } else {
-        if (cellBlockCoverage(fc) >= WIN_CELL_THRESHOLD) revealedCells++;
-      }
-    });
-    if (revealedCells / formCells.length >= CARD_COMPLETE_AT) {
-      revealedRef.current = true;
-      setCompleted(true);
-      cancelAnimationFrame(animRef.current);
-      onComplete(scratchStart.current ? (Date.now() - scratchStart.current) / 1000 : null);
-    }
-  }, [cells, formCells, completed, cellBlockCoverage, onComplete]);
+    checkCoverage();
+  }, [cells, formCells, completed, checkCoverage]);
 
   // ── Keyboard: spacebar ────────────────────────────────────────────────────
   useEffect(() => {
