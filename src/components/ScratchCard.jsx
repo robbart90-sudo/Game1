@@ -552,12 +552,15 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, flowLe
         key={i}
         className={`lucky-num ${isMatching ? 'lucky-match' : ''} ${extraClass}`}
         style={{
-          '--lucky-color': palette.numText,
+          // CSS variables drive the ring system and glow in the stylesheet
+          '--lucky-color':  isMatching ? '#00ff88'      : palette.numText,
+          '--lucky-border': isMatching ? '#00ff88'      : palette.border,
+          '--lucky-numBg':  palette.numBg,
+          // Inner metallic gradient: lit from top-left, dark at base
           background: isMatching
-            ? `radial-gradient(circle, ${palette.numBg} 0%, #0a1a00 100%)`
-            : palette.numBg,
-          color: isMatching ? '#00ff88' : palette.numText,
-          borderColor: isMatching ? '#00ff88' : palette.border,
+            ? 'radial-gradient(circle at 38% 30%, #00ff88 0%, #00a854 45%, #001d0a 100%)'
+            : `radial-gradient(circle at 38% 30%, ${lighten(palette.numBg, 52)} 0%, ${palette.numBg} 60%)`,
+          color: isMatching ? '#001a0d' : palette.numText,
           ...extraStyle,
         }}
       >
@@ -646,7 +649,15 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, flowLe
       {/* ── Lucky Numbers ─────────────────────────── */}
       <div
         className={`ticket-lucky lucky-style-${luckyStyle}`}
-        style={{ borderColor: `${palette.border}44` }}
+        style={{
+          // CSS variables for the ring system, divider lines, and panel border
+          '--lucky-accent': palette.accent,
+          '--lucky-border': palette.border,
+          '--lucky-numBg':  palette.numBg,
+          // Panel: numBg base + header-colour radial glow at the top edge
+          background: `radial-gradient(ellipse at 50% -10%, ${palette.hdr[1]}38 0%, transparent 60%), ${palette.numBg}`,
+          borderColor: palette.border,
+        }}
       >
         {renderLuckyNumbers()}
       </div>
