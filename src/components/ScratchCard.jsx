@@ -19,8 +19,8 @@ const BASE_BRUSH_R = 22;
 const MAX_SPEED    = 5;
 
 // Coverage thresholds
-const WIN_CELL_THRESHOLD  = 0.50;
-const LOSS_CELL_THRESHOLD = 0.05;
+const WIN_CELL_THRESHOLD  = 0.20;
+const LOSS_CELL_THRESHOLD = 0.20;
 const CARD_COMPLETE_AT    = 0.95;
 const CHECK_EVERY         = 3; // check more often since block ops are cheap
 
@@ -395,8 +395,8 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, heat =
     // Moving (t→1): coinH grows while coinR shrinks → long pill, flat sides,
     //               curved ends — exactly like a coin dragged across a scratcher.
     const t     = Math.min(speedRef.current / MAX_SPEED, 1);
-    const coinR = brushRadius * (0.60 - 0.15 * t);  // 13.2px → 9.9px
-    const coinH = brushRadius * 1.2  * t;            // 0px    → 26.4px
+    const coinR = 6 - 2 * t;                         // 6px → 4px (thin coin edge)
+    const coinH = brushRadius * 1.1 * t;             // 0px → ~24px
     const coinR2 = coinR * coinR;
     // Trail offset: shift the capsule centre back so the front cap sits at the
     // pointer, like a coin whose leading edge is under your finger.
