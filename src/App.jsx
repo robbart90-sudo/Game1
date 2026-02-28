@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import ScratchCard     from './components/ScratchCard';
 import CardPicker      from './components/CardPicker';
-import HeatMeter       from './components/HeatMeter';
+import FlowMeter       from './components/FlowMeter';
 import BalanceBar      from './components/BalanceBar';
 import PrizeTierTable  from './components/PrizeTierTable';
 import GameOverScreen  from './components/GameOverScreen';
@@ -115,12 +115,12 @@ export default function App() {
   const timerIntervalRef = useRef(null);
   const timeLeftRef      = useRef(NORMAL_TIME);
 
-  // ── Heat / Flow State ─────────────────────────────────────────────────────
-  const [heat,           setHeat]           = useState(0);
+  // ── Flow State Meter ──────────────────────────────────────────────────────
+  const [flowLevel,      setFlowLevel]      = useState(0);
   const [flowState,      setFlowState]      = useState(false);
   const [flowRound,      setFlowRound]      = useState(0);
   const [showFlowBanner, setShowFlowBanner] = useState(false);
-  const heatRef      = useRef(0);
+  const flowLevelRef = useRef(0);
   const flowStateRef = useRef(false);
   const flowRoundRef = useRef(0);
   const flowDrainRef = useRef(null);
@@ -154,8 +154,8 @@ export default function App() {
   // ── Toast tracking refs (avoid re-triggering same toast) ──────────────────
   const consecWinsRef    = useRef(0);   // mirrors consecWins state for callbacks
   const speedStreakRef   = useRef(0);   // consecutive fast cards (< 4s)
-  const heatToast50Ref  = useRef(false);
-  const heatToast75Ref  = useRef(false);
+  const flowLevelToast50Ref = useRef(false);
+  const flowLevelToast75Ref = useRef(false);
   const lowBalanceRef   = useRef(false);
   const firstWinRef     = useRef(false);
   const goalToastRef    = useRef(false);
@@ -198,7 +198,7 @@ export default function App() {
     setTimeLeft(duration);
   }, [stopTimer]);
 
-  // ── Heat / Flow State ─────────────────────────────────────────────────────
+  // ── Flow State Meter logic ────────────────────────────────────────────────
   const exitFlowState = useCallback(() => {
     const cardsInFlow = flowRoundRef.current - 1; // rounds completed before exit
     flowStateRef.current = false;
@@ -207,10 +207,10 @@ export default function App() {
     flowRoundRef.current = 0;
     clearInterval(flowDrainRef.current);
     flowDrainRef.current = null;
-    heatRef.current = 0;
-    setHeat(0);
-    heatToast50Ref.current = false;
-    heatToast75Ref.current = false;
+    flowLevelRef.current = 0;
+    setFlowLevel(0);
+    flowLevelToast50Ref.current = false;
+    flowLevelToast75Ref.current = false;
     startTimer(); // resume the countdown that was frozen on flow state entry
     if (cardsInFlow > 0) {
       addToast(`💨 Flow State over — ${cardsInFlow} card${cardsInFlow !== 1 ? 's' : ''} cashed`, { type: 'blue' });
@@ -229,22 +229,22 @@ export default function App() {
     addToast('⚡ FLOW STATE!', { type: 'gold', size: 'large' });
     // Drain ~8 pts/s
     flowDrainRef.current = setInterval(() => {
-      heatRef.current = Math.max(0, heatRef.current - 1.2);
-      setHeat(Math.round(heatRef.current));
-      if (heatRef.current <= 0 && flowStateRef.current) exitFlowState();
+      flowLevelRef.current = Math.max(0, flowLevelRef.current - 1.2);
+      setFlowLevel(Math.round(flowLevelRef.current));
+      if (flowLevelRef.current <= 0 && flowStateRef.current) exitFlowState();
     }, 150);
   }, [exitFlowState, addToast, stopTimer]);
 
-  const updateHeat = useCallback((delta) => {
-    heatRef.current = Math.max(0, Math.min(100, heatRef.current + delta));
-    setHeat(Math.round(heatRef.current));
-    const h = heatRef.current;
+  const updateFlowLevel = useCallback((delta) => {
+    flowLevelRef.current = Math.max(0, Math.min(100, flowLevelRef.current + delta));
+    setFlowLevel(Math.round(flowLevelRef.current));
+    const h = flowLevelRef.current;
     if (delta > 0) {
-      if (!heatToast50Ref.current && h >= 50) { heatToast50Ref.current = true; addToast('🌡️ Heating up...', { type: 'gold' }); }
-      if (!heatToast75Ref.current && h >= 75) { heatToast75Ref.current = true; addToast('🔥 Almost there!', { type: 'orange' }); }
+      if (!flowLevelToast50Ref.current && h >= 50) { flowLevelToast50Ref.current = true; addToast('⚡ Charging up...', { type: 'gold' }); }
+      if (!flowLevelToast75Ref.current && h >= 75) { flowLevelToast75Ref.current = true; addToast('🔥 Almost there!', { type: 'orange' }); }
     } else {
-      if (h < 50) heatToast50Ref.current = false;
-      if (h < 75) heatToast75Ref.current = false;
+      if (h < 50) flowLevelToast50Ref.current = false;
+      if (h < 75) flowLevelToast75Ref.current = false;
     }
     if (h >= 100 && !flowStateRef.current) enterFlowState();
   }, [enterFlowState, addToast]);
@@ -332,8 +332,8 @@ export default function App() {
         addToast('🍟 Big brush · 10s', { type: 'gold' });
         break;
       case 'gas':
-        updateHeat(100);
-        addToast('⛽ Heat maxed!', { type: 'orange' });
+        updateFlowLevel(100);
+        addToast('⛽ Flow State maxed!', { type: 'orange' });
         break;
       case 'hotdog':
         setHotDogTrigger(t => t + 1);
@@ -350,7 +350,7 @@ export default function App() {
         break;
       default: break;
     }
-  }, [addToast, updateHeat, stopTimer]);
+  }, [addToast, updateFlowLevel, stopTimer]);
 
   // ── Card complete handler (normal scratch only — flow state is handled by handleFlowPick)
   const handleComplete = useCallback((scratchSecs) => {
@@ -386,13 +386,13 @@ export default function App() {
 
       if (prize >= 500) triggerMilestone('highRoller');
       setWinMsg({ text: `${prize >= 5000 ? '🏆 JACKPOT' : prize >= 500 ? '💎 BIG WIN' : prize >= 100 ? '⭐ WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`, tier: prize >= 5000 ? 'jackpot' : prize >= 500 ? 'big' : prize >= 100 ? 'medium' : 'small' });
-      updateHeat(prize >= 5000 ? 50 : prize >= 500 ? 35 : 18);
+      updateFlowLevel(prize >= 5000 ? 50 : prize >= 500 ? 35 : 18);
     } else {
       consecWinsRef.current = 0;
       setConsecWins(0);
       soundRef.current?.tick(false);
       setWinMsg({ text: 'No match — better luck next time!', tier: 'none' });
-      updateHeat(-10);
+      updateFlowLevel(-10);
     }
 
     // Speed toasts
@@ -428,7 +428,7 @@ export default function App() {
     const delay = prize > 0 ? 1200 : 800;
     // No pre-generated options — let showPicker check flowStateRef and pick the right generator
     setTimeout(() => showPicker(), delay);
-  }, [applyWinFeedback, goalAchieved, triggerMilestone, updateHeat, showPicker, addToast]);
+  }, [applyWinFeedback, goalAchieved, triggerMilestone, updateFlowLevel, showPicker, addToast]);
 
   // ── Flow state: player picks → resolve inline, no navigation ────────────
   const handleFlowPick = useCallback((index) => {
@@ -582,8 +582,8 @@ export default function App() {
     // Reset toast tracking refs
     consecWinsRef.current  = 0;
     speedStreakRef.current  = 0;
-    heatToast50Ref.current = false;
-    heatToast75Ref.current = false;
+    flowLevelToast50Ref.current = false;
+    flowLevelToast75Ref.current = false;
     lowBalanceRef.current  = false;
     firstWinRef.current    = false;
     goalToastRef.current   = false;
@@ -654,7 +654,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ── Status panel: timer bar (top) + heat bar (bottom) ── */}
+        {/* ── Status panel: timer bar (top) + flow state meter (bottom) ── */}
         {isActive && (
           <div className="status-panel">
             <SegmentedBar
@@ -664,7 +664,7 @@ export default function App() {
               label={speedMode ? '⚡ SPEED' : slusheeSecs > 0 ? '🥤 FROZEN' : '⏱ TIMER'}
               rightLabel={`${timeLeft}s`}
             />
-            <HeatMeter heat={heat} flowState={flowState} flowRound={flowRound} />
+            <FlowMeter flowLevel={flowLevel} flowState={flowState} flowRound={flowRound} />
             {brushBoostSecs > 0 && (
               <SegmentedBar count={brushBoostSecs} maxCount={10} color="fries"   label="🍟 BIG BRUSH" rightLabel={`${brushBoostSecs}s`} />
             )}
@@ -694,7 +694,7 @@ export default function App() {
               cardData={cardData}
               onComplete={handleComplete}
               soundScratch={sound.scratch}
-              heat={heat}
+              flowLevel={flowLevel}
               brushBoost={brushBoost}
               hotDogTrigger={hotDogTrigger}
             />

@@ -7,7 +7,7 @@ import './GasStationShop.css';
 export const SHOP_ITEMS = [
   { id: 'coffee',    emoji: '☕', name: 'Coffee',     cost: 3, desc: '+10 sec'          },
   { id: 'fries',     emoji: '🍟', name: 'Fries',      cost: 4, desc: 'Big brush · 10s'  },
-  { id: 'gas',       emoji: '⛽', name: 'Gas',        cost: 5, desc: 'Fill heat 100%'   },
+  { id: 'gas',       emoji: '⛽', name: 'Gas',        cost: 5, desc: 'Fill Flow State'  },
   { id: 'hotdog',    emoji: '🌭', name: 'Hot Dog',    cost: 4, desc: 'Auto-scratch'     },
   { id: 'slushee',   emoji: '🥤', name: 'Slushee',    cost: 3, desc: 'Freeze timer · 5s'},
   { id: 'luckystar', emoji: '⭐', name: 'Lucky Star', cost: 5, desc: 'Next card wins'   },

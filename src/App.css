@@ -117,7 +117,7 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   gap: 16px;
 }
 
-/* ── Status panel — timer bar directly above heat bar ──────────────── */
+/* ── Status panel — timer bar directly above flow state meter ───────── */
 .status-panel {
   width: 100%;
   max-width: 352px;

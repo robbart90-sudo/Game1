@@ -64,14 +64,14 @@ function hotspotBlocks(fc) {
   };
 }
 
-export default function ScratchCard({ cardData, onComplete, soundScratch, heat = 0, brushBoost = 1, hotDogTrigger = 0 }) {
+export default function ScratchCard({ cardData, onComplete, soundScratch, flowLevel = 0, brushBoost = 1, hotDogTrigger = 0 }) {
   const { theme, luckyNumbers, cells } = cardData;
   const { palette, formation, tilt } = theme;
   const formCells  = formation ? formation.cells : [];
   const luckyStyle = formation ? formation.luckyStyle : 'row';
 
-  // Brush radius scales with heat (+20% at ≥75) and Fries boost (×brushBoost)
-  const brushRadius = (heat >= 75 ? BASE_BRUSH_R * 1.2 : BASE_BRUSH_R) * brushBoost;
+  // Brush radius scales with flow level (+20% at ≥75) and Fries boost (×brushBoost)
+  const brushRadius = (flowLevel >= 75 ? BASE_BRUSH_R * 1.2 : BASE_BRUSH_R) * brushBoost;
 
   // Which lucky numbers are actual matches (for post-reveal flash)
   const matchedNums = new Set(cells.filter(c => c.isMatch).map(c => c.number));

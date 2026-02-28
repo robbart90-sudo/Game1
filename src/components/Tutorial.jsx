@@ -24,8 +24,8 @@ const STEPS = [
   },
   {
     label: '3 / 4',
-    title: 'Build Your Heat',
-    body: 'Wins charge the Heat Meter. Hit 100% to enter ⚡ FLOW STATE — where the odds flip heavily in your favor.',
+    title: 'Build Your Flow State',
+    body: 'Wins charge the Flow State Meter. Hit 100% to enter ⚡ FLOW STATE — where the odds flip heavily in your favor.',
   },
   {
     label: '4 / 4',
@@ -63,13 +63,13 @@ function Visual({ step }) {
       );
     case 2:
       return (
-        <div className="tut-visual tut-v-heat">
-          <div className="tut-heat-row">
-            <span className="tut-heat-lbl">🔥 HEAT</span>
-            <span className="tut-heat-pct">83%</span>
+        <div className="tut-visual tut-v-flow-state">
+          <div className="tut-flow-row">
+            <span className="tut-flow-lbl">⚡ FLOW STATE</span>
+            <span className="tut-flow-pct">83%</span>
           </div>
-          <div className="tut-heat-track">
-            <div className="tut-heat-fill" />
+          <div className="tut-flow-track">
+            <div className="tut-flow-fill" />
           </div>
           <div className="tut-flow-pill">⚡ FLOW STATE ⚡</div>
         </div>

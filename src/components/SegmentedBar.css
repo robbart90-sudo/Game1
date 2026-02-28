@@ -5,7 +5,7 @@
   padding: 0 2px;
 }
 
-/* ── Label row — identical typography to HeatMeter ───────────────────────── */
+/* ── Label row — identical typography to FlowMeter ───────────────────────── */
 .seg-bar-row {
   display: flex;
   justify-content: space-between;
@@ -67,19 +67,19 @@
   color: #D81F26;
 }
 
-/* -- heat: orange-red ----------------------------------------------------- */
-.seg-bar--heat .seg-block--on {
+/* -- flow-meter: orange-red ----------------------------------------------- */
+.seg-bar--flow-meter .seg-block--on {
   background: #FF5200;
 }
 
-/* -- heat-hot: amber, flickering label ------------------------------------ */
-.seg-bar--heat-hot .seg-block--on {
+/* -- flow-meter-hot: amber, flickering label ------------------------------ */
+.seg-bar--flow-meter-hot .seg-block--on {
   background: #FF8C00;
   animation: segHotPulse 0.7s ease-in-out infinite alternate;
 }
-.seg-bar--heat-hot .seg-bar-label {
+.seg-bar--flow-meter-hot .seg-bar-label {
   color: #D84A00;
-  animation: segHeatFlicker 0.75s ease-in-out infinite alternate;
+  animation: segFlowMeterFlicker 0.75s ease-in-out infinite alternate;
 }
 
 /* -- flow: gold, glowing -------------------------------------------------- */
@@ -126,7 +126,7 @@
   to   { background: #FFA500; box-shadow: 0 0 4px rgba(255, 140, 0, 0.55); }
 }
 
-@keyframes segHeatFlicker {
+@keyframes segFlowMeterFlicker {
   from { color: #D84A00; text-shadow: none; }
   to   { color: #D81F26; text-shadow: 0 0 6px rgba(216, 31, 38, 0.5); }
 }

@@ -218,40 +218,40 @@
   color: rgba(0,0,0,0.25);
 }
 
-/* Step 2: Heat meter */
-.tut-v-heat { width: 100%; gap: 6px; padding: 0 8px; }
-.tut-heat-row {
+/* Step 2: Flow State meter */
+.tut-v-flow-state { width: 100%; gap: 6px; padding: 0 8px; }
+.tut-flow-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
 }
-.tut-heat-lbl {
+.tut-flow-lbl {
   font-size: 0.7rem;
   font-weight: 900;
   color: #D84A00;
   letter-spacing: 0.06em;
 }
-.tut-heat-pct {
+.tut-flow-pct {
   font-size: 0.7rem;
   font-weight: 900;
   color: rgba(0,0,0,0.38);
 }
-.tut-heat-track {
+.tut-flow-track {
   width: 100%;
   height: 8px;
   background: rgba(0,0,0,0.08);
   border-radius: 4px;
   overflow: hidden;
 }
-.tut-heat-fill {
+.tut-flow-fill {
   width: 83%;
   height: 100%;
   background: linear-gradient(90deg, #ff4500, #ffa500, #ffd700);
   border-radius: 4px;
-  animation: heatPulse 1.2s ease-in-out infinite;
+  animation: flowStatePulse 1.2s ease-in-out infinite;
 }
-@keyframes heatPulse {
+@keyframes flowStatePulse {
   0%,100% { opacity: 0.85; }
   50%     { opacity: 1; }
 }

@@ -7,7 +7,7 @@ import './SegmentedBar.css';
  *   count      {number}  how many blocks are lit (left → right)
  *   maxCount   {number}  total blocks in the bar
  *   color      {string}  visual variant: 'timer' | 'timer-urgent' |
- *                        'heat' | 'heat-hot' | 'flow'
+ *                        'flow-meter' | 'flow-meter-hot' | 'flow'
  *   label      {string}  left label text
  *   rightLabel {string}  right label text (optional)
  */
