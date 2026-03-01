@@ -1029,7 +1029,7 @@ export default function App() {
 
         {isActive && (
           <>
-            {/* ── Right column — status + shop (DOM-first so it stacks above card on mobile) ── */}
+            {/* ── Right column — status + shop + modifier tray (DOM-first so it stacks above card on mobile) ── */}
             <div className="kiosk-right">
               <div className="status-panel">
                 <SegmentedBar
@@ -1052,11 +1052,6 @@ export default function App() {
                   onBuy={handleShopBuy}
                 />
               )}
-            </div>
-
-            {/* ── Left column — streak badge + card + picker ──────────────── */}
-            <div className="kiosk-left">
-              {/* Modifier tray */}
               {!gameOver && (
                 <ModifierTray
                   consecWins={consecWins}
@@ -1066,6 +1061,10 @@ export default function App() {
                   nextCardWin={nextCardWin}
                 />
               )}
+            </div>
+
+            {/* ── Left column — card + picker ──────────────── */}
+            <div className="kiosk-left">
 
               {/* Card view — normal scratch only (never shown during flow state) */}
               {(phase === 'playing' || phase === 'result') && cardData && slideTarget === 'card' && (

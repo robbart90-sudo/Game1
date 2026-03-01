@@ -122,3 +122,18 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
 }
+
+/* ── Desktop: anchor Grig to the bottom of the right panel ─────────── */
+@media (min-width: 900px) {
+  .ar-wrap {
+    /* Right edge of viewport, spanning the 40% right panel width */
+    left: auto;
+    right: 0;
+    width: 40vw;
+    /* Keep hidden state as translateY(100%) — same transition */
+    transform: translateY(100%);
+  }
+  .ar-wrap--visible {
+    transform: translateY(0);
+  }
+}

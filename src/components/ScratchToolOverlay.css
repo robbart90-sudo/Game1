@@ -85,3 +85,10 @@
     0 2px 4px rgba(0, 0, 0, 0.50),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
+
+/* ── Desktop: let the card wrapper fill the 680px left-column container ─ */
+@media (min-width: 900px) {
+  .scratch-tool-card-wrap {
+    max-width: 100%;
+  }
+}
