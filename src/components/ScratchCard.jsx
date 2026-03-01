@@ -119,7 +119,7 @@ function hotspotBlocks(fc) {
   };
 }
 
-const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soundScratch, flowLevel = 0, brushBoost = 1, hotDogTrigger = 0, sessionLuckyNumber = null }, ref) {
+const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soundScratch, flowLevel = 0, brushBoost = 1, hotDogTrigger = 0, sessionLuckyNumber = null, debugRows = 0 }, ref) {
   const { theme, luckyNumbers, cells } = cardData;
   const { palette, formation, tilt } = theme;
   const formCells  = formation ? formation.cells : [];
@@ -147,6 +147,8 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
   const dealingRef     = useRef(true);
 
   const espFadeRef      = useRef(false); // true once card completes w/ non-match lucky num
+  const debugRowsRef    = useRef(debugRows); // kept in a ref so rAF loop always sees current value
+  debugRowsRef.current  = debugRows;
 
   const [sparkles,  setSparkles]  = useState(false);
   const [isDealing, setIsDealing] = useState(true);
@@ -438,6 +440,26 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
         ctx.fill();
       }
       ctx.globalAlpha = 1;
+
+      // ── DEBUG: horizontal row-boundary lines ──────────────────────────────
+      // One blue line per inter-row boundary — should sit between scratch rows.
+      // ScratchToolOverlay places buttons at the midpoint of each equal slice
+      // of the canvas height (CH / debugRows per slice), so boundaries are at
+      // y = i * CH / debugRows for i = 1 … debugRows-1.
+      const dbgRows = debugRowsRef.current;
+      if (dbgRows > 1) {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = 'rgba(0, 120, 255, 0.85)';
+        ctx.lineWidth = 1;
+        for (let i = 1; i < dbgRows; i++) {
+          const y = Math.round(i * CH / dbgRows) + 0.5; // +0.5 → crisp 1px line
+          ctx.beginPath();
+          ctx.moveTo(0,  y);
+          ctx.lineTo(CW, y);
+          ctx.stroke();
+        }
+      }
+      // ── END DEBUG ─────────────────────────────────────────────────────────
 
       animRef.current = requestAnimationFrame(render);
     };

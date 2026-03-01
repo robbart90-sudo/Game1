@@ -60,73 +60,57 @@ export default function ScratchToolOverlay({
     setButtonYs([]);
   }, [cardData]);
 
-  // ── Precision alignment — derive button Y from formation-indexed DOM elements ─
+  // ── Button alignment — scratch canvas is the single source of truth ──────────
   //
   // Strategy:
-  //   1. Map each formation cell (fc object) to its rendered .art-cell DOM element
-  //      by index: element[i] is positioned at formCells[i].
-  //   2. For each row group (from groupIntoRows), collect the viewport-space Y
-  //      centres of all cells belonging to that row.
-  //   3. Average those centres — this makes the result tilt-robust: when the ticket
-  //      is rotated, cells in the same row fan out in viewport-Y, but their average
-  //      is still the true row centre.
-  //   4. Express each average relative to .scratch-tool-col so that
-  //      `top: Xpx` + `transform: translateY(-50%)` centres the button on the row.
+  //   1. Find the scratch canvas element directly via querySelector.
+  //   2. Call getBoundingClientRect() on it to get its exact rendered position
+  //      and dimensions in viewport space (tilt, scale — all baked in).
+  //   3. Do the same on the button column to get its viewport-space top.
+  //   4. Canvas top relative to button column = canvasRect.top - colRect.top.
+  //   5. Divide the canvas height evenly by numRows — each slice is one row.
+  //   6. Centre each button at the middle of its slice.
+  //
+  // No parent-element math, no CSS formula constants, no formation fractions.
   const measurePositions = useCallback(() => {
     if (!outerRef.current || rows.length === 0) return;
 
-    // The button column is the positioning parent (position: relative) for buttons.
-    const colEl = outerRef.current.querySelector('.scratch-tool-col');
-    if (!colEl) return;
-    const colRect = colEl.getBoundingClientRect();
-    if (colRect.height < 4) return;
+    const colEl    = outerRef.current.querySelector('.scratch-tool-col');
+    const canvasEl = outerRef.current.querySelector('.scratch-canvas');
+    if (!colEl || !canvasEl) return; // canvas absent when card is completed
 
-    // .art-cell elements are rendered in formCells order: element[i] ↔ formCells[i].
-    const cellEls = Array.from(outerRef.current.querySelectorAll('.art-cell'));
-    if (cellEls.length < formCells.length) return;
+    const colRect    = colEl.getBoundingClientRect();
+    const canvasRect = canvasEl.getBoundingClientRect();
+    if (canvasRect.height < 4) return;
 
-    // Build a lookup: formation cell object reference → DOM element index.
-    const fcIndexMap = new Map(formCells.map((fc, i) => [fc, i]));
+    // Canvas top expressed as an offset from the button column's top.
+    // Both rects are in the same viewport coordinate space, so tilt is
+    // automatically accounted for — no separate rotation correction needed.
+    const canvasTopInCol = canvasRect.top - colRect.top;
+    const rowH           = canvasRect.height / rows.length;
 
-    const ys = [];
-    for (const row of rows) {
-      // Collect viewport-Y centres for every DOM cell that belongs to this row.
-      const centers = row.cells
-        .map(r => {
-          const idx = fcIndexMap.get(r.fc);
-          if (idx == null) return null;
-          const el = cellEls[idx];
-          if (!el) return null;
-          const rect = el.getBoundingClientRect();
-          if (rect.height < 1 || rect.width < 1) return null;
-          return (rect.top + rect.bottom) / 2;
-        })
-        .filter(v => v !== null);
-
-      if (centers.length === 0) return; // cells not yet in DOM — wait for next pass
-      const avgY = centers.reduce((s, v) => s + v, 0) / centers.length;
-      ys.push(avgY - colRect.top);
-    }
-
-    if (ys.length !== rows.length) return;
+    const ys = rows.map((_, i) => canvasTopInCol + i * rowH + rowH / 2);
 
     setButtonYs(prev =>
       prev.length === ys.length && prev.every((v, i) => Math.abs(v - ys[i]) < 0.5)
-        ? prev   // no meaningful change — skip re-render
+        ? prev   // no meaningful change — avoid spurious re-render
         : ys
     );
-  }, [rows, formCells]);
+  }, [rows]);
 
   // Re-measure after every render (catches new card, font load, etc.)
   useLayoutEffect(() => { measurePositions(); }, [measurePositions]);
 
-  // Re-measure whenever the outer container resizes (covers window resize too,
-  // since .scratch-tool-outer is a flex child that stretches with the viewport).
+  // Re-measure whenever the scratch canvas resizes (viewport changes, zoom, etc.).
+  // The canvas is the reference element so we observe it directly.
+  // The outer container is observed as a fallback — it always exists even when
+  // the canvas is unmounted after card completion.
   useEffect(() => {
     if (!outerRef.current) return;
     const obs = new ResizeObserver(measurePositions);
     obs.observe(outerRef.current);
-    // Belt-and-suspenders: also listen to the window resize event directly.
+    const canvasEl = outerRef.current.querySelector('.scratch-canvas');
+    if (canvasEl) obs.observe(canvasEl);
     window.addEventListener('resize', measurePositions);
     return () => {
       obs.disconnect();
@@ -160,7 +144,7 @@ export default function ScratchToolOverlay({
               <button
                 key={i}
                 className="scratch-tool-btn"
-                style={{ top: `${buttonYs[i]}px` }}
+                style={{ top: `${buttonYs[i]}px`, outline: '1px solid red' /* DEBUG */ }}
                 onClick={() => handleRowClick(i, row)}
                 aria-label={`Scratch row ${i + 1}`}
               >
@@ -175,6 +159,7 @@ export default function ScratchToolOverlay({
           ref={cardRef}
           cardData={cardData}
           onComplete={handleComplete}
+          debugRows={rows.length}
           {...rest}
         />
       </div>
