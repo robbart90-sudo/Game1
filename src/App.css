@@ -452,3 +452,41 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
 }
 
 .flow-msg { position: relative; z-index: 1; font-size: 1.1rem; }
+
+/* ── Win streak badge ────────────────────────────────────────────────── */
+.streak-badge {
+  align-self: center;
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 1.45rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  color: #FF7A00;
+  text-shadow:
+    0 2px 0 rgba(0,0,0,0.60),
+    0 0 18px rgba(255,140,0,0.80),
+    0 0 40px rgba(255,50,0,0.40);
+  padding: 4px 18px 5px;
+  border: 2px solid rgba(255,140,0,0.55);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(80,30,0,0.72) 0%, rgba(40,12,0,0.82) 100%);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,200,0,0.12);
+  animation: streakPulse 1.8s ease-in-out infinite;
+  pointer-events: none;
+  user-select: none;
+}
+
+.streak-badge.streak-breaking {
+  animation: streakBreak 1.4s ease-out forwards;
+}
+
+@keyframes streakPulse {
+  0%, 100% { transform: scale(1);    text-shadow: 0 2px 0 rgba(0,0,0,0.60), 0 0 18px rgba(255,140,0,0.80), 0 0 40px rgba(255,50,0,0.40); }
+  50%       { transform: scale(1.04); text-shadow: 0 2px 0 rgba(0,0,0,0.60), 0 0 28px rgba(255,160,0,1.00), 0 0 60px rgba(255,80,0,0.65); }
+}
+
+@keyframes streakBreak {
+  0%   { transform: scale(1.12); opacity: 1;    color: #FF3A00; text-shadow: 0 0 30px rgba(255,60,0,1), 0 0 60px rgba(255,0,0,0.6); }
+  25%  { transform: scale(1.06); opacity: 0.85; }
+  60%  { transform: scale(0.96); opacity: 0.55; }
+  100% { transform: scale(0.88); opacity: 0; }
+}

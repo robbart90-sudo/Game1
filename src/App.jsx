@@ -27,6 +27,16 @@ const PICKER_COUNT = 6;
 // ── BALANCE CONSTANTS — tweak economy here without touching game logic ─────────
 const PASSIVE_DRAIN_COINS      = 1;  // coins deducted per tick
 const PASSIVE_DRAIN_INTERVAL_S = 3;  // seconds between drain ticks
+
+// ── Streak constants ──────────────────────────────────────────────────────────
+const STREAK_SHOW_MIN      = 3;    // consecutive wins needed before badge appears
+const STREAK_THRESHOLD_A   = 3;    // streak count where 1.5× prize mult activates
+const STREAK_THRESHOLD_B   = 5;    // streak count where 2×  prize mult activates
+const STREAK_THRESHOLD_C   = 7;    // streak count where 3×  prize mult activates
+const STREAK_PRIZE_MULT_A  = 1.5;
+const STREAK_PRIZE_MULT_B  = 2;
+const STREAK_PRIZE_MULT_C  = 3;
+const STREAK_FLOW_BONUS    = 0.15; // extra flow fill fraction per streak win above 2
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Attendant dialogue lines ─────────────────────────────────────────────
@@ -77,6 +87,18 @@ function pressureMult(t, c) {
 function calcPressureLvl(t, c) {
   const s = pressureScore(t, c);
   return s <= 0 ? 0 : s < 25 ? 1 : s < 50 ? 2 : s < 75 ? 3 : 4;
+}
+
+// Prize multiplier for the current streak count
+function streakPrizeMult(n) {
+  if (n >= STREAK_THRESHOLD_C) return STREAK_PRIZE_MULT_C;
+  if (n >= STREAK_THRESHOLD_B) return STREAK_PRIZE_MULT_B;
+  if (n >= STREAK_THRESHOLD_A) return STREAK_PRIZE_MULT_A;
+  return 1;
+}
+// Extra flow fill multiplier — grows linearly above streak 2
+function streakFlowMult(n) {
+  return 1 + Math.max(0, n - 2) * STREAK_FLOW_BONUS;
 }
 
 function makeOption(speedMode, balance, forceWin = false, isDark = false) {
@@ -202,6 +224,12 @@ export default function App() {
   const slusheeTimerRef = useRef(null);
   const drainIntervalRef = useRef(null);
   const brushBoost = brushBoostSecs > 0 ? 1.5 : 1.0;
+
+  // ── Streak ───────────────────────────────────────────────────────────────
+  const [consecWins,    setConsecWins]    = useState(0);
+  const [prevStreak,    setPrevStreak]    = useState(0); // held briefly for break animation
+  const consecWinsRef      = useRef(0);
+  const streakBreakTimerRef = useRef(null);
 
   // ── UI ────────────────────────────────────────────────────────────────────
   const [gameOver,  setGameOver]  = useState(false);
@@ -411,22 +439,58 @@ export default function App() {
     const prize = card.totalPrize;
 
     if (prize > 0) {
-      updateBalance(b => b + prize);
-      setTotalWon(t => t + prize);
-      setBiggestWin(b => Math.max(b, prize));
-      applyWinFeedback(prize);
-      setWinMsg({ text: `${prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN'} — +${prize.toLocaleString()} 🪙`, tier: prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small' });
-      updateFlowLevel((prize >= 500 ? 50 : prize >= 30 ? 35 : 18) * pressureMult(timeLeftRef.current, balanceRef.current));
+      // ── Streak: increment and apply prize multiplier ──────────────────
+      const newStreak = consecWinsRef.current + 1;
+      consecWinsRef.current = newStreak;
+      setConsecWins(newStreak);
+      // Clear any break-animation that might still be running
+      if (newStreak === STREAK_SHOW_MIN && streakBreakTimerRef.current) {
+        clearTimeout(streakBreakTimerRef.current);
+        streakBreakTimerRef.current = null;
+        setPrevStreak(0);
+      }
+      const sMult   = streakPrizeMult(newStreak);
+      const boosted = sMult > 1 ? Math.floor(prize * sMult) : prize;
+
+      updateBalance(b => b + boosted);
+      setTotalWon(t => t + boosted);
+      setBiggestWin(b => Math.max(b, boosted));
+      applyWinFeedback(prize); // visual tier based on base prize
+      const multTag = sMult > 1 ? `🔥×${sMult} ` : '';
+      setWinMsg({
+        text: `${multTag}${prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN'} — +${boosted.toLocaleString()} 🪙`,
+        tier: prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small',
+      });
+      const flowBase = prize >= 500 ? 50 : prize >= 30 ? 35 : 18;
+      updateFlowLevel(flowBase * pressureMult(timeLeftRef.current, balanceRef.current) * streakFlowMult(newStreak));
+
+      // ── Grig streak reactions (immediate — override 4-card rule) ──────
+      if      (newStreak === STREAK_THRESHOLD_A) { speakDialogue('Hm.'); cardsSinceAttendantRef.current = 0; }
+      else if (newStreak === STREAK_THRESHOLD_B) { speakDialogue('Chicken dinner, and all that.'); cardsSinceAttendantRef.current = 0; }
+      else if (newStreak === STREAK_THRESHOLD_C) { speakDialogue('Never seen this\u2026'); cardsSinceAttendantRef.current = 0; }
+      else                                        { maybeShowAttendant(); }
     } else {
+      // ── Streak break ─────────────────────────────────────────────────
+      const broken = consecWinsRef.current;
+      consecWinsRef.current = 0;
+      setConsecWins(0);
+      if (broken >= STREAK_SHOW_MIN) {
+        if (streakBreakTimerRef.current) clearTimeout(streakBreakTimerRef.current);
+        setPrevStreak(broken);
+        streakBreakTimerRef.current = setTimeout(() => {
+          setPrevStreak(0);
+          streakBreakTimerRef.current = null;
+        }, 1600);
+      }
       soundRef.current?.thud();
       setWinMsg({ text: 'No match — better luck next time!', tier: 'none' });
       updateFlowLevel(-10);
+      maybeShowAttendant();
     }
 
-    maybeShowAttendant();
     const delay = prize > 0 ? 1200 : 800;
     setTimeout(() => showPicker(), delay);
-  }, [applyWinFeedback, updateFlowLevel, showPicker, maybeShowAttendant]);
+  }, [applyWinFeedback, updateFlowLevel, showPicker, maybeShowAttendant, speakDialogue]);
 
   // ── Flow state: player picks → resolve inline, no navigation ────────────
   const handleFlowPick = useCallback((index) => {
@@ -443,19 +507,47 @@ export default function App() {
     const won   = prize > 0;
 
     if (won) {
-      updateBalance(b => b + prize);
-      setTotalWon(t => t + prize);
-      setBiggestWin(b => Math.max(b, prize));
+      // ── Streak: increment and apply multiplier ─────────────────────
+      const newStreak = consecWinsRef.current + 1;
+      consecWinsRef.current = newStreak;
+      setConsecWins(newStreak);
+      if (newStreak === STREAK_SHOW_MIN && streakBreakTimerRef.current) {
+        clearTimeout(streakBreakTimerRef.current);
+        streakBreakTimerRef.current = null;
+        setPrevStreak(0);
+      }
+      const sMult   = streakPrizeMult(newStreak);
+      const boosted = sMult > 1 ? Math.floor(prize * sMult) : prize;
+      updateBalance(b => b + boosted);
+      setTotalWon(t => t + boosted);
+      setBiggestWin(b => Math.max(b, boosted));
       applyWinFeedback(prize);
       const r = flowRoundRef.current + 1;
       flowRoundRef.current = r;
       setFlowRound(r);
+
+      // Grig streak reactions
+      if      (newStreak === STREAK_THRESHOLD_A) { speakDialogue('Hm.'); cardsSinceAttendantRef.current = 0; }
+      else if (newStreak === STREAK_THRESHOLD_B) { speakDialogue('Chicken dinner, and all that.'); cardsSinceAttendantRef.current = 0; }
+      else if (newStreak === STREAK_THRESHOLD_C) { speakDialogue('Never seen this\u2026'); cardsSinceAttendantRef.current = 0; }
+      else                                        { maybeShowAttendant(); }
     } else {
+      // ── Streak break ─────────────────────────────────────────────
+      const broken = consecWinsRef.current;
+      consecWinsRef.current = 0;
+      setConsecWins(0);
+      if (broken >= STREAK_SHOW_MIN) {
+        if (streakBreakTimerRef.current) clearTimeout(streakBreakTimerRef.current);
+        setPrevStreak(broken);
+        streakBreakTimerRef.current = setTimeout(() => {
+          setPrevStreak(0);
+          streakBreakTimerRef.current = null;
+        }, 1600);
+      }
       soundRef.current?.thud();
       exitFlowState();
+      maybeShowAttendant();
     }
-
-    maybeShowAttendant();
 
     // Show result on the picked card for 400ms, then refresh or exit
     setFlowPickResult({ index, won, prize });
@@ -468,7 +560,7 @@ export default function App() {
         showPicker();
       }
     }, 400);
-  }, [pickerOptions, applyWinFeedback, exitFlowState, maybeShowAttendant, showPicker]);
+  }, [pickerOptions, applyWinFeedback, exitFlowState, maybeShowAttendant, showPicker, speakDialogue]);
 
   // ── Normal: player picks from picker ──────────────────────────────────────
   const handlePick = useCallback((index) => {
@@ -554,6 +646,11 @@ export default function App() {
     lastAttendantLineRef.current   = null;
     nextIsGasReplyRef.current      = false;
     flowMilestoneCountRef.current  = 0;
+    // Reset streak state
+    consecWinsRef.current = 0;
+    setConsecWins(0);
+    setPrevStreak(0);
+    if (streakBreakTimerRef.current) { clearTimeout(streakBreakTimerRef.current); streakBreakTimerRef.current = null; }
   }, [stopTimer, stopDrain, resetTimer, speedMode]);
 
   // ── Fries: 50% bigger brush countdown (10 s) ─────────────────────────────
@@ -600,6 +697,7 @@ export default function App() {
     clearInterval(friesTimerRef.current);
     clearInterval(slusheeTimerRef.current);
     clearInterval(drainIntervalRef.current);
+    clearTimeout(streakBreakTimerRef.current);
   }, [stopTimer]);
 
   const isActive = phase !== 'intro';
@@ -662,6 +760,13 @@ export default function App() {
             nextCardWin={nextCardWin}
             onBuy={handleShopBuy}
           />
+        )}
+
+        {/* ── Streak badge — visible from first qualifying win onwards ─── */}
+        {isActive && !gameOver && (consecWins >= STREAK_SHOW_MIN || prevStreak >= STREAK_SHOW_MIN) && (
+          <div className={`streak-badge${prevStreak >= STREAK_SHOW_MIN && consecWins < STREAK_SHOW_MIN ? ' streak-breaking' : ''}`}>
+            🔥 x{consecWins >= STREAK_SHOW_MIN ? consecWins : prevStreak} STREAK
+          </div>
         )}
 
         {/* Card view — normal scratch only (never shown during flow state) */}
