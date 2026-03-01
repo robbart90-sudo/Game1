@@ -80,6 +80,17 @@
   50%       { opacity: 0; }
 }
 
+/* ── Desktop: anchor Grig to the right sidebar edge ─────────────────────── */
+/* The app is max-width 1040px with 44px right padding.
+   right = max(10px, (50vw - 520px) + 44px) = max(10px, 50vw - 476px)
+   This keeps the character flush with the sidebar at any viewport width.   */
+@media (min-width: 769px) {
+  .ar-wrap {
+    right: clamp(10px, calc(50vw - 476px), 50vw);
+    bottom: 20px;
+  }
+}
+
 /* ── Character placeholder (swap for real illustration) ──────────────────── */
 /*    See comment in AttendantReaction.jsx for replacement instructions.      */
 .ar-char-placeholder {

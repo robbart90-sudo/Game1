@@ -490,3 +490,158 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   60%  { transform: scale(0.96); opacity: 0.55; }
   100% { transform: scale(0.88); opacity: 0; }
 }
+
+/* ── Kiosk column wrappers — mobile defaults (single column, stacked) ── */
+/* kiosk-right is DOM-first so it appears above the card on mobile,
+   matching the original order: status panel → shop → card/picker.       */
+.kiosk-left,
+.kiosk-right {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   DESKTOP LAYOUT — two-column kiosk terminal
+   Activates above 768 px.  Mobile styles above are unchanged.
+══════════════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) {
+
+  /* ── Counter-surface texture — more pronounced under fluorescent light */
+  body {
+    background-color: #E3E1D6;
+    background-image:
+      /* Fine horizontal scan lines */
+      repeating-linear-gradient(
+        0deg,
+        rgba(0,0,0,0.055) 0px,
+        rgba(0,0,0,0.055) 1px,
+        transparent 1px,
+        transparent 18px
+      ),
+      /* Fine vertical scan lines */
+      repeating-linear-gradient(
+        90deg,
+        rgba(0,0,0,0.055) 0px,
+        rgba(0,0,0,0.055) 1px,
+        transparent 1px,
+        transparent 18px
+      ),
+      /* Diagonal laminate grain — coarser, very subtle */
+      repeating-linear-gradient(
+        45deg,
+        rgba(0,0,0,0.020) 0px,
+        rgba(0,0,0,0.020) 1px,
+        transparent 1px,
+        transparent 36px
+      );
+  }
+
+  /* ── App container — wide, unconstrained, centered ────────────────── */
+  .app {
+    max-width: 1040px;
+    padding: 24px 44px 48px;
+    gap: 18px;
+    /* Stretch so header / balance bar fill the full container width */
+    align-items: stretch;
+  }
+
+  /* ── Header — full-width bar with larger title ─────────────────────── */
+  .app-header {
+    padding-bottom: 14px;
+    border-bottom: 2px solid rgba(0,0,0,0.10);
+  }
+
+  .title {
+    font-size: 2.1rem;
+  }
+
+  .info-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 1rem;
+  }
+
+  /* ── BalanceBar — full width, no 360px cap ─────────────────────────── */
+  .app .balance-bar {
+    max-width: 100%;
+  }
+
+  /* ── Game area — two-column grid ──────────────────────────────────── */
+  /* kiosk-right (DOM-first) → grid-area "right" (column 2)
+     kiosk-left  (DOM-second) → grid-area "left"  (column 1)
+     Grid template areas handle the visual flip from DOM order.         */
+  .game-area {
+    display: grid;
+    grid-template-columns: minmax(320px, 480px) 272px;
+    grid-template-areas: "left right";
+    column-gap: 44px;
+    align-items: start;
+    /* Center the column pair in the full-width game-area */
+    justify-content: center;
+    /* Reset flex-specific properties */
+    flex-direction: unset;
+  }
+
+  /* Intro screen spans both columns, stays centered */
+  .game-area .intro {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  /* ── Left column — the scratch card / picker ───────────────────────── */
+  .kiosk-left {
+    grid-area: left;
+    align-items: stretch;
+  }
+
+  /* Card fills the full left column (up to its 480px grid track) */
+  .kiosk-left .ticket {
+    max-width: 100%;
+  }
+
+  /* card-area and picker-area fill the left column width */
+  .kiosk-left .card-area,
+  .kiosk-left .picker-area {
+    max-width: 100%;
+  }
+
+  /* Streak badge — left-aligned in the column, not centered */
+  .kiosk-left .streak-badge {
+    align-self: flex-start;
+  }
+
+  /* ── Right column — sticky counter display ─────────────────────────── */
+  .kiosk-right {
+    grid-area: right;
+    align-items: stretch;
+    position: sticky;
+    top: 24px;
+    /* Sidebar divider — feels like the counter's instrument panel */
+    border-left: 2px solid rgba(0,0,0,0.09);
+    padding-left: 20px;
+    gap: 16px;
+  }
+
+  /* Remove the 352 px caps so sidebar widgets fill the column */
+  .kiosk-right .status-panel,
+  .kiosk-right .seg-bar,
+  .kiosk-right .gss-wrap {
+    max-width: 100%;
+  }
+
+  /* Footer — full width, centred under both columns */
+  .app-footer {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* ── Flow State edge-glow — scale with wider app ─────────────────── */
+  .app.flow-state {
+    box-shadow:
+      inset 0 0 80px rgba(255,210,0,0.22),
+      inset 0 0 160px rgba(216,31,38,0.10);
+  }
+}

@@ -730,71 +730,76 @@ export default function App() {
           </div>
         )}
 
-        {/* ── Status panel: timer bar (top) + flow state meter (bottom) ── */}
         {isActive && (
-          <div className="status-panel">
-            <SegmentedBar
-              count={timeLeft}
-              maxCount={speedMode ? SPEED_TIME : NORMAL_TIME}
-              color={timeLeft <= 10 && !!timerIntervalRef.current ? 'timer-urgent' : 'timer'}
-              label={speedMode ? '⚡ SPEED' : slusheeSecs > 0 ? '🥤 FROZEN' : '⏱ TIMER'}
-              rightLabel={`${timeLeft}s`}
-            />
-            <FlowMeter flowLevel={flowLevel} flowState={flowState} flowRound={flowRound} />
-            {brushBoostSecs > 0 && (
-              <SegmentedBar count={brushBoostSecs} maxCount={10} color="fries"   label="🍟 BIG BRUSH" rightLabel={`${brushBoostSecs}s`} />
-            )}
-            {slusheeSecs > 0 && (
-              <SegmentedBar count={slusheeSecs}    maxCount={5}  color="slushee" label="🥤 FROZEN"    rightLabel={`${slusheeSecs}s`}    />
-            )}
-          </div>
-        )}
+          <>
+            {/* ── Right column — status + shop (DOM-first so it stacks above card on mobile) ── */}
+            <div className="kiosk-right">
+              <div className="status-panel">
+                <SegmentedBar
+                  count={timeLeft}
+                  maxCount={speedMode ? SPEED_TIME : NORMAL_TIME}
+                  color={timeLeft <= 10 && !!timerIntervalRef.current ? 'timer-urgent' : 'timer'}
+                  label={speedMode ? '⚡ SPEED' : slusheeSecs > 0 ? '🥤 FROZEN' : '⏱ TIMER'}
+                  rightLabel={`${timeLeft}s`}
+                />
+                <FlowMeter flowLevel={flowLevel} flowState={flowState} flowRound={flowRound} />
+                {brushBoostSecs > 0 && (
+                  <SegmentedBar count={brushBoostSecs} maxCount={10} color="fries"   label="🍟 BIG BRUSH" rightLabel={`${brushBoostSecs}s`} />
+                )}
+                {slusheeSecs > 0 && (
+                  <SegmentedBar count={slusheeSecs}    maxCount={5}  color="slushee" label="🥤 FROZEN"    rightLabel={`${slusheeSecs}s`}    />
+                )}
+              </div>
+              {!gameOver && (
+                <GasStationShop
+                  balance={balance}
+                  phase={phase}
+                  brushBoostSecs={brushBoostSecs}
+                  slusheeSecs={slusheeSecs}
+                  nextCardWin={nextCardWin}
+                  onBuy={handleShopBuy}
+                />
+              )}
+            </div>
 
-        {/* ── Gas Station Shop ─────────────────────────────────────── */}
-        {isActive && !gameOver && (
-          <GasStationShop
-            balance={balance}
-            phase={phase}
-            brushBoostSecs={brushBoostSecs}
-            slusheeSecs={slusheeSecs}
-            nextCardWin={nextCardWin}
-            onBuy={handleShopBuy}
-          />
-        )}
+            {/* ── Left column — streak badge + card + picker ──────────────── */}
+            <div className="kiosk-left">
+              {/* Streak badge */}
+              {!gameOver && (consecWins >= STREAK_SHOW_MIN || prevStreak >= STREAK_SHOW_MIN) && (
+                <div className={`streak-badge${prevStreak >= STREAK_SHOW_MIN && consecWins < STREAK_SHOW_MIN ? ' streak-breaking' : ''}`}>
+                  🔥 x{consecWins >= STREAK_SHOW_MIN ? consecWins : prevStreak} STREAK
+                </div>
+              )}
 
-        {/* ── Streak badge — visible from first qualifying win onwards ─── */}
-        {isActive && !gameOver && (consecWins >= STREAK_SHOW_MIN || prevStreak >= STREAK_SHOW_MIN) && (
-          <div className={`streak-badge${prevStreak >= STREAK_SHOW_MIN && consecWins < STREAK_SHOW_MIN ? ' streak-breaking' : ''}`}>
-            🔥 x{consecWins >= STREAK_SHOW_MIN ? consecWins : prevStreak} STREAK
-          </div>
-        )}
+              {/* Card view — normal scratch only (never shown during flow state) */}
+              {(phase === 'playing' || phase === 'result') && cardData && slideTarget === 'card' && (
+                <div className={`card-area ${cardFlash} ${slideClass} ${!flowState && pressureLvl > 0 ? PRESSURE_CLASS[pressureLvl] : ''}`}>
+                  <ScratchCard
+                    key={`${cardData.theme.id}-${cardsPlayed}`}
+                    cardData={cardData}
+                    onComplete={handleComplete}
+                    soundScratch={sound.scratch}
+                    flowLevel={flowLevel}
+                    brushBoost={brushBoost}
+                    hotDogTrigger={hotDogTrigger}
+                  />
+                  {winMsg && <div className={`result-msg tier-${winMsg.tier}`}>{winMsg.text}</div>}
+                </div>
+              )}
 
-        {/* Card view — normal scratch only (never shown during flow state) */}
-        {(phase === 'playing' || phase === 'result') && cardData && slideTarget === 'card' && (
-          <div className={`card-area ${cardFlash} ${slideClass} ${!flowState && pressureLvl > 0 ? PRESSURE_CLASS[pressureLvl] : ''}`}>
-            <ScratchCard
-              key={`${cardData.theme.id}-${cardsPlayed}`}
-              cardData={cardData}
-              onComplete={handleComplete}
-              soundScratch={sound.scratch}
-              flowLevel={flowLevel}
-              brushBoost={brushBoost}
-              hotDogTrigger={hotDogTrigger}
-            />
-            {winMsg && <div className={`result-msg tier-${winMsg.tier}`}>{winMsg.text}</div>}
-          </div>
-        )}
-
-        {/* Picker view — also the persistent flow state screen */}
-        {phase === 'picking' && slideTarget === 'picker' && (
-          <div className={`picker-area ${slideClass}`}>
-            <CardPicker
-              options={pickerOptions}
-              onPick={handlePick}
-              flowState={flowState}
-              flowPickResult={flowPickResult}
-            />
-          </div>
+              {/* Picker view — also the persistent flow state screen */}
+              {phase === 'picking' && slideTarget === 'picker' && (
+                <div className={`picker-area ${slideClass}`}>
+                  <CardPicker
+                    options={pickerOptions}
+                    onPick={handlePick}
+                    flowState={flowState}
+                    flowPickResult={flowPickResult}
+                  />
+                </div>
+              )}
+            </div>
+          </>
         )}
       </main>
 
