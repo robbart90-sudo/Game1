@@ -22,6 +22,7 @@ import './App.css';
 const LS_BALANCE    = 'grig_balance';
 const LS_LIFETIME   = 'grig_lifetime_earned';
 const LS_MILESTONES = 'grig_milestones';
+const LS_LUCKY      = 'grig_lucky_number';
 
 // ── Lifetime earnings milestones — Grig reacts once per threshold, never repeats ─
 const LIFETIME_MILESTONES = [
@@ -275,10 +276,11 @@ export default function App() {
     checkLifetimeMilestones(next);
   }, [checkLifetimeMilestones]);
 
-  // ── Mack's Lucky Number — selected once per session before the first card ─
-  const [sessionLuckyNumber, setSessionLuckyNumber] = useState(null);
+  // ── Mack's Lucky Number — chosen once ever, persisted in localStorage ───────
+  const initLuckyNum = (() => { const v = localStorage.getItem(LS_LUCKY); return v !== null ? Number(v) : null; })();
+  const [sessionLuckyNumber, setSessionLuckyNumber] = useState(initLuckyNum);
   const [showLuckyScreen,    setShowLuckyScreen]    = useState(false);
-  const sessionLuckyNumRef = useRef(null);
+  const sessionLuckyNumRef = useRef(initLuckyNum);
 
   // ── Opening cutscene (first visit only) ──────────────────────────────────
   const [showCutscene, setShowCutscene] = useState(() => !localStorage.getItem('cutscene_seen'));
@@ -797,8 +799,9 @@ export default function App() {
     }));
   }, [pickerOptions, slideOut, slideInNew, handleFlowPick]);
 
-  // ── Lucky number selection — player picks before first card ───────────────
+  // ── Lucky number selection — player picks once ever ─────────────────────────
   const handleLuckyPick = useCallback((num) => {
+    localStorage.setItem(LS_LUCKY, num);
     sessionLuckyNumRef.current = num;
     setSessionLuckyNumber(num);
     setShowLuckyScreen(false);
@@ -810,11 +813,21 @@ export default function App() {
     startDrain();
   }, [startTimer, startDrain]);
 
-  // ── Start session — show lucky number screen first ─────────────────────────
+  // ── Start session — show lucky screen first time only; skip if number known ──
   const startFirstCard = useCallback(() => {
-    speakDialogue('Hm.');
-    setShowLuckyScreen(true);
-  }, [speakDialogue]);
+    if (!sessionLuckyNumRef.current) {
+      // First-ever session: show the digit-wheel picker
+      setShowLuckyScreen(true);
+    } else {
+      // Number already chosen permanently — go straight to the card picker
+      const options = generatePickerOptions(speedModeRef.current, balanceRef.current, false, pressureLvlRef.current, sessionLuckyNumRef.current);
+      setPickerOptions(options);
+      setSlideTarget('picker');
+      setPhase('picking'); phaseRef.current = 'picking';
+      startTimer();
+      startDrain();
+    }
+  }, [startTimer, startDrain]);
 
   // ── End session ────────────────────────────────────────────────────────────
   const handleEndSession = useCallback(() => {
@@ -870,9 +883,7 @@ export default function App() {
     if (friesTimerRef.current)   { clearInterval(friesTimerRef.current);   friesTimerRef.current   = null; }
     if (slusheeTimerRef.current) { clearInterval(slusheeTimerRef.current); slusheeTimerRef.current = null; }
     if (drainIntervalRef.current) { clearInterval(drainIntervalRef.current); drainIntervalRef.current = null; }
-    // Reset lucky number for new session
-    sessionLuckyNumRef.current = null;
-    setSessionLuckyNumber(null);
+    // Lucky number is permanent — never reset between sessions
     setShowLuckyScreen(false);
     // Reset session dialogue state (lifetime milestones and lifetimeEarned persist)
     cardsSinceAttendantRef.current = 0;
@@ -1037,6 +1048,9 @@ export default function App() {
                   />
                 </div>
               )}
+
+              {/* Grig — portrait sits below play field, comments rise from below */}
+              <AttendantReaction msg={attendantMsg} />
             </div>
           </>
         )}
@@ -1057,7 +1071,6 @@ export default function App() {
         </div>
       )}
 
-      <AttendantReaction msg={attendantMsg} />
       {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} won={goReason === 'win'} onPlayAgain={handlePlayAgain} onStartFresh={handleStartFresh} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
       {showTutorial && !showCutscene && <Tutorial onDone={() => { speakDialogue('Good luck.'); setShowTutorial(false); }} />}
