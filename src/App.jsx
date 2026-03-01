@@ -276,7 +276,7 @@ export default function App() {
 
   // ── High-stakes tier unlocks — permanent, persisted in localStorage ──────────
   // Validate stored unlocks against current lifetime earnings (handles migration).
-  const initUnlockedHS = (() => {
+  const [unlockedHSPrices, setUnlockedHSPrices] = useState(() => {
     const stored   = new Set(JSON.parse(localStorage.getItem(LS_HS_UNLOCKED) || '[]'));
     const lifetime = Number(localStorage.getItem(LS_LIFETIME) || 0);
     for (const { price, lifetime: threshold } of HIGH_STAKES_UNLOCK_THRESHOLDS) {
@@ -284,9 +284,9 @@ export default function App() {
     }
     if (stored.size > 0) localStorage.setItem(LS_HS_UNLOCKED, JSON.stringify([...stored]));
     return stored;
-  })();
-  const [unlockedHSPrices, setUnlockedHSPrices] = useState(initUnlockedHS);
-  const unlockedHSRef = useRef(initUnlockedHS);
+  });
+  const unlockedHSRef = useRef(unlockedHSPrices);
+  const [lifetimeEarned, setLifetimeEarned] = useState(() => Number(localStorage.getItem(LS_LIFETIME) || 0));
 
   // Check whether new HS tiers unlock based on total lifetime earnings
   const checkHSUnlocks = useCallback((earned) => {
@@ -307,6 +307,7 @@ export default function App() {
     if (amount <= 0) return;
     const next = lifetimeEarnedRef.current + amount;
     lifetimeEarnedRef.current = next;
+    setLifetimeEarned(next);
     localStorage.setItem(LS_LIFETIME, next);
     checkLifetimeMilestones(next);
     checkHSUnlocks(next);
@@ -989,6 +990,17 @@ export default function App() {
 
   return (
     <div className={`app ${shaking ? 'shaking' : ''} ${flowState ? 'flow-state' : ''}`}>
+
+      {/* ── DEBUG: HS unlock status (remove when verified) ────────────── */}
+      <div style={{
+        position: 'fixed', top: 8, left: 8, zIndex: 9999,
+        background: 'rgba(0,0,0,0.72)', color: '#9e9e9e',
+        fontFamily: 'monospace', fontSize: '10px', lineHeight: '1.6',
+        padding: '6px 10px', borderRadius: 4, pointerEvents: 'none',
+        whiteSpace: 'pre',
+      }}>
+        {`balance:  ${balance}\nlifetime: ${lifetimeEarned}\nunlocked: [${[...unlockedHSPrices].sort((a, b) => a - b).join(', ')}]\nretired≤: ${computeRetiredMaxCost(unlockedHSPrices)}`}
+      </div>
 
       {/* ── Flow State banner ─────────────────── */}
       {showFlowBanner && <div className="flow-state-banner">⚡ FLOW STATE ⚡</div>}
