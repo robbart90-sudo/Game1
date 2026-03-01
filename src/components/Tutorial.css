@@ -3,92 +3,98 @@
   position: fixed;
   inset: 0;
   z-index: 900;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
+  padding: 20px;
 }
 
+/* ── Card ─────────────────────────────────────────────── */
 .tut-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 340px;
   background: #fff;
   border: 2.5px solid #D81F26;
-  border-radius: 24px 24px 0 0;
-  padding: 24px 28px 34px;
+  border-radius: 24px;
+  padding: 28px 24px 24px;
   position: relative;
+  text-align: center;
   box-shadow:
-    0 -8px 0 rgba(0,0,0,0.12),
-    0 -20px 50px rgba(0, 0, 0, 0.22);
-  cursor: pointer;
+    0 8px 0 rgba(0, 0, 0, 0.16),
+    0 20px 50px rgba(0, 0, 0, 0.28);
   user-select: none;
 }
 
 .tut-enter {
-  animation: tutSlideUp 0.42s cubic-bezier(0.34, 1.45, 0.64, 1) both;
+  animation: tutSlideIn 0.42s cubic-bezier(0.34, 1.45, 0.64, 1) both;
 }
 .tut-exit {
-  animation: tutFlipOut 0.48s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  animation: tutFadeOut 0.42s ease forwards;
 }
 
-@keyframes tutSlideUp {
-  from { transform: translateY(110%); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
+@keyframes tutSlideIn {
+  from { transform: translateY(28px) scale(0.94); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
 }
-@keyframes tutFlipOut {
-  0%   { transform: perspective(600px) rotateX(0deg) translateY(0)    scale(1);    opacity: 1; }
-  35%  { transform: perspective(600px) rotateX(-12deg) translateY(-10px) scale(1.02); opacity: 1; }
-  100% { transform: perspective(600px) rotateX(40deg) translateY(130%)  scale(0.78); opacity: 0; }
+@keyframes tutFadeOut {
+  from { transform: translateY(0)     scale(1);    opacity: 1; }
+  to   { transform: translateY(-20px) scale(0.96); opacity: 0; }
 }
 
-/* Skip button */
+/* ── Skip button ──────────────────────────────────────── */
 .tut-skip {
   position: absolute;
-  top: 16px;
-  right: 18px;
+  top: 14px;
+  right: 16px;
   background: none;
   border: none;
-  color: rgba(0, 0, 0, 0.32);
-  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.30);
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
-  transition: color 0.2s;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: color 0.18s;
 }
-.tut-skip:hover { color: rgba(0, 0, 0, 0.55); }
+.tut-skip:hover { color: rgba(0, 0, 0, 0.52); }
 
-/* Step label */
-.tut-step-label {
-  font-size: 0.6rem;
-  font-weight: 900;
-  letter-spacing: 0.22em;
-  color: rgba(216, 31, 38, 0.50);
-  text-align: center;
+/* ── Large emoji ──────────────────────────────────────── */
+.tut-emoji {
+  font-size: 3.4rem;
+  line-height: 1;
   margin-bottom: 16px;
+  display: block;
+  animation: tutEmojiPop 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes tutEmojiPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
 }
 
-/* Title & Body */
+/* ── Headline ─────────────────────────────────────────── */
 .tut-title {
   font-family: 'Arial Black', Arial, sans-serif;
-  font-size: 1.25rem;
+  font-size: 1.22rem;
   font-weight: 900;
-  color: #1A1A1A;
-  text-align: center;
-  margin: 14px 0 8px;
+  color: #D81F26;
+  letter-spacing: 0.03em;
+  margin: 0 0 10px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.08);
 }
 
+/* ── Body text ────────────────────────────────────────── */
 .tut-body {
-  font-size: 0.88rem;
-  line-height: 1.55;
-  color: rgba(0, 0, 0, 0.55);
-  text-align: center;
-  max-width: 300px;
-  margin: 0 auto 20px;
+  font-size: 0.86rem;
+  line-height: 1.58;
+  color: rgba(0, 0, 0, 0.52);
+  margin: 0 auto 22px;
+  max-width: 280px;
 }
 
-/* Next button */
+/* ── Next button ──────────────────────────────────────── */
 .tut-next-btn {
   display: block;
   width: 100%;
@@ -96,199 +102,39 @@
   color: #fff;
   border: none;
   border-radius: 14px;
-  padding: 13px;
+  padding: 14px;
   font-family: 'Arial Black', Arial, sans-serif;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 900;
   letter-spacing: 0.04em;
   cursor: pointer;
-  margin-bottom: 16px;
-  box-shadow: 0 5px 0 #8B0F20, 0 8px 16px rgba(216,31,38,0.22);
+  margin-bottom: 18px;
+  box-shadow: 0 5px 0 #8B0F20, 0 8px 18px rgba(216, 31, 38, 0.24);
   transition: transform 0.1s, box-shadow 0.1s;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+}
+.tut-next-btn:hover {
+  box-shadow: 0 6px 0 #8B0F20, 0 10px 22px rgba(216, 31, 38, 0.32);
 }
 .tut-next-btn:active {
   transform: translateY(4px);
-  box-shadow: 0 1px 0 #8B0F20, 0 2px 4px rgba(216,31,38,0.15);
+  box-shadow: 0 1px 0 #8B0F20, 0 2px 5px rgba(216, 31, 38, 0.15);
 }
 
-/* Step dots */
+/* ── Progress dots ────────────────────────────────────── */
 .tut-dots {
   display: flex;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
 }
 .tut-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.14);
-  transition: background 0.25s, transform 0.25s;
+  background: rgba(0, 0, 0, 0.13);
+  transition: background 0.22s, transform 0.22s;
 }
 .tut-dot.active {
   background: #D81F26;
-  transform: scale(1.3);
-}
-
-/* ── Visuals ──────────────────────────────────────────── */
-.tut-visual {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 88px;
-  gap: 8px;
-  animation: tutVisualFade 0.28s ease both;
-}
-@keyframes tutVisualFade {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Step 0: Scratch demo */
-.tut-foil {
-  width: 140px;
-  height: 46px;
-  border-radius: 10px;
-  background: linear-gradient(120deg, #999 0%, #eee 30%, #bbb 55%, #ddd 80%, #aaa 100%);
-  background-size: 200% 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.6rem;
-  font-weight: 900;
-  letter-spacing: 0.2em;
-  color: rgba(0,0,0,0.35);
-  animation: foilShimmer 1.5s ease-in-out infinite alternate;
-}
-@keyframes foilShimmer {
-  from { background-position: 0% 50%; }
-  to   { background-position: 100% 50%; }
-}
-.tut-finger {
-  font-size: 1.7rem;
-  animation: fingerSlide 0.9s ease-in-out infinite alternate;
-}
-@keyframes fingerSlide {
-  from { transform: translateX(-14px); }
-  to   { transform: translateX(14px); }
-}
-
-/* Step 1: Match visual */
-.tut-v-match { gap: 5px; }
-.tut-mini-label {
-  font-size: 0.52rem;
-  font-weight: 900;
-  letter-spacing: 0.2em;
-  color: rgba(216, 31, 38, 0.55);
-}
-.tut-num-row { display: flex; gap: 5px; }
-.tut-num {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Arial Black', Arial, sans-serif;
-  font-size: 0.8rem;
-  font-weight: 900;
-  background: rgba(0,0,0,0.05);
-  border: 1.5px solid rgba(0,0,0,0.15);
-  color: rgba(0,0,0,0.55);
-}
-.tut-num.tut-lucky {
-  background: rgba(216,31,38,0.08);
-  border-color: rgba(216,31,38,0.4);
-  color: #D81F26;
-}
-.tut-num.tut-win {
-  background: rgba(0,150,58,0.12);
-  border-color: #00963A;
-  color: #00963A;
-  font-size: 0.68rem;
-  animation: winPulse 1s ease-in-out infinite;
-}
-@keyframes winPulse {
-  0%,100% { box-shadow: 0 0 6px rgba(0,150,58,0.25); }
-  50%     { box-shadow: 0 0 16px rgba(0,150,58,0.5); }
-}
-.tut-match-arrow {
-  font-size: 1.1rem;
-  color: rgba(0,0,0,0.25);
-}
-
-/* Step 2: Flow State meter */
-.tut-v-flow-state { width: 100%; gap: 6px; padding: 0 8px; }
-.tut-flow-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-.tut-flow-lbl {
-  font-size: 0.7rem;
-  font-weight: 900;
-  color: #D84A00;
-  letter-spacing: 0.06em;
-}
-.tut-flow-pct {
-  font-size: 0.7rem;
-  font-weight: 900;
-  color: rgba(0,0,0,0.38);
-}
-.tut-flow-track {
-  width: 100%;
-  height: 8px;
-  background: rgba(0,0,0,0.08);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.tut-flow-fill {
-  width: 83%;
-  height: 100%;
-  background: linear-gradient(90deg, #ff4500, #ffa500, #ffd700);
-  border-radius: 4px;
-  animation: flowStatePulse 1.2s ease-in-out infinite;
-}
-@keyframes flowStatePulse {
-  0%,100% { opacity: 0.85; }
-  50%     { opacity: 1; }
-}
-.tut-flow-pill {
-  padding: 5px 14px;
-  background: #FFD200;
-  border: 1.5px solid #D4A000;
-  border-radius: 20px;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  color: #7A5C00;
-  text-align: center;
-  box-shadow: 0 2px 0 #D4A000;
-  animation: flowPulse 1.3s ease-in-out infinite;
-}
-@keyframes flowPulse {
-  0%,100% { box-shadow: 0 2px 0 #D4A000; }
-  50%     { box-shadow: 0 2px 0 #D4A000, 0 4px 12px rgba(212,160,0,0.35); }
-}
-
-/* Step 3: Timer */
-.tut-big-clock {
-  font-family: 'Arial Black', Arial, sans-serif;
-  font-size: 2.6rem;
-  font-weight: 900;
-  color: #D81F26;
-  text-shadow: 0 2px 0 rgba(0,0,0,0.10);
-  animation: clockPulse 1s steps(1) infinite;
-}
-@keyframes clockPulse {
-  0%,49% { opacity: 1; }
-  50%,100% { opacity: 0.45; }
-}
-.tut-clock-sub {
-  font-size: 0.58rem;
-  font-weight: 900;
-  letter-spacing: 0.25em;
-  color: rgba(0,0,0,0.35);
+  transform: scale(1.35);
 }

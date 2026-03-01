@@ -11,107 +11,60 @@ function markSeen() {
   localStorage.setItem(LS_KEY, '1');
 }
 
-const STEPS = [
+const SLIDES = [
   {
-    label: '1 / 4',
-    title: 'Scratch to Reveal',
-    body: 'Drag your finger across the silver surface. Your numbers are hiding underneath.',
+    emoji: '🎟️',
+    headline: 'Scratch to Win',
+    body: 'Pick a card, scratch to reveal the numbers. Match enough to win coins. The more you pay for a card, the better your odds.',
   },
   {
-    label: '2 / 4',
-    title: 'Match to Win',
-    body: 'Any revealed number that matches a Lucky Number earns you that prize. More matches = bigger payout.',
+    emoji: '⏱️',
+    headline: 'The Clock Is Always Running',
+    body: "You're racing the timer. Low time and low coins build your Flow State faster. Pressure is your friend.",
   },
   {
-    label: '3 / 4',
-    title: 'Build Your Flow State',
-    body: 'Wins charge the Flow State Meter. Hit 100% to enter ⚡ FLOW STATE — where the odds flip heavily in your favor.',
+    emoji: '⚡',
+    headline: 'Get Into Flow State',
+    body: 'Fill the Flow State meter by winning and scratching fast. Hit 100% to freeze the timer, guarantee winners, and bend the game in your favor.',
   },
   {
-    label: '4 / 4',
-    title: 'Clock Is Ticking',
-    body: 'You have 60 seconds. Pick fast, scratch fast, win big. Good luck.',
+    emoji: '⛽',
+    headline: "Grig's Got What You Need",
+    body: 'Spend coins at the counter for powerups — more time, bigger brush, instant Flow State. Use the row buttons on the left to auto-scratch entire rows at once.',
+  },
+  {
+    emoji: '🔥',
+    headline: 'Push Your Luck',
+    body: 'Win consecutive cards to build a streak — payouts multiply up to 3×. Watch for red-bordered Risk Cards on the picker. Double or nothing. Your call.',
   },
 ];
 
-function Visual({ step }) {
-  switch (step) {
-    case 0:
-      return (
-        <div className="tut-visual tut-v-scratch">
-          <div className="tut-foil">✦ SCRATCH ✦</div>
-          <div className="tut-finger">☝️</div>
-        </div>
-      );
-    case 1:
-      return (
-        <div className="tut-visual tut-v-match">
-          <div className="tut-mini-label">LUCKY NUMBERS</div>
-          <div className="tut-num-row">
-            <span className="tut-num tut-lucky">07</span>
-            <span className="tut-num tut-lucky">11</span>
-            <span className="tut-num tut-lucky">42</span>
-          </div>
-          <div className="tut-match-arrow">↕</div>
-          <div className="tut-mini-label">YOUR NUMBERS</div>
-          <div className="tut-num-row">
-            <span className="tut-num tut-win">07 ✓</span>
-            <span className="tut-num">15</span>
-            <span className="tut-num">33</span>
-          </div>
-        </div>
-      );
-    case 2:
-      return (
-        <div className="tut-visual tut-v-flow-state">
-          <div className="tut-flow-row">
-            <span className="tut-flow-lbl">⚡ FLOW STATE</span>
-            <span className="tut-flow-pct">83%</span>
-          </div>
-          <div className="tut-flow-track">
-            <div className="tut-flow-fill" />
-          </div>
-          <div className="tut-flow-pill">⚡ FLOW STATE ⚡</div>
-        </div>
-      );
-    case 3:
-      return (
-        <div className="tut-visual tut-v-timer">
-          <div className="tut-big-clock">0:45</div>
-          <div className="tut-clock-sub">SECONDS LEFT</div>
-        </div>
-      );
-    default:
-      return null;
-  }
-}
-
 export default function Tutorial({ onDone }) {
-  const [step, setStep]     = useState(0);
+  const [step, setStep]       = useState(0);
   const [exiting, setExiting] = useState(false);
 
   const finish = () => {
     markSeen();
     setExiting(true);
-    setTimeout(onDone, 480);
+    setTimeout(onDone, 420);
   };
 
   const next = () => {
-    if (step < STEPS.length - 1) {
+    if (step < SLIDES.length - 1) {
       setStep(s => s + 1);
     } else {
       finish();
     }
   };
 
-  const s = STEPS[step];
-  const isLast = step === STEPS.length - 1;
+  const s      = SLIDES[step];
+  const isLast = step === SLIDES.length - 1;
 
   return (
     <div className="tut-overlay" onClick={next}>
       <div
         className={`tut-card ${exiting ? 'tut-exit' : 'tut-enter'}`}
-        onClick={next}
+        onClick={e => e.stopPropagation()}
       >
         <button
           className="tut-skip"
@@ -120,22 +73,20 @@ export default function Tutorial({ onDone }) {
           Skip ×
         </button>
 
-        <div className="tut-step-label">{s.label}</div>
+        <div className="tut-emoji" key={step}>{s.emoji}</div>
 
-        <Visual key={step} step={step} />
-
-        <h2 className="tut-title">{s.title}</h2>
+        <h2 className="tut-title">{s.headline}</h2>
         <p className="tut-body">{s.body}</p>
 
         <button
           className="tut-next-btn"
           onClick={(e) => { e.stopPropagation(); next(); }}
         >
-          {isLast ? "Let's Play! 🎟️" : 'Got it →'}
+          {isLast ? "Let's Go 🎟️" : 'Next →'}
         </button>
 
         <div className="tut-dots">
-          {STEPS.map((_, i) => (
+          {SLIDES.map((_, i) => (
             <span key={i} className={`tut-dot ${i === step ? 'active' : ''}`} />
           ))}
         </div>

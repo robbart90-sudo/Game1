@@ -944,7 +944,7 @@ export default function App() {
       <AttendantReaction msg={attendantMsg} />
       {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} won={goReason === 'win'} onPlayAgain={handlePlayAgain} onStartFresh={handleStartFresh} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
-      {showTutorial && <Tutorial onDone={() => setShowTutorial(false)} />}
+      {showTutorial && <Tutorial onDone={() => { speakDialogue('Good luck.'); setShowTutorial(false); }} />}
       {showCutscene && (
         <AttendantCutscene onDone={() => {
           localStorage.setItem('cutscene_seen', '1');
