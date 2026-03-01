@@ -168,12 +168,13 @@ function fmtTopPrize(price) {
 }
 
 // Formation scales with price: more cells = more complex = higher stakes
+// Minimum 4×2 (8 cells), maximum 5×5 (25 cells)
 function formationForPrice(price) {
-  if (price <= 3)  return FORMATIONS.trio;   // 3 cells
-  if (price <= 7)  return FORMATIONS.quad;   // 4 cells
-  if (price <= 12) return FORMATIONS.hex;    // 6 cells
-  if (price <= 17) return FORMATIONS.lshape; // 8 cells
-  return FORMATIONS.wide;                    // 10 cells ($18–20)
+  if (price <= 3)  return FORMATIONS.grid4x2;  //  8 cells (4×2)
+  if (price <= 7)  return FORMATIONS.classic;  //  9 cells (3×3)
+  if (price <= 12) return FORMATIONS.grid4x3;  // 12 cells (4×3)
+  if (price <= 17) return FORMATIONS.grid4x4;  // 16 cells (4×4)
+  return FORMATIONS.grid5x5;                   // 25 cells (5×5)
 }
 
 // Tilt values cycling across themes: alternating subtle angles

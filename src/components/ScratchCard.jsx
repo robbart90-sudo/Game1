@@ -553,14 +553,14 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, flowLe
         className={`lucky-num ${isMatching ? 'lucky-match' : ''} ${extraClass}`}
         style={{
           // CSS variables drive the ring system and glow in the stylesheet
-          '--lucky-color':  isMatching ? '#00ff88'      : palette.numText,
-          '--lucky-border': isMatching ? '#00ff88'      : palette.border,
+          '--lucky-color':  isMatching ? '#FFD200'      : palette.numText,
+          '--lucky-border': isMatching ? '#FFD200'      : palette.border,
           '--lucky-numBg':  palette.numBg,
           // Inner metallic gradient: lit from top-left, dark at base
           background: isMatching
-            ? 'radial-gradient(circle at 38% 30%, #00ff88 0%, #00a854 45%, #001d0a 100%)'
+            ? 'radial-gradient(circle at 38% 30%, #FFD200 0%, #B87A00 45%, #2A1400 100%)'
             : `radial-gradient(circle at 38% 30%, ${lighten(palette.numBg, 52)} 0%, ${palette.numBg} 60%)`,
-          color: isMatching ? '#001a0d' : palette.numText,
+          color: isMatching ? '#2A1400' : palette.numText,
           ...extraStyle,
         }}
       >
@@ -684,20 +684,27 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, flowLe
                     width:  `${fc.w * 100}%`,
                     height: `calc(${fc.h} * (100% - 18px))`,
                     background: cell.isMatch
-                      ? `linear-gradient(135deg, ${palette.numBg}, #0d2810)`
+                      ? `linear-gradient(135deg, ${palette.numBg}, #251800)`
                       : palette.numBg,
-                    borderColor: cell.isMatch ? '#00ff88' : `${palette.border}55`,
-                    boxShadow:   cell.isMatch ? '0 0 14px rgba(0,255,136,0.4)' : 'none',
+                    borderColor: cell.isMatch ? '#FFD200' : `${palette.border}55`,
+                    boxShadow:   cell.isMatch ? '0 0 14px rgba(255,210,0,0.5)' : 'none',
                   }}
                 >
                   <span
                     className="art-num"
-                    style={{ color: cell.isMatch ? '#00ff88' : palette.numText }}
+                    style={{ color: cell.isMatch ? '#FFD200' : palette.numText }}
                   >
                     {String(cell.number).padStart(2, '0')}
                   </span>
                   {cell.isMatch && cell.prize > 0 && (
                     <span className="art-prize">+{cell.prize.toLocaleString()}🪙</span>
+                  )}
+                  {cell.isMatch && completed && (
+                    <span
+                      className="art-coin"
+                      style={{ animationDelay: `${i * 0.09}s` }}
+                      aria-hidden="true"
+                    >🪙</span>
                   )}
                 </div>
               );

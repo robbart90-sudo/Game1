@@ -259,6 +259,60 @@ export const FORMATIONS = {
       return result;
     })(),
   },
+
+  // ── 4×2 Grid — minimum 8-cell layout for lowest-price tickets ─
+  grid4x2: {
+    id: 'grid4x2',
+    cellCount: 8,
+    luckyStyle: 'row',
+    cells: (() => {
+      const result = [];
+      const cols = 4, rows = 2;
+      const pw = 0.20, ph = 0.38;
+      const gx = (1 - cols * pw) / (cols + 1);
+      const gy = (1 - rows * ph) / (rows + 1);
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          result.push({ x: gx + c * (pw + gx), y: gy + r * (ph + gy), w: pw, h: ph });
+      return result;
+    })(),
+  },
+
+  // ── 4×4 Grid — 16-cell layout for higher-price tickets ────────
+  grid4x4: {
+    id: 'grid4x4',
+    cellCount: 16,
+    luckyStyle: 'split',
+    cells: (() => {
+      const result = [];
+      const cols = 4, rows = 4;
+      const pw = 0.20, ph = 0.20;
+      const gx = (1 - cols * pw) / (cols + 1);
+      const gy = (1 - rows * ph) / (rows + 1);
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          result.push({ x: gx + c * (pw + gx), y: gy + r * (ph + gy), w: pw, h: ph });
+      return result;
+    })(),
+  },
+
+  // ── 5×5 Grid — 25-cell layout for maximum-price tickets ───────
+  grid5x5: {
+    id: 'grid5x5',
+    cellCount: 25,
+    luckyStyle: 'row',
+    cells: (() => {
+      const result = [];
+      const cols = 5, rows = 5;
+      const pw = 0.155, ph = 0.155;
+      const gx = (1 - cols * pw) / (cols + 1);
+      const gy = (1 - rows * ph) / (rows + 1);
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          result.push({ x: gx + c * (pw + gx), y: gy + r * (ph + gy), w: pw, h: ph });
+      return result;
+    })(),
+  },
 };
 
 // Ordered list for cycling through themes
