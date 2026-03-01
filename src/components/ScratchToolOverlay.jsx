@@ -43,9 +43,8 @@ export default function ScratchToolOverlay({
   const outerRef    = useRef(null);
   const firstFired  = useRef(false);
 
-  const [usedRows,     setUsedRows]     = useState(new Set());
-  const [buttonsReady, setButtonsReady] = useState(false);
-  const [buttonYs,     setButtonYs]     = useState([]);
+  const [usedRows,  setUsedRows]  = useState(new Set());
+  const [buttonYs, setButtonYs] = useState([]);
 
   const formCells = cardData?.theme?.formation?.cells ?? [];
   const rows = useMemo(() => groupIntoRows(formCells), [formCells]);
@@ -53,9 +52,7 @@ export default function ScratchToolOverlay({
   // Reset per-card state; keep firstFired (session-level)
   useEffect(() => {
     setUsedRows(new Set());
-    setButtonsReady(false);
-    const t = setTimeout(() => setButtonsReady(true), 500);
-    return () => clearTimeout(t);
+    setButtonYs([]);
   }, [cardData]);
 
   // Measure button Y positions relative to the outer wrapper
@@ -111,7 +108,7 @@ export default function ScratchToolOverlay({
 
   return (
     <div className="scratch-tool-outer" ref={outerRef}>
-      {scratchToolUnlocked && buttonsReady && (
+      {scratchToolUnlocked && (
         <div className="scratch-tool-col">
           {rows.map((row, i) => {
             if (usedRows.has(i) || buttonYs[i] === undefined) return null;

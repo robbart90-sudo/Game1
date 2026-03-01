@@ -67,7 +67,7 @@ export default function AttendantCutscene({ onDone }) {
 
         <div className="ac-char">
           <div className="ac-char-emoji">
-            <span className="ac-char-icon">🧑‍💼</span>
+            <span className="ac-char-icon">👴</span>
             <span className="ac-char-name">Grig the gas attendant</span>
           </div>
         </div>

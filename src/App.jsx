@@ -908,7 +908,7 @@ export default function App() {
                     brushBoost={brushBoost}
                     hotDogTrigger={hotDogTrigger}
                     scratchToolUnlocked={true}
-                    onFirstToolUse={() => speakDialogue('New roll.')}
+                    onFirstToolUse={triggerAttendantDialogue}
                   />
                   {winMsg && <div className={`result-msg tier-${winMsg.tier}`}>{winMsg.text}</div>}
                 </div>
@@ -948,7 +948,7 @@ export default function App() {
       <AttendantReaction msg={attendantMsg} />
       {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} won={goReason === 'win'} onPlayAgain={handlePlayAgain} onStartFresh={handleStartFresh} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
-      {showTutorial && <Tutorial onDone={() => { speakDialogue('Good luck.'); setShowTutorial(false); }} />}
+      {showTutorial && !showCutscene && <Tutorial onDone={() => { speakDialogue('Good luck.'); setShowTutorial(false); }} />}
       {showCutscene && (
         <AttendantCutscene onDone={() => {
           localStorage.setItem('cutscene_seen', '1');

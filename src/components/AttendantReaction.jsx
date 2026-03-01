@@ -97,7 +97,7 @@ export default function AttendantReaction({ msg }) {
       </div>
 
       <div className="ar-char-emoji">
-        <span className="ar-char-icon">🧑‍💼</span>
+        <span className="ar-char-icon">👴</span>
         <span className="ar-char-name">Grig the gas attendant</span>
       </div>
     </div>
