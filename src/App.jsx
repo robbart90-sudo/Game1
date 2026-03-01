@@ -58,18 +58,36 @@ const STREAK_FLOW_BONUS    = 0.15; // extra flow fill fraction per streak win ab
 
 // ── Attendant dialogue lines ─────────────────────────────────────────────
 const DIALOGUE_LINES = [
+  "Good luck.",
+  "Next.",
+  "We're going to need a new roll.",
   "Clean up aisle 5.",
   "They should come pre-scratched.",
   "Take my card.",
-  "We're going to need a new roll.",
   "Chicken dinner, and all that.",
   "Winner?",
   "Loser?",
   "I love my job.",
-  "Good luck.",
   "Smells like gas.",
+  "Gas doesn't have a smell.",
   "Nice one.",
   "New roll.",
+  "Seen worse.",
+  "Seen better.",
+  "You're still here.",
+  "Long break.",
+  "Cash or card.",
+  "Machine's out of receipt tape.",
+  "Harold won fifty bucks in '09. Never came back.",
+  "Some people have it.",
+  "You want a bag for that?",
+  "Bathroom's for customers only.",
+  "It's a living.",
+  "Don't scratch so hard. Card's not going anywhere.",
+  "My feet hurt.",
+  "Hm.",
+  "Sure.",
+  "Close.",
 ];
 const FLOW_MILESTONE_LINES = ["Hmm\u2026", "Never seen this\u2026", "My goodness!"];
 
@@ -183,10 +201,10 @@ export default function App() {
     speakDialogue(line);
   }, [speakDialogue]);
 
-  // Called after every card — fires the attendant every 4th card
+  // Called after every card — fires the attendant every 3 or 4 cards (random)
   const maybeShowAttendant = useCallback(() => {
     cardsSinceAttendantRef.current++;
-    if (cardsSinceAttendantRef.current >= 4) {
+    if (cardsSinceAttendantRef.current >= 3 + Math.round(Math.random())) {
       cardsSinceAttendantRef.current = 0;
       triggerAttendantDialogue();
     }
@@ -908,7 +926,6 @@ export default function App() {
                     brushBoost={brushBoost}
                     hotDogTrigger={hotDogTrigger}
                     scratchToolUnlocked={true}
-                    onFirstToolUse={triggerAttendantDialogue}
                   />
                   {winMsg && <div className={`result-msg tier-${winMsg.tier}`}>{winMsg.text}</div>}
                 </div>
