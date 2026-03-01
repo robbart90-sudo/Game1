@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import ScratchCard     from './components/ScratchCard';
+import ScratchToolOverlay from './components/ScratchToolOverlay';
 import CardPicker      from './components/CardPicker';
 import FlowMeter       from './components/FlowMeter';
 import BalanceBar      from './components/BalanceBar';
@@ -834,7 +834,7 @@ export default function App() {
               {/* Card view — normal scratch only (never shown during flow state) */}
               {(phase === 'playing' || phase === 'result') && cardData && slideTarget === 'card' && (
                 <div className={`card-area ${cardFlash} ${slideClass} ${!flowState && pressureLvl > 0 ? PRESSURE_CLASS[pressureLvl] : ''}`}>
-                  <ScratchCard
+                  <ScratchToolOverlay
                     key={`${cardData.theme.id}-${cardsPlayed}`}
                     cardData={cardData}
                     onComplete={handleComplete}
@@ -842,6 +842,8 @@ export default function App() {
                     flowLevel={flowLevel}
                     brushBoost={brushBoost}
                     hotDogTrigger={hotDogTrigger}
+                    scratchToolUnlocked={true}
+                    onFirstToolUse={() => speakDialogue('New roll.')}
                   />
                   {winMsg && <div className={`result-msg tier-${winMsg.tier}`}>{winMsg.text}</div>}
                 </div>

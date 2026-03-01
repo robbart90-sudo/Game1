@@ -1,0 +1,87 @@
+/* ── Scratch Tool Overlay ──────────────────────────────────────────────────── */
+
+.scratch-tool-outer {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0;
+}
+
+/* Narrow column that holds the row buttons — sits flush left of the card */
+.scratch-tool-col {
+  width: 28px;
+  flex-shrink: 0;
+  position: relative;
+  align-self: stretch;
+}
+
+/* Card occupies remaining width, capped at 352px (same as .ticket max-width) */
+.scratch-tool-card-wrap {
+  flex: 1;
+  min-width: 0;
+  max-width: 352px;
+}
+
+/* ── Row button ────────────────────────────────────────────────────────────── */
+
+@keyframes toolBtnAppear {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-50% - 6px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%);
+  }
+}
+
+.scratch-tool-btn {
+  position: absolute;
+  left: 2px;
+  width: 22px;
+  height: 26px;
+  transform: translateY(-50%);
+
+  /* Lottery kiosk red */
+  background: linear-gradient(160deg, #E8272E 0%, #B81820 60%, #8A1015 100%);
+  color: #fff;
+  font-size: 8px;
+  line-height: 1;
+
+  border: none;
+  border-radius: 4px;
+  /* Raised physical button: thick bottom shadow = the "depth" edge */
+  box-shadow:
+    0 3px 0 #6A0A0E,
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.20);
+
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+
+  transition: box-shadow 0.07s, transform 0.07s;
+  animation: toolBtnAppear 0.22s ease-out both;
+}
+
+/* Hover: button glows slightly, rises */
+.scratch-tool-btn:hover {
+  background: linear-gradient(160deg, #EF3039 0%, #C41E27 60%, #961318 100%);
+  box-shadow:
+    0 3px 0 #6A0A0E,
+    0 5px 12px rgba(216, 31, 38, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* Active: button depresses — shadow shrinks, translate moves down */
+.scratch-tool-btn:active {
+  transform: translateY(calc(-50% + 2px));
+  box-shadow:
+    0 1px 0 #6A0A0E,
+    0 2px 4px rgba(0, 0, 0, 0.50),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}

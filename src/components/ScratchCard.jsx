@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import Sparkles    from './Sparkles';
 import CardHeader  from './CardHeader';
 import './ScratchCard.css';
@@ -64,7 +64,7 @@ function hotspotBlocks(fc) {
   };
 }
 
-export default function ScratchCard({ cardData, onComplete, soundScratch, flowLevel = 0, brushBoost = 1, hotDogTrigger = 0 }) {
+const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soundScratch, flowLevel = 0, brushBoost = 1, hotDogTrigger = 0 }, ref) {
   const { theme, luckyNumbers, cells } = cardData;
   const { palette, formation, tilt } = theme;
   const formCells  = formation ? formation.cells : [];
@@ -541,6 +541,33 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, flowLe
     return () => window.removeEventListener('keydown', onKey);
   }, [autoRevealLosers]);
 
+  // ── Row sweep: auto-scratch all blocks in rows by0..by1 left-to-right ────
+  const scratchRowBlocks = useCallback((by0, by1, durationMs = 400) => {
+    if (revealedRef.current || dealingRef.current) return;
+    if (!scratchStart.current) scratchStart.current = Date.now();
+    const startTime = performance.now();
+    let lastScratchedBx = -1;
+    const step = (now) => {
+      if (revealedRef.current) return;
+      const t = Math.min((now - startTime) / durationMs, 1);
+      const targetBx = t >= 1 ? BLOCK_COLS - 1 : Math.floor(t * BLOCK_COLS);
+      for (let bx = lastScratchedBx + 1; bx <= targetBx; bx++) {
+        for (let by = by0; by <= by1; by++) {
+          scratchBlock(bx, by);
+        }
+      }
+      if (targetBx > lastScratchedBx) {
+        lastScratchedBx = targetBx;
+        soundScratch?.();
+      }
+      checkCoverage();
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [scratchBlock, checkCoverage, soundScratch]);
+
+  useImperativeHandle(ref, () => ({ scratchRowBlocks }), [scratchRowBlocks]);
+
   const hdBg   = `linear-gradient(135deg, ${palette.hdr[0]}, ${palette.hdr[1]}, ${palette.hdr[2]})`;
   const cardBg = `linear-gradient(170deg, ${palette.bg[0]}, ${palette.bg[1]})`;
 
@@ -739,4 +766,6 @@ export default function ScratchCard({ cardData, onComplete, soundScratch, flowLe
       </div>
     </div>
   );
-}
+});
+
+export default ScratchCard;
