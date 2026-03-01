@@ -3,17 +3,22 @@ import ScratchCard from './ScratchCard';
 import './ScratchToolOverlay.css';
 
 // Must match ScratchCard.jsx
-const BLOCK_ROWS = 25;
+const BLOCK_ROWS  = 25;
+const CH          = 190;   // canvas logical height — must match ScratchCard.jsx
+const ART_LABEL_H = 18;    // reserved px at canvas top — must match CSS calc(18px + …)
+const BLOCK_H     = CH / BLOCK_ROWS; // 7.6 canvas px per block row
 
 // Group formation cells into horizontal row bands based on overlapping block rows.
 // Cells whose block row ranges touch or overlap are merged into one row group.
+// Block-row indices are computed using the same 18 px art-label offset as the canvas.
 function groupIntoRows(formCells) {
   if (!formCells || !formCells.length) return [];
 
+  const usableH = CH - ART_LABEL_H;
   const ranges = formCells.map(fc => ({
     fc,
-    by0: Math.max(0, Math.floor(fc.y * BLOCK_ROWS)),
-    by1: Math.min(BLOCK_ROWS - 1, Math.ceil((fc.y + fc.h) * BLOCK_ROWS) - 1),
+    by0: Math.max(0,              Math.floor((ART_LABEL_H + fc.y * usableH) / BLOCK_H)),
+    by1: Math.min(BLOCK_ROWS - 1, Math.ceil( (ART_LABEL_H + (fc.y + fc.h) * usableH) / BLOCK_H) - 1),
   }));
 
   ranges.sort((a, b) => a.by0 - b.by0);
@@ -55,21 +60,18 @@ export default function ScratchToolOverlay({
     setButtonYs([]);
   }, [cardData]);
 
-  // ── Precision alignment — derive button Y directly from live DOM measurements ──
+  // ── Precision alignment — derive button Y from formation-indexed DOM elements ─
   //
   // Strategy:
-  //   1. Query all .art-cell elements rendered inside the card.
-  //   2. Get their actual screen-space bounding rects via getBoundingClientRect().
-  //   3. Sort rects by top, then group overlapping rects into horizontal bands —
-  //      each band corresponds to one scratch row.
-  //   4. Compute each band's vertical centre.
-  //   5. Express that centre relative to .scratch-tool-col (the button container)
-  //      so that `top: Xpx` on a button with `transform: translateY(-50%)` lands
-  //      exactly on the band centre.
-  //
-  // This approach is layout-agnostic: it doesn't depend on the 18 px header
-  // reservation inside .card-art, the formation fraction formulas, or any other
-  // internal constant — it reads the truth straight from the rendered DOM.
+  //   1. Map each formation cell (fc object) to its rendered .art-cell DOM element
+  //      by index: element[i] is positioned at formCells[i].
+  //   2. For each row group (from groupIntoRows), collect the viewport-space Y
+  //      centres of all cells belonging to that row.
+  //   3. Average those centres — this makes the result tilt-robust: when the ticket
+  //      is rotated, cells in the same row fan out in viewport-Y, but their average
+  //      is still the true row centre.
+  //   4. Express each average relative to .scratch-tool-col so that
+  //      `top: Xpx` + `transform: translateY(-50%)` centres the button on the row.
   const measurePositions = useCallback(() => {
     if (!outerRef.current || rows.length === 0) return;
 
@@ -79,46 +81,41 @@ export default function ScratchToolOverlay({
     const colRect = colEl.getBoundingClientRect();
     if (colRect.height < 4) return;
 
-    // Collect every rendered scratch cell's bounding rect.
+    // .art-cell elements are rendered in formCells order: element[i] ↔ formCells[i].
     const cellEls = Array.from(outerRef.current.querySelectorAll('.art-cell'));
-    if (cellEls.length === 0) return;
+    if (cellEls.length < formCells.length) return;
 
-    const rects = cellEls
-      .map(el => el.getBoundingClientRect())
-      .filter(r => r.height > 0 && r.width > 0)
-      .sort((a, b) => a.top - b.top);
+    // Build a lookup: formation cell object reference → DOM element index.
+    const fcIndexMap = new Map(formCells.map((fc, i) => [fc, i]));
 
-    if (rects.length === 0) return;
+    const ys = [];
+    for (const row of rows) {
+      // Collect viewport-Y centres for every DOM cell that belongs to this row.
+      const centers = row.cells
+        .map(r => {
+          const idx = fcIndexMap.get(r.fc);
+          if (idx == null) return null;
+          const el = cellEls[idx];
+          if (!el) return null;
+          const rect = el.getBoundingClientRect();
+          if (rect.height < 1 || rect.width < 1) return null;
+          return (rect.top + rect.bottom) / 2;
+        })
+        .filter(v => v !== null);
 
-    // Group overlapping rects into row bands.
-    // Two rects belong to the same band if the second rect's top is below
-    // the current band's bottom (with 1 px sub-pixel tolerance).
-    const bands = [];
-    let band = null;
-    for (const r of rects) {
-      if (!band || r.top >= band.bottom - 1) {
-        band = { top: r.top, bottom: r.bottom };
-        bands.push(band);
-      } else {
-        band.bottom = Math.max(band.bottom, r.bottom);
-      }
+      if (centers.length === 0) return; // cells not yet in DOM — wait for next pass
+      const avgY = centers.reduce((s, v) => s + v, 0) / centers.length;
+      ys.push(avgY - colRect.top);
     }
 
-    // If the DOM doesn't show the expected number of rows yet, bail and wait
-    // for the next layout pass (useLayoutEffect will re-fire after next render).
-    if (bands.length !== rows.length) return;
-
-    // Convert each band's screen-space centre to a coordinate relative to the
-    // button column top.  With `transform: translateY(-50%)` on the button,
-    // setting `top` to this value centres the button on the row.
-    const ys = bands.map(b => (b.top + b.bottom) / 2 - colRect.top);
+    if (ys.length !== rows.length) return;
 
     setButtonYs(prev =>
       prev.length === ys.length && prev.every((v, i) => Math.abs(v - ys[i]) < 0.5)
         ? prev   // no meaningful change — skip re-render
         : ys
     );
-  }, [rows]);
+  }, [rows, formCells]);
 
   // Re-measure after every render (catches new card, font load, etc.)
   useLayoutEffect(() => { measurePositions(); }, [measurePositions]);

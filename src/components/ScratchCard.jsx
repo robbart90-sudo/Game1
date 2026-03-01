@@ -55,6 +55,11 @@ export function drawESPGlow(ctx, cx, cy, intensity, timestamp) {
 const CW = 320;
 const CH = 190;
 
+// Pixels reserved at the top of the canvas for the art-label area.
+// Must stay in sync with the CSS formula: top: calc(18px + fc.y * (100% - 18px))
+// and height: calc(fc.h * (100% - 18px))
+const ART_LABEL_H = 18;
+
 // ── Block grid constants ──────────────────────────────────────────────────
 const BLOCK_COLS = 40;
 const BLOCK_ROWS = 25;
@@ -103,8 +108,9 @@ function lighten(hex, amt) {
 // 20×20 px hotspot centered on a formCell, returned as block-grid indices.
 // The player only needs to scratch through this central target zone.
 function hotspotBlocks(fc) {
+  const usableH = CH - ART_LABEL_H;
   const cx = (fc.x + fc.w * 0.5) * CW;
-  const cy = (fc.y + fc.h * 0.5) * CH;
+  const cy = ART_LABEL_H + (fc.y + fc.h * 0.5) * usableH;
   return {
     x0: Math.max(0,              Math.floor((cx - 10) / BLOCK_W)),
     y0: Math.max(0,              Math.floor((cy - 10) / BLOCK_H)),
@@ -221,12 +227,13 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
     octx.fillRect(0, 0, CW, CH);
 
     // Step 5: Embossed cell guides — shows exactly where to scratch, like a real ticket
-    // Uses same canvas coordinates as the coverage detection (fc.x*CW, fc.y*CH).
+    // Uses same canvas coordinates as the coverage detection.
+    const usableH = CH - ART_LABEL_H;
     for (const fc of formCells) {
       const cx = fc.x * CW;
-      const cy = fc.y * CH;
+      const cy = ART_LABEL_H + fc.y * usableH;
       const cw = fc.w * CW;
-      const ch = fc.h * CH;
+      const ch = fc.h * usableH;
 
       // Raised-panel effect: shadow on bottom+right, highlight on top+left
       octx.lineWidth = 1.5;
@@ -322,12 +329,13 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
       // Drawn before erase so it bleeds into the metallic surface.
       // Color exists nowhere else in this game — cool electric blue-white.
       if (sessionLuckyNumber !== null) {
+        const usableH = CH - ART_LABEL_H;
         cells.forEach((cell, i) => {
           if (cell.number !== sessionLuckyNumber) return;
           const fc = formCells[i];
           if (!fc) return;
           const cx = (fc.x + fc.w * 0.5) * CW;
-          const cy = (fc.y + fc.h * 0.5) * CH;
+          const cy = ART_LABEL_H + (fc.y + fc.h * 0.5) * usableH;
           // Pre-reveal: very faint so foil still reads as opaque
           drawESPGlow(ctx, cx, cy, 0.22, ts);
 
@@ -354,11 +362,12 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
       // the cell boundary — the foil between cells is never erased.
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = 'rgba(0,0,0,1)';
+      const usableH2 = CH - ART_LABEL_H;
       for (const fc of formCells) {
         const cellX = fc.x * CW;
-        const cellY = fc.y * CH;
+        const cellY = ART_LABEL_H + fc.y * usableH2;
         const cellW = fc.w * CW;
-        const cellH = fc.h * CH;
+        const cellH = fc.h * usableH2;
         // Block range that overlaps this cell
         const bx0 = Math.max(0,              Math.floor(cellX / BLOCK_W));
         const by0 = Math.max(0,              Math.floor(cellY / BLOCK_H));
