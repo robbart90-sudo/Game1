@@ -1,44 +1,254 @@
-/* ── Wrapper — full-width, matches status-panel/card width ──────────────── */
+/* ── Wrapper ──────────────────────────────────────────────────────────────── */
 .gss-wrap {
   width: 100%;
   max-width: 352px;
-  background: rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.09);
-  border-radius: 12px;
-  padding: 8px 6px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-/* ── Regular items — 2-column × 3-row grid ───────────────────────────────── */
+/* ── Section header ───────────────────────────────────────────────────────── */
+.gss-header {
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  font-variant: small-caps;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+  font-family: 'Arial Black', Arial, sans-serif;
+  text-align: center;
+  padding: 0 0 2px;
+}
+
+/* ── Grid: 2×3 on desktop, horizontal scroll on mobile ───────────────────── */
 .gss-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 7px;
 }
 
-/* ── Per-item wrapper (label above + button below) ──────────────────────── */
-.gss-item {
+@media (max-width: 768px) {
+  .gss-grid {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .gss-grid::-webkit-scrollbar { display: none; }
+
+  .gss-card {
+    flex-shrink: 0;
+    width: 84px;
+    min-width: 84px;
+  }
+}
+
+/* ── Card base ────────────────────────────────────────────────────────────── */
+.gss-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 8px 9px;
+  min-height: 90px;
+
+  border-radius: 12px;
+  border: 1.5px solid var(--gss-border);
+  background: var(--gss-bg);
+
+  /* dimmed by default (can't afford / not available) */
+  filter: grayscale(0.55);
+  opacity: 0.50;
+  cursor: not-allowed;
+
+  transition: transform 0.08s, box-shadow 0.10s, opacity 0.15s, filter 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Category color tokens ────────────────────────────────────────────────── */
+
+/* Time: cool blue — Coffee, Slushee */
+.gss-card--time {
+  --gss-bg:        linear-gradient(155deg, #1E3D7A 0%, #122C60 100%);
+  --gss-border:    rgba(80, 148, 250, 0.50);
+  --gss-text:      #9EC0FF;
+  --gss-desc:      rgba(158, 192, 255, 0.62);
+  --gss-glow:      rgba(60, 120, 255, 0.55);
+  --gss-badge-bg:  rgba(255, 255, 255, 0.10);
+  --gss-badge-txt: rgba(210, 228, 255, 0.88);
+  --gss-secs-clr:  #8BB8FF;
+}
+
+/* Scratch: warm amber — Fries, Hot Dog */
+.gss-card--scratch {
+  --gss-bg:        linear-gradient(155deg, #7A3800 0%, #5A2500 100%);
+  --gss-border:    rgba(245, 148, 40, 0.52);
+  --gss-text:      #F0B46A;
+  --gss-desc:      rgba(240, 180, 106, 0.62);
+  --gss-glow:      rgba(240, 130, 30, 0.55);
+  --gss-badge-bg:  rgba(255, 255, 255, 0.10);
+  --gss-badge-txt: rgba(255, 222, 168, 0.88);
+  --gss-secs-clr:  #F0A84A;
+}
+
+/* Flow: electric gold — Gas */
+.gss-card--flow {
+  --gss-bg:        linear-gradient(155deg, #7A6600 0%, #5A4A00 100%);
+  --gss-border:    rgba(248, 208, 0, 0.55);
+  --gss-text:      #F5D248;
+  --gss-desc:      rgba(245, 210, 72, 0.60);
+  --gss-glow:      rgba(248, 200, 0, 0.65);
+  --gss-badge-bg:  rgba(255, 255, 255, 0.10);
+  --gss-badge-txt: rgba(255, 244, 160, 0.90);
+  --gss-secs-clr:  #F5D040;
+}
+
+/* Luck: deep red — Lucky Star */
+.gss-card--luck {
+  --gss-bg:        linear-gradient(155deg, #6A0E1E 0%, #4A0812 100%);
+  --gss-border:    rgba(240, 60, 88, 0.52);
+  --gss-text:      #F08898;
+  --gss-desc:      rgba(240, 136, 152, 0.60);
+  --gss-glow:      rgba(220, 40, 68, 0.58);
+  --gss-badge-bg:  rgba(255, 255, 255, 0.10);
+  --gss-badge-txt: rgba(255, 192, 202, 0.88);
+  --gss-secs-clr:  #F07888;
+}
+
+/* ── Affordable state ─────────────────────────────────────────────────────── */
+.gss-card--affordable {
+  filter: none;
+  opacity: 1;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.gss-card--affordable:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.50),
+    0 0 0 1px var(--gss-border),
+    0 0 14px var(--gss-glow);
+}
+
+.gss-card--affordable:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.40);
+}
+
+/* ── Active powerup state — pulsing glow border ───────────────────────────── */
+@keyframes gssCardPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1.5px var(--gss-border),
+      0 0 8px  var(--gss-glow);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2.5px var(--gss-border),
+      0 0 18px var(--gss-glow);
+  }
+}
+
+.gss-card--active {
+  filter: none;
+  opacity: 1;
+  cursor: default;
+  animation: gssCardPulse 1.6s ease-in-out infinite;
+}
+
+/* ── Cost badge — top-right corner pill ───────────────────────────────────── */
+.gss-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: var(--gss-badge-bg);
+  color: var(--gss-badge-txt);
+  font-size: 0.46rem;
+  font-weight: 900;
+  font-family: 'Arial Black', Arial, sans-serif;
+  padding: 2px 5px;
+  border-radius: 6px;
+  line-height: 1.35;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* ── Card content zones ───────────────────────────────────────────────────── */
+.gss-card-emoji {
+  font-size: 2rem;
+  line-height: 1;
+  display: block;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55));
+  margin-top: 6px; /* push below badge */
+}
+
+.gss-card-name {
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gss-text);
+  font-family: 'Arial Black', Arial, sans-serif;
+  line-height: 1;
+  text-align: center;
+}
+
+.gss-card-desc {
+  font-size: 0.42rem;
+  font-weight: 700;
+  color: var(--gss-desc);
+  font-family: 'Arial Black', Arial, sans-serif;
+  text-align: center;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+
+/* ── Active body: large seconds / checkmark ───────────────────────────────── */
+.gss-active-body {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
 }
 
-.gss-label {
-  font-size: 0.48rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.40);
+.gss-active-secs {
+  font-size: 2rem;
+  font-weight: 900;
   font-family: 'Arial Black', Arial, sans-serif;
-  white-space: nowrap;
+  color: var(--gss-secs-clr);
   line-height: 1;
-  text-align: center;
+  text-shadow: 0 0 12px var(--gss-glow);
 }
 
-/* ── Individual item button ──────────────────────────────────────────────── */
+.gss-active-check {
+  font-size: 2rem;
+  font-weight: 900;
+  font-family: 'Arial Black', Arial, sans-serif;
+  color: var(--gss-secs-clr);
+  line-height: 1;
+  text-shadow: 0 0 12px var(--gss-glow);
+}
+
+.gss-active-label {
+  font-size: 0.44rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gss-desc);
+  font-family: 'Arial Black', Arial, sans-serif;
+}
+
+/* ── Car button — full-width win item (unchanged from existing design) ─────── */
+.gss-car-row {
+  width: 100%;
+}
+
 .gss-btn {
   display: flex;
   flex-direction: column;
@@ -50,74 +260,19 @@
   background: rgba(255, 255, 255, 0.75);
   cursor: pointer;
   width: 100%;
-  /* dimmed until affordable */
   opacity: 0.38;
   transition: opacity 0.15s, border-color 0.15s, background 0.15s, transform 0.08s;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* affordable but not yet bought */
 .gss-btn--affordable {
   opacity: 1;
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.10);
 }
-.gss-btn--affordable:hover {
-  background: #fff;
-  border-color: rgba(0, 0, 0, 0.20);
-}
-.gss-btn--affordable:active {
-  transform: translateY(1px);
-  box-shadow: none;
-}
 
-/* can't afford — clearly faded, no pointer */
 .gss-btn--broke {
   opacity: 0.28;
   cursor: not-allowed;
-}
-
-/* active powerup — highlighted gold ring */
-.gss-btn--active {
-  opacity: 1;
-  border-color: #F0B800;
-  background: rgba(255, 222, 0, 0.18);
-  cursor: default;
-  box-shadow: 0 0 0 2px rgba(240, 184, 0, 0.30);
-}
-
-/* ── Content inside each button ─────────────────────────────────────────── */
-.gss-emoji {
-  font-size: 1.4rem;
-  line-height: 1;
-  display: block;
-}
-
-.gss-name {
-  font-size: 0.55rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  color: rgba(0, 0, 0, 0.50);
-  font-family: 'Arial Black', Arial, sans-serif;
-  text-transform: uppercase;
-  line-height: 1;
-}
-
-.gss-cost {
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: rgba(0, 0, 0, 0.42);
-  font-family: monospace;
-  line-height: 1;
-}
-
-/* cost is more prominent when affordable */
-.gss-btn--affordable .gss-cost {
-  color: rgba(0, 0, 0, 0.60);
-}
-
-/* ── Car button — full-width win item ────────────────────────────────────── */
-.gss-car-row {
-  width: 100%;
 }
 
 .gss-btn--car {
@@ -129,7 +284,6 @@
   border-radius: 10px;
   border: 2px solid rgba(0, 0, 0, 0.12);
   background: rgba(255, 255, 255, 0.80);
-  /* affordable state overridden below */
 }
 
 .gss-btn--car.gss-btn--affordable {
@@ -158,6 +312,8 @@
   animation: none;
 }
 
+.gss-emoji { font-size: 1.4rem; line-height: 1; display: block; }
+
 .gss-car-emoji {
   font-size: 1.8rem;
   flex-shrink: 0;
@@ -171,6 +327,21 @@
   flex: 1;
 }
 
+.gss-name {
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: rgba(0, 0, 0, 0.50);
+  font-family: 'Arial Black', Arial, sans-serif;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.gss-btn--car .gss-name {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
 .gss-car-sub {
   font-size: 0.48rem;
   font-weight: 700;
@@ -181,9 +352,17 @@
   white-space: nowrap;
 }
 
-.gss-btn--car.gss-btn--affordable .gss-car-sub {
-  color: #B87A00;
+.gss-btn--car.gss-btn--affordable .gss-car-sub { color: #B87A00; }
+
+.gss-cost {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.42);
+  font-family: monospace;
+  line-height: 1;
 }
+
+.gss-btn--affordable .gss-cost { color: rgba(0, 0, 0, 0.60); }
 
 .gss-car-cost {
   font-size: 0.65rem;
@@ -193,11 +372,4 @@
   flex-shrink: 0;
 }
 
-.gss-btn--car.gss-btn--affordable .gss-car-cost {
-  color: #8B5C00;
-}
-
-.gss-btn--car .gss-name {
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-}
+.gss-btn--car.gss-btn--affordable .gss-car-cost { color: #8B5C00; }
