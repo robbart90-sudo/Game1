@@ -248,13 +248,17 @@ export default function App() {
   const prevPressureLvlRef = useRef(0);
 
   // ── Stable refs ───────────────────────────────────────────────────────────
-  const cardRef      = useRef(null);
-  const balanceRef   = useRef(STARTING_BALANCE);
-  const speedModeRef = useRef(false);
-  const soundRef     = useRef(null);
-  const gameOverRef  = useRef(false);
-  const sound        = useSound();
-  soundRef.current   = sound;
+  const cardRef           = useRef(null);
+  const balanceRef        = useRef(STARTING_BALANCE);
+  const speedModeRef      = useRef(false);
+  const soundRef          = useRef(null);
+  const gameOverRef       = useRef(false);
+  const prizeRafCancelRef = useRef(null); // cancel fn for active prize count-up RAF
+  const sound             = useSound();
+  soundRef.current        = sound;
+
+  // ── Balance animation duration — synced to prize count-up ─────────────────
+  const [balanceDuration, setBalanceDuration] = useState(600);
 
   // ── Attendant dialogue state ──────────────────────────────────────────────
   const cardsSinceAttendantRef = useRef(0);   // resets to 0 after each quip
@@ -464,16 +468,33 @@ export default function App() {
       }
       const sMult   = streakPrizeMult(newStreak);
       const boosted = sMult > 1 ? Math.floor(prize * sMult) : prize;
+      const dur     = boosted >= 500 ? 2000 : boosted < 10 ? 400 : 800;
+      const tier    = prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small';
+      const label   = prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN';
+      const multTag = sMult > 1 ? `🔥×${sMult} ` : '';
 
+      setBalanceDuration(dur);
       updateBalance(b => b + boosted);
       setTotalWon(t => t + boosted);
       setBiggestWin(b => Math.max(b, boosted));
       applyWinFeedback(prize); // visual tier based on base prize
-      const multTag = sMult > 1 ? `🔥×${sMult} ` : '';
-      setWinMsg({
-        text: `${multTag}${prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN'} — +${boosted.toLocaleString()} 🪙`,
-        tier: prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small',
+
+      // ── Prize count-up animation ──────────────────────────────────────
+      prizeRafCancelRef.current?.();
+      const initText = sMult > 1
+        ? `🔥×${sMult} ${label} — +0 🪙 → +${boosted.toLocaleString()} 🪙`
+        : `${label} — +0 🪙`;
+      setWinMsg({ text: initText, tier });
+      prizeRafCancelRef.current = soundRef.current?.countUp(boosted, dur, (current, t) => {
+        const finished = t >= 1;
+        const text = finished
+          ? `${multTag}${label} — +${boosted.toLocaleString()} 🪙`
+          : sMult > 1
+            ? `🔥×${sMult} ${label} — +${current.toLocaleString()} 🪙 → +${boosted.toLocaleString()} 🪙`
+            : `${label} — +${current.toLocaleString()} 🪙`;
+        setWinMsg({ text, tier });
       });
+
       const flowBase = prize >= 500 ? 50 : prize >= 30 ? 35 : 18;
       updateFlowLevel(flowBase * pressureMult(timeLeftRef.current, balanceRef.current) * streakFlowMult(newStreak));
 
@@ -482,6 +503,10 @@ export default function App() {
       else if (newStreak === STREAK_THRESHOLD_B) { speakDialogue('Chicken dinner, and all that.'); cardsSinceAttendantRef.current = 0; }
       else if (newStreak === STREAK_THRESHOLD_C) { speakDialogue('Never seen this\u2026'); cardsSinceAttendantRef.current = 0; }
       else                                        { maybeShowAttendant(); }
+
+      // Wait for count-up to finish (+400ms buffer), min 1200ms
+      const winDelay = Math.max(1200, dur + 400);
+      setTimeout(() => { prizeRafCancelRef.current?.(); showPicker(); }, winDelay);
     } else {
       // ── Streak break ─────────────────────────────────────────────────
       const broken = consecWinsRef.current;
@@ -499,10 +524,8 @@ export default function App() {
       setWinMsg({ text: 'No match — better luck next time!', tier: 'none' });
       updateFlowLevel(-10);
       maybeShowAttendant();
+      setTimeout(() => showPicker(), 800);
     }
-
-    const delay = prize > 0 ? 1200 : 800;
-    setTimeout(() => showPicker(), delay);
   }, [applyWinFeedback, updateFlowLevel, showPicker, maybeShowAttendant, speakDialogue]);
 
   // ── Flow state: player picks → resolve inline, no navigation ────────────
@@ -655,6 +678,8 @@ export default function App() {
     // Reset flow state inline — do NOT call exitFlowState() here because it
     // calls startTimer(), which would restart the timer with the stale value
     // from the previous game before resetTimer() gets a chance to fix it.
+    prizeRafCancelRef.current?.(); prizeRafCancelRef.current = null;
+    setBalanceDuration(600);
     stopTimer(); stopDrain();
     flowStateRef.current = false; setFlowState(false);
     flowRoundRef.current = 0;    setFlowRound(0);
@@ -732,6 +757,7 @@ export default function App() {
     clearInterval(slusheeTimerRef.current);
     clearInterval(drainIntervalRef.current);
     clearTimeout(streakBreakTimerRef.current);
+    prizeRafCancelRef.current?.();
   }, [stopTimer]);
 
   const isActive = phase !== 'intro';
@@ -752,7 +778,7 @@ export default function App() {
         </div>
       </header>
 
-      <BalanceBar balance={balance} totalWon={totalWon} cardsPlayed={cardsPlayed} speedMode={speedMode} onSpeedToggle={toggleSpeed} />
+      <BalanceBar balance={balance} totalWon={totalWon} cardsPlayed={cardsPlayed} speedMode={speedMode} onSpeedToggle={toggleSpeed} balanceDuration={balanceDuration} />
 
       <main className="game-area">
         {phase === 'intro' && (

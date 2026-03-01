@@ -1,8 +1,8 @@
 import './BalanceBar.css';
 import { useAnimatedValue } from '../hooks/useAnimatedValue';
 
-export default function BalanceBar({ balance, totalWon, cardsPlayed, speedMode, onSpeedToggle }) {
-  const animBalance = useAnimatedValue(balance, 600);
+export default function BalanceBar({ balance, totalWon, cardsPlayed, speedMode, onSpeedToggle, balanceDuration = 600 }) {
+  const animBalance = useAnimatedValue(balance, balanceDuration);
   const animWon     = useAnimatedValue(totalWon, 800);
 
   return (

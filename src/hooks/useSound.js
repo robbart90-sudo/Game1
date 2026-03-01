@@ -123,6 +123,53 @@ export function useSound() {
     } catch {}
   }, [ctx]);
 
+  // Single count-up tick — quiet high click, pitch rises with progress (0→1)
+  const countTick = useCallback((progress = 0) => {
+    if (mutedRef.current) return;
+    try {
+      const ac = ctx();
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 800 + progress * 1600;
+      g.gain.setValueAtTime(0.06 + progress * 0.08, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.038);
+      osc.connect(g); g.connect(ac.destination);
+      osc.start(); osc.stop(ac.currentTime + 0.042);
+    } catch {}
+  }, [ctx]);
+
+  // Drives a count-up: calls onStep(displayedValue, progress) each RAF frame,
+  // plays countTick at even intervals. Returns a cancel function.
+  const countUp = useCallback((total, duration, onStep) => {
+    if (total <= 0) { onStep(0, 1); return () => {}; }
+    const tickIntervalMs = Math.max(20, duration / 30); // ≤30 ticks per count-up
+    const start = performance.now();
+    let lastTickTime = -Infinity;
+    let lastDisplayed = -1;
+    let rafId;
+    const step = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 4); // easeOutQuart
+      const current = Math.round(total * eased);
+      if (current !== lastDisplayed) {
+        lastDisplayed = current;
+        onStep(current, t);
+        if (now - lastTickTime >= tickIntervalMs) {
+          lastTickTime = now;
+          countTick(t);
+        }
+      }
+      if (t < 1) {
+        rafId = requestAnimationFrame(step);
+      } else {
+        onStep(total, 1); // guarantee exact final value
+      }
+    };
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
+  }, [countTick]);
+
   // Timer tick — urgent when time is low
   const tick = useCallback((urgent = false) => {
     if (mutedRef.current) return;
@@ -203,5 +250,5 @@ export function useSound() {
     } catch {}
   }, [ctx]);
 
-  return { scratch, ching, fanfare, jackpot, tick, deal, thud, flowActivate, muted, toggleMute };
+  return { scratch, ching, fanfare, jackpot, tick, deal, thud, flowActivate, countTick, countUp, muted, toggleMute };
 }
