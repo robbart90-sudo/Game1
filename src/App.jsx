@@ -13,8 +13,8 @@ import AttendantReaction from './components/AttendantReaction';
 import GasStationShop, { SHOP_ITEMS } from './components/GasStationShop';
 import ModifierTray    from './components/ModifierTray';
 import { useSound }    from './hooks/useSound';
-import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE, MAX_ITEM_PURCHASES } from './utils/lottery';
-import { getRandomTheme } from './utils/themes';
+import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE, MAX_ITEM_PURCHASES, PRESSURE_WIN_ADJ } from './utils/lottery';
+import { getRandomTheme, getRandomHighStakesTheme } from './utils/themes';
 import './App.css';
 
 // ── localStorage keys ─────────────────────────────────────────────────────────
@@ -44,6 +44,23 @@ const PICKER_COUNT = 6;
 // ── BALANCE CONSTANTS — tweak economy here without touching game logic ─────────
 const PASSIVE_DRAIN_COINS      = 1;  // coins deducted per tick
 const PASSIVE_DRAIN_INTERVAL_S = 3;  // seconds between drain ticks
+
+// ── High-stakes card tiers: unlock at these total-balance thresholds ──────────
+// price:      card cost in coins
+// minBalance: player must hold at least this much to see the tier in the picker
+const HIGH_STAKES_TIERS = [
+  { price:   30, minBalance:     0 }, // bridge tier — always available above regular $20 max
+  { price:   50, minBalance:   500 },
+  { price:  100, minBalance:  1000 },
+  { price:  200, minBalance:  5000 },
+  { price: 1000, minBalance: 10000 },
+  { price: 2000, minBalance: 20000 },
+];
+// Chance a high-stakes slot replaces one normal card in the picker (when unlocked)
+const HIGH_STAKES_APPEAR_CHANCE = 0.18;
+
+// PRESSURE_WIN_ADJ is imported from lottery.js (indexed by pressure level 0–4):
+//   0: ±0%  1: −3%  2: ±0%  3: +5%  4: +10%
 
 // ── Streak constants ──────────────────────────────────────────────────────────
 const STREAK_SHOW_MIN      = 3;    // consecutive wins needed before badge appears
@@ -136,36 +153,59 @@ function streakFlowMult(n) {
   return 1 + Math.max(0, n - 2) * STREAK_FLOW_BONUS;
 }
 
-function makeOption(speedMode, balance, forceWin = false, isDark = false) {
+function makeOption(speedMode, balance, forceWin = false, isDark = false, pressureAdj = 0) {
   const theme = getRandomTheme();
   const cost  = speedMode ? 1 : theme.price;
-  const card  = generateCard(speedMode ? { ...theme, price: 1 } : theme, forceWin);
+  const card  = generateCard(speedMode ? { ...theme, price: 1 } : theme, forceWin, pressureAdj);
   return { theme, card, cost, canAfford: balance >= cost, isDark };
+}
+
+function makeHighStakesOption(balance, price, pressureAdj = 0) {
+  const theme = getRandomHighStakesTheme(price);
+  const card  = generateCard(theme, false, pressureAdj);
+  return { theme, card, cost: price, canAfford: balance >= price, isHighStakes: true };
 }
 
 function sortOptions(opts) {
   return opts.sort((a, b) => a.cost - b.cost || a.theme.name.localeCompare(b.theme.name));
 }
 
-function generatePickerOptions(speedMode, balance, allowRisk = false) {
-  const options = [makeOption(speedMode, balance, true)];
-  for (let i = 0; i < PICKER_COUNT - 1; i++) options.push(makeOption(speedMode, balance));
+function generatePickerOptions(speedMode, balance, allowRisk = false, pressureLvl = 0) {
+  const pressureAdj = PRESSURE_WIN_ADJ[pressureLvl] ?? 0;
+  const options = [makeOption(speedMode, balance, true, false, pressureAdj)];
+  for (let i = 0; i < PICKER_COUNT - 1; i++) options.push(makeOption(speedMode, balance, false, false, pressureAdj));
+
+  // Maybe inject one high-stakes card (not in speed mode)
+  if (!speedMode && Math.random() < HIGH_STAKES_APPEAR_CHANCE) {
+    const unlocked = HIGH_STAKES_TIERS.filter(t => balance >= t.minBalance);
+    if (unlocked.length > 0) {
+      const tier = unlocked[Math.floor(Math.random() * unlocked.length)];
+      const idx  = Math.floor(Math.random() * options.length);
+      options[idx] = makeHighStakesOption(balance, tier.price, pressureAdj);
+    }
+  }
+
   if (allowRisk && Math.random() < RISK_CARD_CHANCE) {
-    const idx = Math.floor(Math.random() * options.length);
-    options[idx] = { ...options[idx], isRisk: true };
+    // Don't overwrite a high-stakes card with a risk card
+    const nonHS = options.reduce((acc, o, i) => { if (!o.isHighStakes) acc.push(i); return acc; }, []);
+    if (nonHS.length > 0) {
+      const idx = nonHS[Math.floor(Math.random() * nonHS.length)];
+      options[idx] = { ...options[idx], isRisk: true };
+    }
   }
   return sortOptions(options);
 }
 
 // Flow State: descending winner guarantee per round
-function generateFlowPickerOptions(speedMode, balance, flowRound) {
+function generateFlowPickerOptions(speedMode, balance, flowRound, pressureLvl = 0) {
+  const pressureAdj = PRESSURE_WIN_ADJ[pressureLvl] ?? 0;
   const winCount   = Math.max(1, 7 - flowRound); // Rd1=6,Rd2=5,...,Rd6+=1
   const loserCount = PICKER_COUNT - winCount;
   const opts = [];
   for (let i = 0; i < winCount; i++)
-    opts.push(makeOption(speedMode, balance, true, false));
+    opts.push(makeOption(speedMode, balance, true, false, pressureAdj));
   for (let i = 0; i < loserCount; i++)
-    opts.push(makeOption(speedMode, balance, false, flowRound >= 4));
+    opts.push(makeOption(speedMode, balance, false, flowRound >= 4, pressureAdj));
   return sortOptions(opts);
 }
 
@@ -282,7 +322,8 @@ export default function App() {
   const flowLevelRef = useRef(0);
   const flowStateRef = useRef(false);
   const flowRoundRef = useRef(0);
-  const flowDrainRef = useRef(null);
+  const flowDrainRef    = useRef(null);
+  const pressureLvlRef  = useRef(0);
 
   // ── Shop / powerup state ─────────────────────────────────────────────────
   const [brushBoostSecs,    setBrushBoostSecs]    = useState(0);
@@ -488,8 +529,8 @@ export default function App() {
       && balanceRef.current >= RISK_CARD_MIN_BALANCE;
     const opts = pregenOptions ||
       (flowStateRef.current
-        ? generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current)
-        : generatePickerOptions(speedModeRef.current, balanceRef.current, allowRisk));
+        ? generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current)
+        : generatePickerOptions(speedModeRef.current, balanceRef.current, allowRisk, pressureLvlRef.current));
     setPickerOptions(opts);
     slideOut(() => slideInNew(() => {
       setWinMsg(null); setCardFlash('');
@@ -663,7 +704,7 @@ export default function App() {
     setTimeout(() => {
       setFlowPickResult(null);
       if (flowStateRef.current) {
-        const newOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current);
+        const newOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current);
         setPickerOptions(newOpts);
       } else {
         showPicker();
@@ -719,7 +760,7 @@ export default function App() {
 
   // ── Start session ──────────────────────────────────────────────────────────
   const startFirstCard = useCallback(() => {
-    const options = generatePickerOptions(speedModeRef.current, balanceRef.current);
+    const options = generatePickerOptions(speedModeRef.current, balanceRef.current, false, pressureLvlRef.current);
     setPickerOptions(options);
     setSlideTarget('picker');
     setPhase('picking'); phaseRef.current = 'picking';
@@ -829,6 +870,7 @@ export default function App() {
     const lvl = active ? calcPressureLvl(timeLeft, balance) : 0;
     if (lvl !== prevPressureLvlRef.current) {
       prevPressureLvlRef.current = lvl;
+      pressureLvlRef.current     = lvl;
       setPressureLvl(lvl);
     }
   }, [timeLeft, balance, flowState, gameOver, phase]);

@@ -697,7 +697,6 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
             background: `radial-gradient(ellipse at 50% 0%, ${lighten(palette.numBg, 15)} 0%, ${palette.numBg} 65%)`,
           }}
         >
-          <div className="art-label" style={{ color: palette.accent }}>YOUR NUMBERS</div>
           <div className="art-cells">
             {cells.map((cell, i) => {
               const fc = formCells[i] || { x: 0, y: 0, w: 0.3, h: 0.3 };

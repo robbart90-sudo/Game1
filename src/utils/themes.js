@@ -191,3 +191,38 @@ export const THEMES = raw.map((t, i) => ({
 export function getRandomTheme() {
   return THEMES[Math.floor(Math.random() * THEMES.length)];
 }
+
+// ─── High-Stakes Themes ($30 bridge + $50/$100/$200/$1000/$2000) ──────────────
+const rawHighStakes = [
+  // $30 — bridge tier
+  { id: 'hs030a', name: 'The Ante Up',      price:   30, emoji: '🃏', tagline: 'RAISE YOUR STAKES',              p: 'silver' },
+  { id: 'hs030b', name: 'High Roller',      price:   30, emoji: '🎰', tagline: 'WHERE THE REAL GAME BEGINS',     p: 'gold'   },
+  // $50
+  { id: 'hs050a', name: 'Platinum Ticket',  price:   50, emoji: '💎', tagline: 'PREMIUM ODDS. PREMIUM PRIZES.',  p: 'silver' },
+  { id: 'hs050b', name: 'The High Five',    price:   50, emoji: '✋', tagline: 'FIVE TIMES THE EXCITEMENT',      p: 'purple' },
+  // $100
+  { id: 'hs100a', name: 'Century Club',     price:  100, emoji: '💯', tagline: 'FOR PLAYERS WHO MEAN BUSINESS',  p: 'gold'   },
+  { id: 'hs100b', name: 'The Benjamin',     price:  100, emoji: '💵', tagline: 'IN FRANKLIN WE TRUST',           p: 'green'  },
+  // $200
+  { id: 'hs200a', name: 'Double Century',   price:  200, emoji: '⚜️', tagline: 'DOUBLE DOWN ON DESTINY',         p: 'gold'   },
+  { id: 'hs200b', name: 'Black Label',      price:  200, emoji: '🖤', tagline: 'RESERVED FOR THE BOLD',          p: 'navy'   },
+  // $1 000
+  { id: 'hs1ka',  name: 'The Grand',        price: 1000, emoji: '👑', tagline: 'A THOUSAND REASONS TO WIN',      p: 'gold'   },
+  { id: 'hs1kb',  name: 'Midas Touch',      price: 1000, emoji: '✨', tagline: 'EVERYTHING TURNS TO GOLD',       p: 'copper' },
+  // $2 000
+  { id: 'hs2ka',  name: 'Untouchable',      price: 2000, emoji: '🏆', tagline: 'LEGEND STATUS',                  p: 'gold'   },
+  { id: 'hs2kb',  name: 'The Two Grand',    price: 2000, emoji: '🌟', tagline: 'FOR THE SERIOUS PLAYER ONLY',    p: 'rainbow'},
+];
+
+export const HIGH_STAKES_THEMES = rawHighStakes.map((t, i) => ({
+  ...t,
+  palette:   P[t.p],
+  topPrize:  fmtTopPrize(t.price),
+  formation: FORMATIONS.grid5x5,  // all high-stakes use 5×5
+  tilt:      TILTS[i % TILTS.length],
+}));
+
+export function getRandomHighStakesTheme(price) {
+  const pool = HIGH_STAKES_THEMES.filter(t => t.price === price);
+  return pool[Math.floor(Math.random() * pool.length)];
+}

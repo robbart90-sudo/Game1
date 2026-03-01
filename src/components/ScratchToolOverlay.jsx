@@ -58,7 +58,8 @@ export default function ScratchToolOverlay({
   // Measure button Y positions relative to the outer wrapper
   const measurePositions = useCallback(() => {
     if (!outerRef.current) return;
-    const szEl = outerRef.current.querySelector('.scratch-zone');
+    // Measure against card-art: formation fc.y/h fractions map directly to its height
+    const szEl = outerRef.current.querySelector('.card-art');
     if (!szEl) return;
 
     const wrapRect = outerRef.current.getBoundingClientRect();
@@ -68,9 +69,8 @@ export default function ScratchToolOverlay({
     if (szH < 10) return;
 
     const ys = rows.map(row => {
-      // Visual midpoint of the row: accounts for the 18px art-label above the cells
       const midFrac = row.cells.reduce((s, r) => s + r.fc.y + r.fc.h / 2, 0) / row.cells.length;
-      return szTop + 18 + midFrac * (szH - 18);
+      return szTop + midFrac * szH;
     });
 
     setButtonYs(prev =>

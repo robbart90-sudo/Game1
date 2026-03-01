@@ -52,7 +52,7 @@ export default function CardPicker({ options, onPick, flowState = false, flowPic
 
       <div className={`picker-grid ${refreshAnim ? 'flow-grid-refresh' : ''}`}>
         {options.map((opt, i) => {
-          const { theme, cost, canAfford, isDark, isRisk } = opt;
+          const { theme, cost, canAfford, isDark, isRisk, isHighStakes } = opt;
           const isSelected   = selected === i;
           const isPickResult = flowPickResult?.index === i;
           const isWinCard    = isPickResult && flowPickResult.won;
@@ -64,20 +64,21 @@ export default function CardPicker({ options, onPick, flowState = false, flowPic
               <button
                 className={[
                   'picker-card',
-                  !canAfford  ? 'cant-afford'        : '',
-                  isSelected  ? 'card-selected'      : '',
-                  isDark      ? 'dark-shimmer'        : '',
-                  isRisk      ? 'picker-card--risk'   : '',
-                  isWinCard   ? 'flow-card-win'      : '',
-                  isLoseCard  ? 'flow-card-lose'     : '',
-                  isPending   ? 'flow-card-pending'  : '',
+                  !canAfford   ? 'cant-afford'           : '',
+                  isSelected   ? 'card-selected'         : '',
+                  isDark       ? 'dark-shimmer'          : '',
+                  isRisk       ? 'picker-card--risk'     : '',
+                  isHighStakes ? 'picker-card--hs'       : '',
+                  isWinCard    ? 'flow-card-win'         : '',
+                  isLoseCard   ? 'flow-card-lose'        : '',
+                  isPending    ? 'flow-card-pending'     : '',
                 ].filter(Boolean).join(' ')}
                 style={{
                   background: isRisk
                     ? 'linear-gradient(150deg, #2a0000 0%, #1a0000 100%)'
                     : `linear-gradient(150deg, ${theme.palette.bg[0]} 0%, ${theme.palette.bg[1]} 100%)`,
-                  borderColor: isRisk ? '#D81F26' : (canAfford ? theme.palette.border : 'rgba(255,255,255,0.1)'),
-                  '--accent': isRisk ? '#FF4444' : theme.palette.accent,
+                  borderColor: isRisk ? '#D81F26' : isHighStakes ? '#DAA520' : (canAfford ? theme.palette.border : 'rgba(255,255,255,0.1)'),
+                  '--accent': isRisk ? '#FF4444' : isHighStakes ? '#FFD700' : theme.palette.accent,
                 }}
                 onClick={() => handlePick(i)}
                 disabled={!canAfford || isBlocked}

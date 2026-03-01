@@ -75,7 +75,7 @@
   width: 100%;
 }
 
-/* ── Per-item wrapper (card + optional risk label below) ── */
+/* ── Per-item wrapper ── */
 .picker-item-wrap {
   display: flex;
   flex-direction: column;
@@ -87,7 +87,7 @@
   width: 100%;
 }
 
-/* ── Individual card back ─────────────────── */
+/* ── Individual card ──────────────────────── */
 .picker-card {
   position: relative;
   border-radius: 12px;
@@ -100,49 +100,43 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1),
-              box-shadow 0.18s ease;
-  animation: cardPulse 2.8s ease-in-out infinite;
+  /* Resting: clean shadow, no bounce animation */
+  box-shadow: 0 3px 0 rgba(0,0,0,0.20), 0 5px 14px rgba(0,0,0,0.13);
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out;
   -webkit-tap-highlight-color: transparent;
 }
 
-@keyframes cardPulse {
-  0%,100% { box-shadow: 0 4px 0 rgba(0,0,0,0.22), 0 6px 14px rgba(0,0,0,0.14); }
-  50%      { box-shadow: 0 6px 0 rgba(0,0,0,0.22), 0 10px 22px rgba(0,0,0,0.18), 0 0 18px var(--accent, rgba(216,31,38,0.2)); }
-}
-
-/* Stagger the pulse so cards don't all pulse at once */
-.picker-item-wrap:nth-child(1) .picker-card { animation-delay: 0s; }
-.picker-item-wrap:nth-child(2) .picker-card { animation-delay: 0.45s; }
-.picker-item-wrap:nth-child(3) .picker-card { animation-delay: 0.9s; }
-.picker-item-wrap:nth-child(4) .picker-card { animation-delay: 1.35s; }
-.picker-item-wrap:nth-child(5) .picker-card { animation-delay: 1.8s; }
-.picker-item-wrap:nth-child(6) .picker-card { animation-delay: 2.25s; }
-
+/* ── Hover: lift — feels like picking something up ──────────────────────── */
 .picker-card:hover:not(:disabled) {
-  transform: scale(1.06) translateY(-3px);
-  box-shadow: 0 8px 0 rgba(0,0,0,0.22), 0 14px 28px rgba(0,0,0,0.20), 0 0 22px var(--accent, rgba(216,31,38,0.25));
-  animation: none;
+  transform: scale(1.02) translateY(-4px);
+  box-shadow:
+    0 8px 0 rgba(0,0,0,0.22),
+    0 16px 28px rgba(0,0,0,0.20),
+    0 0 18px var(--accent, rgba(216,31,38,0.20));
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out;
 }
 
+/* ── Active/press: compress — feels like pressing a button ─────────────── */
 .picker-card:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.97) translateY(2px);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.16);
+  transition: transform 0.08s ease-out, box-shadow 0.08s ease-out;
 }
 
+/* ── Selected: brief press-and-release pulse ───────────────────────────── */
 .picker-card.card-selected {
-  animation: cardChosen 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  animation: cardSelectedPress 0.22s ease-out forwards;
 }
 
-@keyframes cardChosen {
-  0%  { transform: scale(1); }
-  50% { transform: scale(1.15) translateY(-6px); }
-  100%{ transform: scale(1.08); }
+@keyframes cardSelectedPress {
+  0%   { transform: scale(1)    translateY(0px);  box-shadow: 0 3px 0 rgba(0,0,0,0.20), 0 5px 14px rgba(0,0,0,0.13); }
+  35%  { transform: scale(0.97) translateY(2px);  box-shadow: 0 1px 0 rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.16); }
+  100% { transform: scale(1)    translateY(0px);  box-shadow: 0 3px 0 rgba(0,0,0,0.20), 0 5px 14px rgba(0,0,0,0.13); }
 }
 
 .picker-card.cant-afford {
   opacity: 0.45;
   cursor: not-allowed;
-  animation: none;
   filter: grayscale(0.6);
 }
 
@@ -222,7 +216,146 @@
   margin-top: 2px;
 }
 
-/* ── Flow State in-place result animations ─────────────── */
+/* ── Risk Card ─────────────────────────────────────────────────────────────── */
+/* Resting: slow red border pulse, 2s cycle */
+.picker-card--risk {
+  border-color: #D81F26 !important;
+  animation: riskPulse 2s ease-in-out infinite;
+}
+
+@keyframes riskPulse {
+  0%, 100% {
+    box-shadow: 0 3px 0 rgba(0,0,0,0.24), 0 5px 14px rgba(0,0,0,0.16), 0 0 8px rgba(216,31,38,0.25);
+    border-color: #D81F26;
+  }
+  50% {
+    box-shadow: 0 3px 0 rgba(0,0,0,0.28), 0 6px 18px rgba(0,0,0,0.20), 0 0 22px rgba(216,31,38,0.70);
+    border-color: #FF2D33;
+  }
+}
+
+/* Hover: pulse accelerates to 0.8s */
+.picker-card--risk:hover:not(:disabled) {
+  transform: scale(1.02) translateY(-4px);
+  animation: riskPulseFast 0.8s ease-in-out infinite;
+}
+
+@keyframes riskPulseFast {
+  0%, 100% {
+    box-shadow: 0 8px 0 rgba(0,0,0,0.28), 0 16px 28px rgba(0,0,0,0.22), 0 0 20px rgba(216,31,38,0.55);
+    border-color: #D81F26;
+  }
+  50% {
+    box-shadow: 0 8px 0 rgba(0,0,0,0.28), 0 16px 28px rgba(0,0,0,0.24), 0 0 38px rgba(216,31,38,0.95);
+    border-color: #FF2D33;
+  }
+}
+
+/* Click flash overlay — red burst on risk card click */
+.picker-card--risk.card-selected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at center, rgba(216,31,38,0.55) 0%, transparent 75%);
+  pointer-events: none;
+  z-index: 9;
+  animation: riskClickFlash 0.22s ease-out forwards;
+}
+
+@keyframes riskClickFlash {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Label beneath the risk card */
+.risk-card-label {
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #D81F26;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(216,31,38,0.55);
+  animation: riskLabelPulse 2s ease-in-out infinite;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes riskLabelPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.60; }
+}
+
+/* ── High-Stakes Card ──────────────────────────────────────────────────────── */
+/* Resting: slow gold glow + shimmer sweep every 3s */
+.picker-card--hs {
+  border-width: 2px;
+  animation: hsPulse 3s ease-in-out infinite;
+}
+
+@keyframes hsPulse {
+  0%, 100% {
+    box-shadow: 0 3px 0 rgba(0,0,0,0.22), 0 5px 14px rgba(0,0,0,0.14), 0 0 6px rgba(218,165,32,0.20);
+  }
+  50% {
+    box-shadow: 0 3px 0 rgba(0,0,0,0.22), 0 6px 18px rgba(0,0,0,0.16), 0 0 22px rgba(218,165,32,0.55);
+  }
+}
+
+/* Gold gleam sweeps left-to-right every 3s */
+.picker-card--hs::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 25%,
+    rgba(255,215,0,0.10) 40%,
+    rgba(255,215,0,0.22) 50%,
+    rgba(255,215,0,0.10) 60%,
+    transparent 75%
+  );
+  background-size: 200% 100%;
+  background-position: -100% 0;
+  animation: goldGleam 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+
+@keyframes goldGleam {
+  0%        { background-position: -100% 0; opacity: 0; }
+  8%        { opacity: 1; }
+  65%       { background-position: 200% 0; opacity: 1; }
+  75%, 100% { background-position: 200% 0; opacity: 0; }
+}
+
+/* Hover: more pronounced lift + faster gleam */
+.picker-card--hs:hover:not(:disabled) {
+  transform: scale(1.02) translateY(-6px);
+  box-shadow:
+    0 10px 0 rgba(0,0,0,0.24),
+    0 20px 36px rgba(0,0,0,0.22),
+    0 0 28px rgba(218,165,32,0.65);
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out;
+  animation: hsPulse 3s ease-in-out infinite; /* keep glow, but transform handles the lift */
+}
+
+.picker-card--hs:hover:not(:disabled)::after {
+  animation: goldGleamFast 0.9s ease-in-out infinite;
+}
+
+@keyframes goldGleamFast {
+  0%        { background-position: -100% 0; opacity: 0; }
+  15%       { opacity: 1; }
+  75%       { background-position: 200% 0; opacity: 1; }
+  90%, 100% { background-position: 200% 0; opacity: 0; }
+}
+
+/* ── Flow State in-place result animations ─────────────────────────────────── */
 
 /* Grid shuffle-in when options refresh */
 .flow-grid-refresh .picker-card {
@@ -344,41 +477,4 @@
   0%   { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
   60%  { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(1);   opacity: 0.8; }
-}
-
-/* ── Risk Card ─────────────────────────────────────────────────────────────── */
-.picker-card--risk {
-  border-color: #D81F26 !important;
-  animation: cardPulse 2.8s ease-in-out infinite, riskCardPulse 1.4s ease-in-out infinite !important;
-}
-
-@keyframes riskCardPulse {
-  0%, 100% { box-shadow: 0 4px 0 rgba(0,0,0,0.28), 0 6px 14px rgba(0,0,0,0.22), 0 0 12px rgba(216,31,38,0.40); }
-  50%       { box-shadow: 0 6px 0 rgba(0,0,0,0.28), 0 10px 24px rgba(0,0,0,0.28), 0 0 28px rgba(216,31,38,0.80); }
-}
-
-.picker-card--risk:hover:not(:disabled) {
-  box-shadow: 0 8px 0 rgba(0,0,0,0.28), 0 14px 30px rgba(0,0,0,0.28), 0 0 36px rgba(216,31,38,0.90) !important;
-  animation: none !important;
-}
-
-/* Label beneath the risk card */
-.risk-card-label {
-  font-family: 'Arial Black', Arial, sans-serif;
-  font-size: 0.52rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #D81F26;
-  text-align: center;
-  white-space: nowrap;
-  text-shadow: 0 0 8px rgba(216,31,38,0.55);
-  animation: riskLabelPulse 1.4s ease-in-out infinite;
-  pointer-events: none;
-  user-select: none;
-}
-
-@keyframes riskLabelPulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.65; }
 }

@@ -1,7 +1,7 @@
-/* ── Wrapper: fixed to bottom-right, slides in/out from the right edge ────── */
+/* ── Wrapper: fixed, slides in from the right ──────────────────────────────── */
 .ar-wrap {
   position: fixed;
-  bottom: 0;
+  bottom: 16px;
   right: 0;
   z-index: 8500;        /* below cutscene (9000), above game UI */
   display: flex;
@@ -9,20 +9,17 @@
   align-items: flex-end;
   gap: 6px;
   padding-right: 10px;
-  pointer-events: none; /* doesn't block clicks on game elements */
+  pointer-events: none;
 
-  /* Hidden state: shifted fully off-screen to the right */
+  /* Hidden: shifted fully off-screen to the right */
   transform: translateX(calc(100% + 20px));
   transition: transform 230ms ease-out;
 }
 
-/* Visible state: slide in — applied one frame after mount */
 .ar-wrap--visible {
   transform: translateX(0);
-  transition: transform 230ms ease-out;
 }
 
-/* Exiting: when visible class is removed, this transition fires automatically */
 .ar-wrap:not(.ar-wrap--visible) {
   transition: transform 260ms ease-in;
 }
@@ -32,7 +29,7 @@
   position: relative;
   background: #fff;
   border: 2px solid #1a1a1a;
-  /* Sharp bottom-right corner — indicates speech direction toward character below-right */
+  /* Sharp bottom-right corner — tail points toward character below-right */
   border-radius: 12px 12px 2px 12px;
   padding: 9px 13px;
   max-width: 218px;
@@ -45,7 +42,7 @@
   word-break: break-word;
 }
 
-/* Bubble tail — downward triangle, aligned to the right side toward the character */
+/* Bubble tail — downward triangle toward the character */
 .ar-bubble::after {
   content: '';
   position: absolute;
@@ -80,14 +77,18 @@
   50%       { opacity: 0; }
 }
 
-/* ── Desktop: anchor Grig to the right sidebar edge ─────────────────────── */
-/* The app is max-width 1040px with 44px right padding.
-   right = max(10px, (50vw - 520px) + 44px) = max(10px, 50vw - 476px)
-   This keeps the character flush with the sidebar at any viewport width.   */
+/* ── Desktop: Grig leans in from the right side of the card column ──────── */
+/*  The two-column grid is 796px wide, centred in 1040px max container with
+    44px side padding. The left-column right edge sits at 50vw - 82px from
+    the viewport right. Anchoring here makes Grig's emoji overlap the card
+    area from the side, at card-area height rather than screen bottom.      */
 @media (min-width: 769px) {
   .ar-wrap {
-    right: clamp(10px, calc(50vw - 476px), 50vw);
-    bottom: 20px;
+    /* Horizontal: right edge of the wrapper lands at the card column's right edge */
+    right: clamp(0px, calc(50vw - 82px), 50vw);
+    /* Vertical: place him near the lower portion of the card/picker area */
+    bottom: auto;
+    top: clamp(160px, 38vh, 520px);
   }
 }
 
