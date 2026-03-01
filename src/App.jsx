@@ -16,6 +16,22 @@ import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE
 import { getRandomTheme } from './utils/themes';
 import './App.css';
 
+// ── localStorage keys ─────────────────────────────────────────────────────────
+const LS_BALANCE    = 'grig_balance';
+const LS_LIFETIME   = 'grig_lifetime_earned';
+const LS_MILESTONES = 'grig_milestones';
+
+// ── Lifetime earnings milestones — Grig reacts once per threshold, never repeats ─
+const LIFETIME_MILESTONES = [
+  { at:  2500, line: "You're better at this than most."              },
+  { at:  5000, line: "I've seen a lot of people come through here."  },
+  { at:  8000, line: "You keep this up, you won't need this place."  },
+  { at: 12000, line: "There's a city, you know. For people like you." },
+  { at: 16000, line: "Gamble City. That's where the real games are." },
+  { at: 20000, line: "I've got a car, you know. Been sitting out back." },
+  { at: 23000, line: "Keys are right here if you ever need them."    },
+];
+
 // Slide durations — 50% faster than original (20% faster than previous 260/295)
 const SLIDE_OUT_MS = 208;
 const SLIDE_IN_MS  = 236;
@@ -175,6 +191,28 @@ export default function App() {
     }
   }, [triggerAttendantDialogue]);
 
+  // Fire the lowest unmet lifetime milestone (once per threshold, ever)
+  const checkLifetimeMilestones = useCallback((earned) => {
+    for (const m of LIFETIME_MILESTONES) {
+      if (earned >= m.at && !triggeredMilestonesRef.current.has(m.at)) {
+        triggeredMilestonesRef.current.add(m.at);
+        localStorage.setItem(LS_MILESTONES, JSON.stringify([...triggeredMilestonesRef.current]));
+        speakDialogue(m.line);
+        cardsSinceAttendantRef.current = 0; // override the 4-card rule
+        break; // one milestone per event — next one fires on the next win
+      }
+    }
+  }, [speakDialogue]);
+
+  // Add to lifetime earnings (persisted forever) and check milestones
+  const addLifetimeEarned = useCallback((amount) => {
+    if (amount <= 0) return;
+    const next = lifetimeEarnedRef.current + amount;
+    lifetimeEarnedRef.current = next;
+    localStorage.setItem(LS_LIFETIME, next);
+    checkLifetimeMilestones(next);
+  }, [checkLifetimeMilestones]);
+
   // ── Opening cutscene (first visit only) ──────────────────────────────────
   const [showCutscene, setShowCutscene] = useState(() => !localStorage.getItem('cutscene_seen'));
 
@@ -182,7 +220,12 @@ export default function App() {
   const [showTutorial, setShowTutorial] = useState(() => !tutorialHasSeen());
 
   // ── Balance & stats ──────────────────────────────────────────────────────
-  const [balance,     setBalance]     = useState(STARTING_BALANCE);
+  // Balance persists across sessions via localStorage; new players start at STARTING_BALANCE
+  const initBalance = (() => {
+    const v = localStorage.getItem(LS_BALANCE);
+    return v !== null ? Number(v) : STARTING_BALANCE;
+  })();
+  const [balance,     setBalance]     = useState(initBalance);
   const [totalWon,    setTotalWon]    = useState(0);
   const [totalSpent,  setTotalSpent]  = useState(0);
   const [cardsPlayed, setCardsPlayed] = useState(0);
@@ -249,10 +292,14 @@ export default function App() {
 
   // ── Stable refs ───────────────────────────────────────────────────────────
   const cardRef           = useRef(null);
-  const balanceRef        = useRef(STARTING_BALANCE);
+  const balanceRef        = useRef(initBalance);
   const speedModeRef      = useRef(false);
   const soundRef          = useRef(null);
   const gameOverRef       = useRef(false);
+  const lifetimeEarnedRef = useRef(Number(localStorage.getItem(LS_LIFETIME) || 0));
+  const triggeredMilestonesRef = useRef(
+    new Set(JSON.parse(localStorage.getItem(LS_MILESTONES) || '[]'))
+  );
   const prizeRafCancelRef = useRef(null); // cancel fn for active prize count-up RAF
   const sound             = useSound();
   soundRef.current        = sound;
@@ -271,6 +318,8 @@ export default function App() {
   useEffect(() => { nextCardWinRef.current = nextCardWin; },     [nextCardWin]);
   useEffect(() => { gameOverRef.current = gameOver; },           [gameOver]);
   useEffect(() => { cardsPlayedRef.current = cardsPlayed; },     [cardsPlayed]);
+  // Persist balance to localStorage whenever it changes
+  useEffect(() => { localStorage.setItem(LS_BALANCE, balance); }, [balance]);
 
   const updateBalance = (fn) => setBalance(b => {
     const next = fn(b);
@@ -441,10 +490,10 @@ export default function App() {
       case 'hotdog':   setHotDogTrigger(t => t + 1); break;
       case 'slushee':  setSlusheeSecs(5); stopTimer(); break;
       case 'luckystar': setNextCardWin(true); break;
-      case 'car':       stopTimer(); setGoReason('win'); setGameOver(true); break;
+      case 'car':       stopTimer(); speakDialogue('Keys are right here.'); setGoReason('win'); setGameOver(true); break;
       default: break;
     }
-  }, [updateFlowLevel, stopTimer]);
+  }, [updateFlowLevel, stopTimer, speakDialogue]);
 
   // ── Card complete handler (normal scratch only — flow state is handled by handleFlowPick)
   const handleComplete = useCallback((scratchSecs) => {
@@ -478,6 +527,7 @@ export default function App() {
       setTotalWon(t => t + boosted);
       setBiggestWin(b => Math.max(b, boosted));
       applyWinFeedback(prize); // visual tier based on base prize
+      addLifetimeEarned(boosted);
 
       // ── Prize count-up animation ──────────────────────────────────────
       prizeRafCancelRef.current?.();
@@ -526,7 +576,7 @@ export default function App() {
       maybeShowAttendant();
       setTimeout(() => showPicker(), 800);
     }
-  }, [applyWinFeedback, updateFlowLevel, showPicker, maybeShowAttendant, speakDialogue]);
+  }, [applyWinFeedback, updateFlowLevel, showPicker, maybeShowAttendant, speakDialogue, addLifetimeEarned]);
 
   // ── Flow state: player picks → resolve inline, no navigation ────────────
   const handleFlowPick = useCallback((index) => {
@@ -558,6 +608,7 @@ export default function App() {
       setTotalWon(t => t + boosted);
       setBiggestWin(b => Math.max(b, boosted));
       applyWinFeedback(prize);
+      addLifetimeEarned(boosted);
       const r = flowRoundRef.current + 1;
       flowRoundRef.current = r;
       setFlowRound(r);
@@ -596,7 +647,7 @@ export default function App() {
         showPicker();
       }
     }, 400);
-  }, [pickerOptions, applyWinFeedback, exitFlowState, maybeShowAttendant, showPicker, speakDialogue]);
+  }, [pickerOptions, applyWinFeedback, exitFlowState, maybeShowAttendant, showPicker, speakDialogue, addLifetimeEarned]);
 
   // ── Normal: player picks from picker ──────────────────────────────────────
   const handlePick = useCallback((index) => {
@@ -673,8 +724,10 @@ export default function App() {
     });
   }, [resetTimer]);
 
-  // ── Play again ────────────────────────────────────────────────────────────
-  const handlePlayAgain = useCallback(() => {
+  // ── Play again / Start Fresh ──────────────────────────────────────────────
+  // Both paths share the same session reset. The only difference: startFresh
+  // resets balance to STARTING_BALANCE; Play Again carries the balance over.
+  const doRestart = useCallback((startFresh = false) => {
     // Reset flow state inline — do NOT call exitFlowState() here because it
     // calls startTimer(), which would restart the timer with the stale value
     // from the previous game before resetTimer() gets a chance to fix it.
@@ -685,8 +738,13 @@ export default function App() {
     flowRoundRef.current = 0;    setFlowRound(0);
     flowLevelRef.current = 0;    setFlowLevel(0);
     clearInterval(flowDrainRef.current); flowDrainRef.current = null;
-    balanceRef.current = STARTING_BALANCE;
-    setBalance(STARTING_BALANCE);
+    if (startFresh) {
+      // Start Fresh: reset balance to the starting amount
+      balanceRef.current = STARTING_BALANCE;
+      setBalance(STARTING_BALANCE);
+      localStorage.setItem(LS_BALANCE, STARTING_BALANCE);
+    }
+    // Balance carries over on Play Again — no reset here
     setTotalWon(0); setTotalSpent(0); setCardsPlayed(0); setBiggestWin(0);
     cardsPlayedRef.current = 0;
     setCardData(null); setPickerOptions([]); setFlowPickResult(null); setRiskResult(null);
@@ -700,7 +758,7 @@ export default function App() {
     if (friesTimerRef.current)   { clearInterval(friesTimerRef.current);   friesTimerRef.current   = null; }
     if (slusheeTimerRef.current) { clearInterval(slusheeTimerRef.current); slusheeTimerRef.current = null; }
     if (drainIntervalRef.current) { clearInterval(drainIntervalRef.current); drainIntervalRef.current = null; }
-    // Reset dialogue state
+    // Reset session dialogue state (lifetime milestones and lifetimeEarned persist)
     cardsSinceAttendantRef.current = 0;
     lastAttendantLineRef.current   = null;
     nextIsGasReplyRef.current      = false;
@@ -711,6 +769,9 @@ export default function App() {
     setPrevStreak(0);
     if (streakBreakTimerRef.current) { clearTimeout(streakBreakTimerRef.current); streakBreakTimerRef.current = null; }
   }, [stopTimer, stopDrain, resetTimer, speedMode]);
+
+  const handlePlayAgain  = useCallback(() => doRestart(false), [doRestart]);
+  const handleStartFresh = useCallback(() => doRestart(true),  [doRestart]);
 
   // ── Fries: 50% bigger brush countdown (10 s) ─────────────────────────────
   useEffect(() => {
@@ -881,7 +942,7 @@ export default function App() {
       )}
 
       <AttendantReaction msg={attendantMsg} />
-      {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} won={goReason === 'win'} onPlayAgain={handlePlayAgain} />}
+      {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} won={goReason === 'win'} onPlayAgain={handlePlayAgain} onStartFresh={handleStartFresh} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
       {showTutorial && <Tutorial onDone={() => setShowTutorial(false)} />}
       {showCutscene && (

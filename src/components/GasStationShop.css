@@ -244,132 +244,89 @@
   font-family: 'Arial Black', Arial, sans-serif;
 }
 
-/* ── Car button — full-width win item (unchanged from existing design) ─────── */
-.gss-car-row {
-  width: 100%;
-}
-
-.gss-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 7px 8px 6px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(0, 0, 0, 0.10);
-  background: rgba(255, 255, 255, 0.75);
-  cursor: pointer;
-  width: 100%;
-  opacity: 0.38;
-  transition: opacity 0.15s, border-color 0.15s, background 0.15s, transform 0.08s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.gss-btn--affordable {
-  opacity: 1;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.10);
-}
-
-.gss-btn--broke {
-  opacity: 0.28;
-  cursor: not-allowed;
-}
-
-.gss-btn--car {
+/* ── Car card: full-width, horizontal, at bottom of grid ─────────────────── */
+.gss-card--car {
+  grid-column: 1 / -1;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+  min-height: 56px;
+  padding: 10px 14px;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 2px solid rgba(0, 0, 0, 0.12);
-  background: rgba(255, 255, 255, 0.80);
+
+  --gss-bg:     linear-gradient(135deg, #50380A 0%, #382600 100%);
+  --gss-border: rgba(255, 208, 0, 0.45);
+  --gss-text:   #D4A010;
+  --gss-desc:   rgba(190, 145, 15, 0.72);
+  --gss-glow:   rgba(255, 200, 0, 0.58);
 }
 
-.gss-btn--car.gss-btn--affordable {
-  border-color: #FFD200;
-  background: linear-gradient(135deg, rgba(255,240,80,0.25) 0%, rgba(255,210,0,0.18) 100%);
-  box-shadow:
-    0 3px 0 rgba(184, 122, 0, 0.30),
-    0 0 0 1px rgba(255, 210, 0, 0.40),
-    0 0 18px rgba(255, 210, 0, 0.20);
+.gss-car-emoji {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.60));
+}
+
+.gss-car-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  align-items: flex-start;
+}
+
+/* Override text alignment for car's left-aligned name/desc */
+.gss-card--car .gss-card-name { text-align: left; margin-top: 0; }
+.gss-card--car .gss-card-desc { text-align: left; }
+
+.gss-car-price {
+  font-size: 0.62rem;
+  font-weight: 900;
+  font-family: 'Arial Black', Arial, sans-serif;
+  color: var(--gss-text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Car affordable: persistent gold glow pulse */
+@keyframes carGlow {
+  0%, 100% {
+    box-shadow:
+      0 3px 10px rgba(0, 0, 0, 0.45),
+      0 0 12px rgba(255, 200, 0, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 3px 10px rgba(0, 0, 0, 0.45),
+      0 0 28px rgba(255, 200, 0, 0.50),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
+.gss-card--car.gss-card--affordable {
   animation: carGlow 2s ease-in-out infinite;
 }
 
-@keyframes carGlow {
-  0%, 100% { box-shadow: 0 3px 0 rgba(184,122,0,0.30), 0 0 0 1px rgba(255,210,0,0.40), 0 0 14px rgba(255,210,0,0.18); }
-  50%       { box-shadow: 0 3px 0 rgba(184,122,0,0.30), 0 0 0 2px rgba(255,210,0,0.60), 0 0 28px rgba(255,210,0,0.38); }
+.gss-card--car.gss-card--affordable:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.55),
+    0 0 24px rgba(255, 200, 0, 0.45);
 }
 
-.gss-btn--car.gss-btn--affordable:hover {
-  background: linear-gradient(135deg, rgba(255,248,120,0.35) 0%, rgba(255,218,0,0.28) 100%);
-  border-color: #FFD200;
+/* Car broke: slightly desaturated but still prominent and readable */
+.gss-card--car.gss-card--broke {
+  filter: grayscale(0.25);
+  opacity: 0.68;
+  cursor: not-allowed;
 }
 
-.gss-btn--car.gss-btn--affordable:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 rgba(184,122,0,0.30);
-  animation: none;
+@media (max-width: 768px) {
+  .gss-card--car {
+    width: 160px;
+    min-width: 160px;
+    flex-shrink: 0;
+  }
 }
-
-.gss-emoji { font-size: 1.4rem; line-height: 1; display: block; }
-
-.gss-car-emoji {
-  font-size: 1.8rem;
-  flex-shrink: 0;
-}
-
-.gss-car-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  flex: 1;
-}
-
-.gss-name {
-  font-size: 0.55rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  color: rgba(0, 0, 0, 0.50);
-  font-family: 'Arial Black', Arial, sans-serif;
-  text-transform: uppercase;
-  line-height: 1;
-}
-
-.gss-btn--car .gss-name {
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-}
-
-.gss-car-sub {
-  font-size: 0.48rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.38);
-  font-family: 'Arial Black', Arial, sans-serif;
-  white-space: nowrap;
-}
-
-.gss-btn--car.gss-btn--affordable .gss-car-sub { color: #B87A00; }
-
-.gss-cost {
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: rgba(0, 0, 0, 0.42);
-  font-family: monospace;
-  line-height: 1;
-}
-
-.gss-btn--affordable .gss-cost { color: rgba(0, 0, 0, 0.60); }
-
-.gss-car-cost {
-  font-size: 0.65rem;
-  font-weight: 900;
-  font-family: 'Arial Black', Arial, sans-serif;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.gss-btn--car.gss-btn--affordable .gss-car-cost { color: #8B5C00; }

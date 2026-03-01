@@ -54,11 +54,20 @@
   letter-spacing: 0.06em;
 }
 
+/* Grig's quote on the win screen */
+.go-grig-quote {
+  font-size: 0.88rem;
+  font-style: italic;
+  color: rgba(90, 60, 0, 0.70);
+  margin: -16px 0 20px;
+  letter-spacing: 0.02em;
+}
+
 .go-stats {
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   border: 1.5px solid rgba(0,0,0,0.10);
   border-radius: 12px;
   overflow: hidden;
@@ -73,14 +82,8 @@
   font-size: 0.88rem;
 }
 
-.go-row span {
-  color: rgba(0,0,0,0.45);
-}
-
-.go-row strong {
-  color: #1A1A1A;
-  font-weight: 800;
-}
+.go-row span { color: rgba(0,0,0,0.45); }
+.go-row strong { color: #1A1A1A; font-weight: 800; }
 
 .go-net {
   display: flex;
@@ -90,21 +93,16 @@
   font-size: 1rem;
 }
 
-.go-net span {
-  color: rgba(0,0,0,0.50);
-  font-weight: 700;
-}
+.go-net span { color: rgba(0,0,0,0.50); font-weight: 700; }
 
-.go-net.profit strong {
-  color: #00963A;
-  font-size: 1.15rem;
-  font-weight: 900;
-}
+.go-net.profit strong { color: #00963A; font-size: 1.15rem; font-weight: 900; }
+.go-net.loss   strong { color: #D81F26; font-size: 1.15rem; font-weight: 900; }
 
-.go-net.loss strong {
-  color: #D81F26;
-  font-size: 1.15rem;
-  font-weight: 900;
+/* ── Button row ───────────────────────────────────────────────────────────── */
+.go-btn-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .go-btn {
@@ -124,13 +122,34 @@
   text-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
 
-.go-btn:hover {
-  box-shadow: 0 7px 0 #8B0F20, 0 10px 24px rgba(216,31,38,0.38);
-}
-
+.go-btn:hover { box-shadow: 0 7px 0 #8B0F20, 0 10px 24px rgba(216,31,38,0.38); }
 .go-btn:active {
   transform: translateY(4px);
   box-shadow: 0 2px 0 #8B0F20, 0 3px 6px rgba(216,31,38,0.2);
+}
+
+/* Start Fresh: secondary, smaller, muted */
+.go-btn--secondary {
+  padding: 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  background: transparent;
+  color: rgba(0,0,0,0.35);
+  box-shadow: none;
+  text-shadow: none;
+  border: 1.5px solid rgba(0,0,0,0.12);
+  border-radius: 12px;
+}
+
+.go-btn--secondary:hover {
+  background: rgba(0,0,0,0.04);
+  box-shadow: none;
+  color: rgba(0,0,0,0.55);
+}
+
+.go-btn--secondary:active {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 /* ── Win (car purchased) — gold celebration ──────────────────────────────── */
@@ -155,25 +174,25 @@
 }
 
 @keyframes winCarBounce {
-  0%   { transform: translateY(-30px) scale(0.7); opacity: 0; }
+  0%   { transform: translateY(-30px) scale(0.7);  opacity: 0; }
   60%  { transform: translateY(6px)   scale(1.15); opacity: 1; }
   80%  { transform: translateY(-4px)  scale(0.98); }
-  100% { transform: translateY(0)     scale(1);   opacity: 1; }
+  100% { transform: translateY(0)     scale(1);    opacity: 1; }
 }
 
 .go-card--win .go-title {
+  font-size: 1.7rem;
   color: #B87A00;
   text-shadow: 0 2px 0 rgba(0,0,0,0.10), 0 0 24px rgba(255,210,0,0.45);
 }
 
-.go-card--win .go-sub {
-  color: rgba(90, 60, 0, 0.55);
-}
+.go-card--win .go-sub { color: rgba(90, 60, 0, 0.55); }
+
+.go-card--win .go-grig-quote { color: rgba(90, 60, 0, 0.65); }
 
 .go-card--win .go-btn {
   background: linear-gradient(135deg, #FFE033, #FFD200);
   color: #2A1400;
-  border: none;
   box-shadow: 0 6px 0 #B87A00, 0 8px 20px rgba(255,210,0,0.35);
   text-shadow: none;
 }
@@ -185,4 +204,14 @@
 .go-card--win .go-btn:active {
   transform: translateY(4px);
   box-shadow: 0 2px 0 #B87A00, 0 3px 6px rgba(255,210,0,0.20);
+}
+
+.go-card--win .go-btn--secondary {
+  border-color: rgba(150, 100, 0, 0.20);
+  color: rgba(100, 60, 0, 0.45);
+}
+
+.go-card--win .go-btn--secondary:hover {
+  background: rgba(255, 200, 0, 0.08);
+  color: rgba(100, 60, 0, 0.70);
 }
