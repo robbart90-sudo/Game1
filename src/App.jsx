@@ -1084,10 +1084,10 @@ export default function App() {
                   />
                 </div>
               )}
-
-              {/* Grig — portrait sits below play field, comments rise from below */}
-              <AttendantReaction msg={attendantMsg} />
             </div>
+
+            {/* Grig — fixed at the bottom of the screen, invisible when idle */}
+            <AttendantReaction msg={attendantMsg} />
           </>
         )}
       </main>

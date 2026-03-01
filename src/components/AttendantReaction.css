@@ -1,15 +1,34 @@
-/* ── Attendant Reaction — portrait below play field, bubble below portrait ─── */
+/* ── Attendant Reaction ────────────────────────────────────────────────────
+   Fixed at the bottom of the viewport.
+   When idle: no DOM node at all — zero height, zero space reserved.
+   When triggered: slides up from below; slides back down when done.
+   ────────────────────────────────────────────────────────────────────────── */
 
 .ar-wrap {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  /* Default (hidden): centered horizontally, pushed fully below the viewport */
+  transform: translateX(-50%) translateY(100%);
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 200;
+
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0;
-  padding: 10px 0 4px;
+  padding: 0 16px 14px;
   pointer-events: none;
+  width: max-content;
+  max-width: 100vw;
 }
 
-/* ── Character emoji ─────────────────────────────────────────────────────── */
+/* Visible state: slide up into view */
+.ar-wrap--visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Character portrait ───────────────────────────────────────────────── */
 
 .ar-char-emoji {
   width: 110px;
@@ -34,7 +53,7 @@
   text-align: center;
 }
 
-/* ── Speech bubble — appears below portrait ──────────────────────────────── */
+/* ── Speech bubble — below portrait, tail points up toward him ────────── */
 
 .ar-bubble {
   position: relative;
@@ -53,7 +72,7 @@
   text-align: center;
   margin-top: 12px; /* space for the upward tail */
 
-  /* Fade in/out — slides up slightly as it appears */
+  /* Fades in after the panel has finished sliding up */
   opacity: 0;
   transform: translateY(4px);
   transition: opacity 200ms ease, transform 200ms ease;
@@ -64,7 +83,7 @@
   transform: translateY(0);
 }
 
-/* Bubble tail — points UPWARD toward Grig above */
+/* Bubble tail — outer (black border) */
 .ar-bubble::after {
   content: '';
   position: absolute;
@@ -77,7 +96,7 @@
   z-index: 0;
 }
 
-/* White fill — sits on top of the black outline */
+/* Bubble tail — inner (white fill) */
 .ar-bubble::before {
   content: '';
   position: absolute;
