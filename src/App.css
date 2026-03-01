@@ -645,3 +645,59 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
       inset 0 0 160px rgba(216,31,38,0.10);
   }
 }
+
+/* ── Risk Card result overlay ─────────────────────────────────────────────── */
+.risk-result {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.risk-result-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 44px;
+  border-radius: 24px;
+  border: 3px solid;
+  animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.risk-result--win .risk-result-card {
+  background: linear-gradient(160deg, #002800 0%, #001800 100%);
+  border-color: #00963A;
+  box-shadow: 0 8px 0 rgba(0,0,0,0.35), 0 16px 48px rgba(0,150,58,0.45);
+}
+
+.risk-result--lose .risk-result-card {
+  background: linear-gradient(160deg, #280000 0%, #180000 100%);
+  border-color: #D81F26;
+  box-shadow: 0 8px 0 rgba(0,0,0,0.35), 0 16px 48px rgba(216,31,38,0.45);
+}
+
+.risk-result-icon {
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.risk-result-text {
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.risk-result--win .risk-result-text {
+  color: #00E84A;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.5), 0 0 24px rgba(0,232,74,0.65);
+}
+
+.risk-result--lose .risk-result-text {
+  color: #FF4444;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.5), 0 0 24px rgba(255,68,68,0.65);
+}

@@ -75,6 +75,18 @@
   width: 100%;
 }
 
+/* ── Per-item wrapper (card + optional risk label below) ── */
+.picker-item-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.picker-item-wrap .picker-card {
+  width: 100%;
+}
+
 /* ── Individual card back ─────────────────── */
 .picker-card {
   position: relative;
@@ -100,12 +112,12 @@
 }
 
 /* Stagger the pulse so cards don't all pulse at once */
-.picker-card:nth-child(1) { animation-delay: 0s; }
-.picker-card:nth-child(2) { animation-delay: 0.45s; }
-.picker-card:nth-child(3) { animation-delay: 0.9s; }
-.picker-card:nth-child(4) { animation-delay: 1.35s; }
-.picker-card:nth-child(5) { animation-delay: 1.8s; }
-.picker-card:nth-child(6) { animation-delay: 2.25s; }
+.picker-item-wrap:nth-child(1) .picker-card { animation-delay: 0s; }
+.picker-item-wrap:nth-child(2) .picker-card { animation-delay: 0.45s; }
+.picker-item-wrap:nth-child(3) .picker-card { animation-delay: 0.9s; }
+.picker-item-wrap:nth-child(4) .picker-card { animation-delay: 1.35s; }
+.picker-item-wrap:nth-child(5) .picker-card { animation-delay: 1.8s; }
+.picker-item-wrap:nth-child(6) .picker-card { animation-delay: 2.25s; }
 
 .picker-card:hover:not(:disabled) {
   transform: scale(1.06) translateY(-3px);
@@ -216,12 +228,12 @@
 .flow-grid-refresh .picker-card {
   animation: flowCardRefresh 0.30s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.flow-grid-refresh .picker-card:nth-child(1) { animation-delay: 0.00s; }
-.flow-grid-refresh .picker-card:nth-child(2) { animation-delay: 0.04s; }
-.flow-grid-refresh .picker-card:nth-child(3) { animation-delay: 0.08s; }
-.flow-grid-refresh .picker-card:nth-child(4) { animation-delay: 0.00s; }
-.flow-grid-refresh .picker-card:nth-child(5) { animation-delay: 0.04s; }
-.flow-grid-refresh .picker-card:nth-child(6) { animation-delay: 0.08s; }
+.flow-grid-refresh .picker-item-wrap:nth-child(1) .picker-card { animation-delay: 0.00s; }
+.flow-grid-refresh .picker-item-wrap:nth-child(2) .picker-card { animation-delay: 0.04s; }
+.flow-grid-refresh .picker-item-wrap:nth-child(3) .picker-card { animation-delay: 0.08s; }
+.flow-grid-refresh .picker-item-wrap:nth-child(4) .picker-card { animation-delay: 0.00s; }
+.flow-grid-refresh .picker-item-wrap:nth-child(5) .picker-card { animation-delay: 0.04s; }
+.flow-grid-refresh .picker-item-wrap:nth-child(6) .picker-card { animation-delay: 0.08s; }
 
 @keyframes flowCardRefresh {
   0%   { transform: scale(0.82) translateY(10px); opacity: 0; }
@@ -332,4 +344,41 @@
   0%   { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
   60%  { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(1);   opacity: 0.8; }
+}
+
+/* ── Risk Card ─────────────────────────────────────────────────────────────── */
+.picker-card--risk {
+  border-color: #D81F26 !important;
+  animation: cardPulse 2.8s ease-in-out infinite, riskCardPulse 1.4s ease-in-out infinite !important;
+}
+
+@keyframes riskCardPulse {
+  0%, 100% { box-shadow: 0 4px 0 rgba(0,0,0,0.28), 0 6px 14px rgba(0,0,0,0.22), 0 0 12px rgba(216,31,38,0.40); }
+  50%       { box-shadow: 0 6px 0 rgba(0,0,0,0.28), 0 10px 24px rgba(0,0,0,0.28), 0 0 28px rgba(216,31,38,0.80); }
+}
+
+.picker-card--risk:hover:not(:disabled) {
+  box-shadow: 0 8px 0 rgba(0,0,0,0.28), 0 14px 30px rgba(0,0,0,0.28), 0 0 36px rgba(216,31,38,0.90) !important;
+  animation: none !important;
+}
+
+/* Label beneath the risk card */
+.risk-card-label {
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #D81F26;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(216,31,38,0.55);
+  animation: riskLabelPulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes riskLabelPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.65; }
 }

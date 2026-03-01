@@ -1,5 +1,7 @@
 // ── BALANCE CONSTANTS — edit these to tune economy without touching game logic ─
-export const STARTING_BALANCE = 50;
+export const STARTING_BALANCE      = 50;
+export const RISK_CARD_CHANCE      = 0.10; // probability a risk card appears in the picker
+export const RISK_CARD_MIN_BALANCE = 15;   // minimum balance for a risk card to appear
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const LUCKY_COUNT = 5;

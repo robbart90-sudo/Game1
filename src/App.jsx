@@ -12,7 +12,7 @@ import AttendantCutscene from './components/AttendantCutscene';
 import AttendantReaction from './components/AttendantReaction';
 import GasStationShop, { SHOP_ITEMS } from './components/GasStationShop';
 import { useSound }    from './hooks/useSound';
-import { generateCard, STARTING_BALANCE } from './utils/lottery';
+import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE } from './utils/lottery';
 import { getRandomTheme } from './utils/themes';
 import './App.css';
 
@@ -112,9 +112,13 @@ function sortOptions(opts) {
   return opts.sort((a, b) => a.cost - b.cost || a.theme.name.localeCompare(b.theme.name));
 }
 
-function generatePickerOptions(speedMode, balance) {
+function generatePickerOptions(speedMode, balance, allowRisk = false) {
   const options = [makeOption(speedMode, balance, true)];
   for (let i = 0; i < PICKER_COUNT - 1; i++) options.push(makeOption(speedMode, balance));
+  if (allowRisk && Math.random() < RISK_CARD_CHANCE) {
+    const idx = Math.floor(Math.random() * options.length);
+    options[idx] = { ...options[idx], isRisk: true };
+  }
   return sortOptions(options);
 }
 
@@ -183,6 +187,10 @@ export default function App() {
   const [totalSpent,  setTotalSpent]  = useState(0);
   const [cardsPlayed, setCardsPlayed] = useState(0);
   const [biggestWin,  setBiggestWin]  = useState(0);
+  const cardsPlayedRef = useRef(0);
+
+  // ── Risk Card result overlay ──────────────────────────────────────────────
+  const [riskResult, setRiskResult] = useState(null); // { won: bool } | null
 
   // ── Phase machine ────────────────────────────────────────────────────────
   const [phase,       setPhase]       = useState('intro');
@@ -254,10 +262,11 @@ export default function App() {
   const nextIsGasReplyRef      = useRef(false);// "Smells like gas." follow-up flag
   const flowMilestoneCountRef  = useRef(0);    // 0=Hmm, 1=Never seen, 2+=My goodness
 
-  useEffect(() => { speedModeRef.current = speedMode; },   [speedMode]);
-  useEffect(() => { phaseRef.current = phase; },           [phase]);
-  useEffect(() => { nextCardWinRef.current = nextCardWin; }, [nextCardWin]);
-  useEffect(() => { gameOverRef.current = gameOver; },     [gameOver]);
+  useEffect(() => { speedModeRef.current = speedMode; },         [speedMode]);
+  useEffect(() => { phaseRef.current = phase; },                 [phase]);
+  useEffect(() => { nextCardWinRef.current = nextCardWin; },     [nextCardWin]);
+  useEffect(() => { gameOverRef.current = gameOver; },           [gameOver]);
+  useEffect(() => { cardsPlayedRef.current = cardsPlayed; },     [cardsPlayed]);
 
   const updateBalance = (fn) => setBalance(b => {
     const next = fn(b);
@@ -401,10 +410,13 @@ export default function App() {
       setGoReason('coins');
       return;
     }
+    const allowRisk = !flowStateRef.current
+      && cardsPlayedRef.current >= 3
+      && balanceRef.current >= RISK_CARD_MIN_BALANCE;
     const opts = pregenOptions ||
       (flowStateRef.current
         ? generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current)
-        : generatePickerOptions(speedModeRef.current, balanceRef.current));
+        : generatePickerOptions(speedModeRef.current, balanceRef.current, allowRisk));
     setPickerOptions(opts);
     slideOut(() => slideInNew(() => {
       setWinMsg(null); setCardFlash('');
@@ -569,6 +581,26 @@ export default function App() {
     if (!opt || !opt.canAfford) return;
     if (flowStateRef.current) { handleFlowPick(index); return; }
 
+    // ── Risk Card branch ────────────────────────────────────────────────
+    if (opt.isRisk) {
+      const { cost } = opt;
+      soundRef.current?.deal();
+      updateBalance(b => b - cost);
+      setTotalSpent(s => s + cost);
+      setCardsPlayed(c => c + 1);
+      const won = Math.random() < 0.5;
+      if (won) {
+        updateBalance(b => b * 2);
+        speakDialogue('Chicken dinner, and all that.');
+      } else {
+        updateBalance(() => 10);
+        speakDialogue('Happens.');
+      }
+      setRiskResult({ won });
+      setTimeout(() => { setRiskResult(null); showPicker(); }, 1500);
+      return;
+    }
+
     const { cost } = opt;
     // Lucky Star: regenerate the chosen card as a guaranteed winner
     let card = opt.card;
@@ -631,7 +663,8 @@ export default function App() {
     balanceRef.current = STARTING_BALANCE;
     setBalance(STARTING_BALANCE);
     setTotalWon(0); setTotalSpent(0); setCardsPlayed(0); setBiggestWin(0);
-    setCardData(null); setPickerOptions([]); setFlowPickResult(null);
+    cardsPlayedRef.current = 0;
+    setCardData(null); setPickerOptions([]); setFlowPickResult(null); setRiskResult(null);
     setWinMsg(null); setCardFlash(''); setSlideClass(''); setSlideTarget('card');
     resetTimer(speedMode ? SPEED_TIME : NORMAL_TIME);
     setGameOver(false); setShaking(false);
@@ -808,6 +841,15 @@ export default function App() {
         <footer className="app-footer">
           <button className="end-session-btn" onClick={handleEndSession}>End Session</button>
         </footer>
+      )}
+
+      {riskResult !== null && (
+        <div className={`risk-result ${riskResult.won ? 'risk-result--win' : 'risk-result--lose'}`}>
+          <div className="risk-result-card">
+            <div className="risk-result-icon">{riskResult.won ? '🎰' : '💸'}</div>
+            <div className="risk-result-text">{riskResult.won ? 'DOUBLED!' : 'WIPED OUT!'}</div>
+          </div>
+        </div>
       )}
 
       <AttendantReaction msg={attendantMsg} />
