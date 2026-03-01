@@ -132,3 +132,57 @@
   transform: translateY(4px);
   box-shadow: 0 2px 0 #8B0F20, 0 3px 6px rgba(216,31,38,0.2);
 }
+
+/* ── Win (car purchased) — gold celebration ──────────────────────────────── */
+.go-card--win {
+  border-color: #FFD200;
+  background: linear-gradient(170deg, #fffcdf 0%, #fff5ba 100%);
+  box-shadow:
+    0 8px 0 rgba(0,0,0,0.15),
+    0 16px 48px rgba(255,210,0,0.28);
+  animation: goSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both,
+             winCardGlow 2s 0.6s ease-in-out infinite;
+}
+
+@keyframes winCardGlow {
+  0%, 100% { box-shadow: 0 8px 0 rgba(0,0,0,0.15), 0 16px 48px rgba(255,210,0,0.22); }
+  50%       { box-shadow: 0 8px 0 rgba(0,0,0,0.15), 0 16px 60px rgba(255,210,0,0.48); }
+}
+
+.go-card--win .go-icon {
+  font-size: 4rem;
+  animation: winCarBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+@keyframes winCarBounce {
+  0%   { transform: translateY(-30px) scale(0.7); opacity: 0; }
+  60%  { transform: translateY(6px)   scale(1.15); opacity: 1; }
+  80%  { transform: translateY(-4px)  scale(0.98); }
+  100% { transform: translateY(0)     scale(1);   opacity: 1; }
+}
+
+.go-card--win .go-title {
+  color: #B87A00;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.10), 0 0 24px rgba(255,210,0,0.45);
+}
+
+.go-card--win .go-sub {
+  color: rgba(90, 60, 0, 0.55);
+}
+
+.go-card--win .go-btn {
+  background: linear-gradient(135deg, #FFE033, #FFD200);
+  color: #2A1400;
+  border: none;
+  box-shadow: 0 6px 0 #B87A00, 0 8px 20px rgba(255,210,0,0.35);
+  text-shadow: none;
+}
+
+.go-card--win .go-btn:hover {
+  box-shadow: 0 7px 0 #B87A00, 0 10px 28px rgba(255,210,0,0.50);
+}
+
+.go-card--win .go-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #B87A00, 0 3px 6px rgba(255,210,0,0.20);
+}

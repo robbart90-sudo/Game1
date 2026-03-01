@@ -425,6 +425,7 @@ export default function App() {
       case 'hotdog':   setHotDogTrigger(t => t + 1); break;
       case 'slushee':  setSlusheeSecs(5); stopTimer(); break;
       case 'luckystar': setNextCardWin(true); break;
+      case 'car':       stopTimer(); setGoReason('win'); setGameOver(true); break;
       default: break;
     }
   }, [updateFlowLevel, stopTimer]);
@@ -810,7 +811,7 @@ export default function App() {
       )}
 
       <AttendantReaction msg={attendantMsg} />
-      {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} onPlayAgain={handlePlayAgain} />}
+      {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} won={goReason === 'win'} onPlayAgain={handlePlayAgain} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
       {showTutorial && <Tutorial onDone={() => setShowTutorial(false)} />}
       {showCutscene && (

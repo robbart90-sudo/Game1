@@ -6,17 +6,17 @@
   border: 1px solid rgba(0, 0, 0, 0.09);
   border-radius: 12px;
   padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-/* ── Horizontal scroll row ───────────────────────────────────────────────── */
-.gss-row {
-  display: flex;
+/* ── Regular items — 2-column × 3-row grid ───────────────────────────────── */
+.gss-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;   /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
 }
-.gss-row::-webkit-scrollbar { display: none; }
 
 /* ── Per-item wrapper (label above + button below) ──────────────────────── */
 .gss-item {
@@ -24,7 +24,6 @@
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  flex-shrink: 0;
 }
 
 .gss-label {
@@ -50,8 +49,7 @@
   border: 1.5px solid rgba(0, 0, 0, 0.10);
   background: rgba(255, 255, 255, 0.75);
   cursor: pointer;
-  min-width: 58px;
-  flex-shrink: 0;
+  width: 100%;
   /* dimmed until affordable */
   opacity: 0.38;
   transition: opacity 0.15s, border-color 0.15s, background 0.15s, transform 0.08s;
@@ -115,4 +113,91 @@
 /* cost is more prominent when affordable */
 .gss-btn--affordable .gss-cost {
   color: rgba(0, 0, 0, 0.60);
+}
+
+/* ── Car button — full-width win item ────────────────────────────────────── */
+.gss-car-row {
+  width: 100%;
+}
+
+.gss-btn--car {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.80);
+  /* affordable state overridden below */
+}
+
+.gss-btn--car.gss-btn--affordable {
+  border-color: #FFD200;
+  background: linear-gradient(135deg, rgba(255,240,80,0.25) 0%, rgba(255,210,0,0.18) 100%);
+  box-shadow:
+    0 3px 0 rgba(184, 122, 0, 0.30),
+    0 0 0 1px rgba(255, 210, 0, 0.40),
+    0 0 18px rgba(255, 210, 0, 0.20);
+  animation: carGlow 2s ease-in-out infinite;
+}
+
+@keyframes carGlow {
+  0%, 100% { box-shadow: 0 3px 0 rgba(184,122,0,0.30), 0 0 0 1px rgba(255,210,0,0.40), 0 0 14px rgba(255,210,0,0.18); }
+  50%       { box-shadow: 0 3px 0 rgba(184,122,0,0.30), 0 0 0 2px rgba(255,210,0,0.60), 0 0 28px rgba(255,210,0,0.38); }
+}
+
+.gss-btn--car.gss-btn--affordable:hover {
+  background: linear-gradient(135deg, rgba(255,248,120,0.35) 0%, rgba(255,218,0,0.28) 100%);
+  border-color: #FFD200;
+}
+
+.gss-btn--car.gss-btn--affordable:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(184,122,0,0.30);
+  animation: none;
+}
+
+.gss-car-emoji {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.gss-car-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 1;
+}
+
+.gss-car-sub {
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.38);
+  font-family: 'Arial Black', Arial, sans-serif;
+  white-space: nowrap;
+}
+
+.gss-btn--car.gss-btn--affordable .gss-car-sub {
+  color: #B87A00;
+}
+
+.gss-car-cost {
+  font-size: 0.65rem;
+  font-weight: 900;
+  font-family: 'Arial Black', Arial, sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.gss-btn--car.gss-btn--affordable .gss-car-cost {
+  color: #8B5C00;
+}
+
+.gss-btn--car .gss-name {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
 }

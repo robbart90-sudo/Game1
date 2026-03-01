@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './GameOverScreen.css';
 
-export default function GameOverScreen({ stats, timeExpired, onPlayAgain }) {
+export default function GameOverScreen({ stats, timeExpired, won, onPlayAgain }) {
   const [visible, setVisible] = useState(false);
   const { cardsPlayed, totalSpent, totalWon, biggestWin } = stats;
   const net = totalWon - totalSpent;
@@ -13,10 +13,10 @@ export default function GameOverScreen({ stats, timeExpired, onPlayAgain }) {
 
   return (
     <div className={`go-overlay ${visible ? 'visible' : ''}`}>
-      <div className="go-card">
-        <div className="go-icon">{timeExpired ? '⏰' : '💸'}</div>
-        <h1 className="go-title">{timeExpired ? "TIME'S UP" : 'GAME OVER'}</h1>
-        <p className="go-sub">{timeExpired ? 'The clock has spoken.' : 'Your coins have spoken.'}</p>
+      <div className={`go-card ${won ? 'go-card--win' : ''}`}>
+        <div className="go-icon">{won ? '🚗' : timeExpired ? '⏰' : '💸'}</div>
+        <h1 className="go-title">{won ? 'YOU WIN!' : timeExpired ? "TIME'S UP" : 'GAME OVER'}</h1>
+        <p className="go-sub">{won ? 'You bought the car. Level complete!' : timeExpired ? 'The clock has spoken.' : 'Your coins have spoken.'}</p>
 
         <div className="go-stats">
           <div className="go-row">
@@ -42,7 +42,7 @@ export default function GameOverScreen({ stats, timeExpired, onPlayAgain }) {
         </div>
 
         <button className="go-btn" onClick={onPlayAgain}>
-          🎰 Play Again
+          {won ? '🚗 Play Again' : '🎰 Play Again'}
         </button>
       </div>
     </div>
