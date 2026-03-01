@@ -21,7 +21,7 @@ function groupIntoRows(formCells) {
   const rows = [];
   let current = null;
   for (const r of ranges) {
-    if (!current || r.by0 > current.by1 + 1) {
+    if (!current || r.by0 > current.by1) {
       current = { by0: r.by0, by1: r.by1, cells: [r] };
       rows.push(current);
     } else {
