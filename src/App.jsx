@@ -13,7 +13,7 @@ import AttendantReaction from './components/AttendantReaction';
 import GasStationShop, { SHOP_ITEMS } from './components/GasStationShop';
 import ModifierTray    from './components/ModifierTray';
 import { useSound }    from './hooks/useSound';
-import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE, MAX_ITEM_PURCHASES, PRESSURE_WIN_ADJ, FLOW_STATE_WIN_SCHEDULE } from './utils/lottery';
+import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE, MAX_ITEM_PURCHASES, PRESSURE_WIN_ADJ, FLOW_STATE_WIN_SCHEDULE, HIGH_STAKES_UNLOCK_THRESHOLDS, HIGH_STAKES_RETIRE_SCHEDULE } from './utils/lottery';
 import { getRandomTheme, getRandomHighStakesTheme } from './utils/themes';
 import LuckyNumberScreen from './components/LuckyNumberScreen';
 import './App.css';
@@ -23,6 +23,7 @@ const LS_BALANCE    = 'grig_balance';
 const LS_LIFETIME   = 'grig_lifetime_earned';
 const LS_MILESTONES = 'grig_milestones';
 const LS_LUCKY      = 'grig_lucky_number';
+const LS_HS_UNLOCKED = 'grig_hs_unlocked';
 
 // ── Lifetime earnings milestones — Grig reacts once per threshold, never repeats ─
 const LIFETIME_MILESTONES = [
@@ -47,19 +48,23 @@ const PICKER_COUNT = 6;
 const PASSIVE_DRAIN_COINS      = 1;  // coins deducted per tick
 const PASSIVE_DRAIN_INTERVAL_S = 3;  // seconds between drain ticks
 
-// ── High-stakes card tiers: unlock at these total-balance thresholds ──────────
-// price:      card cost in coins
-// minBalance: player must hold at least this much to see the tier in the picker
-const HIGH_STAKES_TIERS = [
-  { price:   30, minBalance:     0 }, // bridge tier — always available above regular $20 max
-  { price:   50, minBalance:   500 },
-  { price:  100, minBalance:  1000 },
-  { price:  200, minBalance:  5000 },
-  { price: 1000, minBalance: 10000 },
-  { price: 2000, minBalance: 20000 },
-];
+// ── High-stakes card tiers ─────────────────────────────────────────────────────
+// $30 bridge: always available (no unlock needed)
+// $50–$2000: permanently unlocked by lifetime earnings (see HIGH_STAKES_UNLOCK_THRESHOLDS)
+//            Once unlocked, never disappears even if current balance drops.
+const HIGH_STAKES_BRIDGE_PRICE  = 30;
 // Chance a high-stakes slot replaces one normal card in the picker (when unlocked)
 const HIGH_STAKES_APPEAR_CHANCE = 0.18;
+
+// Compute the retirement ceiling: normal cards priced ≤ this are excluded from the pool.
+// Each newly unlocked HS tier retires the lowest remaining normal tier (cumulative).
+function computeRetiredMaxCost(unlockedHSPrices) {
+  let maxRetired = 0;
+  for (const { unlockPrice, retireUpTo } of HIGH_STAKES_RETIRE_SCHEDULE) {
+    if (unlockedHSPrices.has(unlockPrice)) maxRetired = Math.max(maxRetired, retireUpTo);
+  }
+  return maxRetired;
+}
 
 // PRESSURE_WIN_ADJ is imported from lottery.js (indexed by pressure level 0–4):
 //   0: ±0%  1: −3%  2: ±0%  3: +5%  4: +10%
@@ -155,8 +160,8 @@ function streakFlowMult(n) {
   return 1 + Math.max(0, n - 2) * STREAK_FLOW_BONUS;
 }
 
-function makeOption(speedMode, balance, forceWin = false, isDark = false, pressureAdj = 0, sessionLuckyNum = null) {
-  const theme = getRandomTheme();
+function makeOption(speedMode, balance, forceWin = false, isDark = false, pressureAdj = 0, sessionLuckyNum = null, retiredMaxCost = 0) {
+  const theme = getRandomTheme(retiredMaxCost);
   const cost  = speedMode ? 1 : theme.price;
   const card  = generateCard(speedMode ? { ...theme, price: 1 } : theme, forceWin, pressureAdj, sessionLuckyNum);
   return { theme, card, cost, canAfford: balance >= cost, isDark };
@@ -172,19 +177,20 @@ function sortOptions(opts) {
   return opts.sort((a, b) => a.cost - b.cost || a.theme.name.localeCompare(b.theme.name));
 }
 
-function generatePickerOptions(speedMode, balance, allowRisk = false, pressureLvl = 0, sessionLuckyNum = null) {
+function generatePickerOptions(speedMode, balance, allowRisk = false, pressureLvl = 0, sessionLuckyNum = null, unlockedHSPrices = new Set()) {
   const pressureAdj = PRESSURE_WIN_ADJ[pressureLvl] ?? 0;
-  const options = [makeOption(speedMode, balance, true, false, pressureAdj, sessionLuckyNum)];
-  for (let i = 0; i < PICKER_COUNT - 1; i++) options.push(makeOption(speedMode, balance, false, false, pressureAdj, sessionLuckyNum));
+  const retiredMax  = computeRetiredMaxCost(unlockedHSPrices);
+  const options = [makeOption(speedMode, balance, true, false, pressureAdj, sessionLuckyNum, retiredMax)];
+  for (let i = 0; i < PICKER_COUNT - 1; i++)
+    options.push(makeOption(speedMode, balance, false, false, pressureAdj, sessionLuckyNum, retiredMax));
 
-  // Maybe inject one high-stakes card (not in speed mode)
+  // Maybe inject one high-stakes card (not in speed mode).
+  // Pool: $30 bridge (always) + permanently unlocked tiers — no current-balance gate.
   if (!speedMode && Math.random() < HIGH_STAKES_APPEAR_CHANCE) {
-    const unlocked = HIGH_STAKES_TIERS.filter(t => balance >= t.minBalance);
-    if (unlocked.length > 0) {
-      const tier = unlocked[Math.floor(Math.random() * unlocked.length)];
-      const idx  = Math.floor(Math.random() * options.length);
-      options[idx] = makeHighStakesOption(balance, tier.price, pressureAdj, sessionLuckyNum);
-    }
+    const availableHS = [HIGH_STAKES_BRIDGE_PRICE, ...unlockedHSPrices];
+    const price = availableHS[Math.floor(Math.random() * availableHS.length)];
+    const idx   = Math.floor(Math.random() * options.length);
+    options[idx] = makeHighStakesOption(balance, price, pressureAdj, sessionLuckyNum);
   }
 
   if (allowRisk && Math.random() < RISK_CARD_CHANCE) {
@@ -200,16 +206,17 @@ function generatePickerOptions(speedMode, balance, allowRisk = false, pressureLv
 
 // Flow State: winner guarantee follows FLOW_STATE_WIN_SCHEDULE
 // Rd1=6/6, Rd2=6/6, Rd3=5/6, Rd4=4/6, Rd5=3/6, Rd6=2/6, Rd7+=1/6
-function generateFlowPickerOptions(speedMode, balance, flowRound, pressureLvl = 0, sessionLuckyNum = null) {
+function generateFlowPickerOptions(speedMode, balance, flowRound, pressureLvl = 0, sessionLuckyNum = null, unlockedHSPrices = new Set()) {
   const pressureAdj = PRESSURE_WIN_ADJ[pressureLvl] ?? 0;
-  const schedIdx  = Math.min(flowRound - 1, FLOW_STATE_WIN_SCHEDULE.length - 1);
-  const winCount  = FLOW_STATE_WIN_SCHEDULE[Math.max(0, schedIdx)];
-  const loserCount = PICKER_COUNT - winCount;
+  const retiredMax  = computeRetiredMaxCost(unlockedHSPrices);
+  const schedIdx    = Math.min(flowRound - 1, FLOW_STATE_WIN_SCHEDULE.length - 1);
+  const winCount    = FLOW_STATE_WIN_SCHEDULE[Math.max(0, schedIdx)];
+  const loserCount  = PICKER_COUNT - winCount;
   const opts = [];
   for (let i = 0; i < winCount; i++)
-    opts.push(makeOption(speedMode, balance, true, false, pressureAdj, sessionLuckyNum));
+    opts.push(makeOption(speedMode, balance, true, false, pressureAdj, sessionLuckyNum, retiredMax));
   for (let i = 0; i < loserCount; i++)
-    opts.push(makeOption(speedMode, balance, false, flowRound >= 4, pressureAdj, sessionLuckyNum));
+    opts.push(makeOption(speedMode, balance, false, flowRound >= 4, pressureAdj, sessionLuckyNum, retiredMax));
   return sortOptions(opts);
 }
 
@@ -267,14 +274,43 @@ export default function App() {
     }
   }, [speakDialogue]);
 
-  // Add to lifetime earnings (persisted forever) and check milestones
+  // ── High-stakes tier unlocks — permanent, persisted in localStorage ──────────
+  // Validate stored unlocks against current lifetime earnings (handles migration).
+  const initUnlockedHS = (() => {
+    const stored   = new Set(JSON.parse(localStorage.getItem(LS_HS_UNLOCKED) || '[]'));
+    const lifetime = Number(localStorage.getItem(LS_LIFETIME) || 0);
+    for (const { price, lifetime: threshold } of HIGH_STAKES_UNLOCK_THRESHOLDS) {
+      if (lifetime >= threshold) stored.add(price);
+    }
+    if (stored.size > 0) localStorage.setItem(LS_HS_UNLOCKED, JSON.stringify([...stored]));
+    return stored;
+  })();
+  const [unlockedHSPrices, setUnlockedHSPrices] = useState(initUnlockedHS);
+  const unlockedHSRef = useRef(initUnlockedHS);
+
+  // Check whether new HS tiers unlock based on total lifetime earnings
+  const checkHSUnlocks = useCallback((earned) => {
+    let changed = false;
+    const next = new Set(unlockedHSRef.current);
+    for (const { price, lifetime } of HIGH_STAKES_UNLOCK_THRESHOLDS) {
+      if (earned >= lifetime && !next.has(price)) { next.add(price); changed = true; }
+    }
+    if (changed) {
+      unlockedHSRef.current = next;
+      setUnlockedHSPrices(new Set(next));
+      localStorage.setItem(LS_HS_UNLOCKED, JSON.stringify([...next]));
+    }
+  }, []);
+
+  // Add to lifetime earnings (persisted forever) and check milestones + HS unlocks
   const addLifetimeEarned = useCallback((amount) => {
     if (amount <= 0) return;
     const next = lifetimeEarnedRef.current + amount;
     lifetimeEarnedRef.current = next;
     localStorage.setItem(LS_LIFETIME, next);
     checkLifetimeMilestones(next);
-  }, [checkLifetimeMilestones]);
+    checkHSUnlocks(next);
+  }, [checkLifetimeMilestones, checkHSUnlocks]);
 
   // ── Mack's Lucky Number — chosen once ever, persisted in localStorage ───────
   const initLuckyNum = (() => { const v = localStorage.getItem(LS_LUCKY); return v !== null ? Number(v) : null; })();
@@ -539,8 +575,8 @@ export default function App() {
       && balanceRef.current >= RISK_CARD_MIN_BALANCE;
     const opts = pregenOptions ||
       (flowStateRef.current
-        ? generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current, sessionLuckyNumRef.current)
-        : generatePickerOptions(speedModeRef.current, balanceRef.current, allowRisk, pressureLvlRef.current, sessionLuckyNumRef.current));
+        ? generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current, sessionLuckyNumRef.current, unlockedHSRef.current)
+        : generatePickerOptions(speedModeRef.current, balanceRef.current, allowRisk, pressureLvlRef.current, sessionLuckyNumRef.current, unlockedHSRef.current));
     setPickerOptions(opts);
     slideOut(() => slideInNew(() => {
       setWinMsg(null); setCardFlash('');
@@ -563,7 +599,7 @@ export default function App() {
         // If already in flow state, immediately regenerate picker with the correct
         // guarantee schedule — cards currently on screen may be stale or mid-pick
         if (flowStateRef.current) {
-          const freshOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current, sessionLuckyNumRef.current);
+          const freshOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current, sessionLuckyNumRef.current, unlockedHSRef.current);
           setPickerOptions(freshOpts);
           setFlowPickResult(null);
         }
@@ -745,7 +781,7 @@ export default function App() {
     setTimeout(() => {
       setFlowPickResult(null);
       if (flowStateRef.current) {
-        const newOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current, sessionLuckyNumRef.current);
+        const newOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current, sessionLuckyNumRef.current, unlockedHSRef.current);
         setPickerOptions(newOpts);
       } else {
         showPicker();
@@ -805,7 +841,7 @@ export default function App() {
     sessionLuckyNumRef.current = num;
     setSessionLuckyNumber(num);
     setShowLuckyScreen(false);
-    const options = generatePickerOptions(speedModeRef.current, balanceRef.current, false, pressureLvlRef.current, num);
+    const options = generatePickerOptions(speedModeRef.current, balanceRef.current, false, pressureLvlRef.current, num, unlockedHSRef.current);
     setPickerOptions(options);
     setSlideTarget('picker');
     setPhase('picking'); phaseRef.current = 'picking';
@@ -820,7 +856,7 @@ export default function App() {
       setShowLuckyScreen(true);
     } else {
       // Number already chosen permanently — go straight to the card picker
-      const options = generatePickerOptions(speedModeRef.current, balanceRef.current, false, pressureLvlRef.current, sessionLuckyNumRef.current);
+      const options = generatePickerOptions(speedModeRef.current, balanceRef.current, false, pressureLvlRef.current, sessionLuckyNumRef.current, unlockedHSRef.current);
       setPickerOptions(options);
       setSlideTarget('picker');
       setPhase('picking'); phaseRef.current = 'picking';

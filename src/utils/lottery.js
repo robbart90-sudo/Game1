@@ -35,6 +35,22 @@ export const LUCKY_NUMBER_FREQUENCY_BOOST = 0.05; // extra probability of sessio
 export const LUCKY_NUMBER_WIN_BOOST       = 0.05; // win-chance boost when session lucky number is among the card's prize pool
 // Guaranteed winners per Flow State round (index = round-1; last entry repeats for all later rounds)
 export const FLOW_STATE_WIN_SCHEDULE = [6, 6, 5, 4, 3, 2, 1];
+// High-stakes tier unlock thresholds — permanent, based on lifetime earnings (not current balance)
+export const HIGH_STAKES_UNLOCK_THRESHOLDS = [
+  { price:   50, lifetime:   500 },
+  { price:  100, lifetime:  1000 },
+  { price:  200, lifetime:  5000 },
+  { price: 1000, lifetime: 10000 },
+  { price: 2000, lifetime: 20000 },
+];
+// When a high-stakes tier unlocks, retire normal cards up to this price (cumulative)
+export const HIGH_STAKES_RETIRE_SCHEDULE = [
+  { unlockPrice:   50, retireUpTo:  2 },  // $50 unlocks → retire $1–2 cards
+  { unlockPrice:  100, retireUpTo:  4 },  // $100 unlocks → retire $3–4 cards
+  { unlockPrice:  200, retireUpTo:  7 },  // $200 unlocks → retire $5–7 cards
+  { unlockPrice: 1000, retireUpTo: 12 },  // $1k unlocks  → retire $8–12 cards
+  { unlockPrice: 2000, retireUpTo: 17 },  // $2k unlocks  → retire $13–17 cards
+];
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const LUCKY_COUNT = 5;

@@ -188,8 +188,11 @@ export const THEMES = raw.map((t, i) => ({
   tilt: TILTS[i % TILTS.length],
 }));
 
-export function getRandomTheme() {
-  return THEMES[Math.floor(Math.random() * THEMES.length)];
+export function getRandomTheme(retiredMaxCost = 0) {
+  const pool = retiredMaxCost > 0 ? THEMES.filter(t => t.price > retiredMaxCost) : THEMES;
+  // Safety: if all themes are filtered out (shouldn't happen), fall back to full pool
+  const src = pool.length > 0 ? pool : THEMES;
+  return src[Math.floor(Math.random() * src.length)];
 }
 
 // ─── High-Stakes Themes ($30 bridge + $50/$100/$200/$1000/$2000) ──────────────

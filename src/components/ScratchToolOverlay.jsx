@@ -39,12 +39,12 @@ export default function ScratchToolOverlay({
   onFirstToolUse,
   ...rest
 }) {
-  const cardRef     = useRef(null);
-  const outerRef    = useRef(null);
-  const firstFired  = useRef(false);
+  const outerRef   = useRef(null);
+  const cardRef    = useRef(null);
+  const firstFired = useRef(false);
 
   const [usedRows,  setUsedRows]  = useState(new Set());
-  const [buttonYs, setButtonYs] = useState([]);
+  const [buttonYs,  setButtonYs]  = useState([]);
 
   const formCells = cardData?.theme?.formation?.cells ?? [];
   const rows = useMemo(() => groupIntoRows(formCells), [formCells]);
@@ -55,39 +55,86 @@ export default function ScratchToolOverlay({
     setButtonYs([]);
   }, [cardData]);
 
-  // Measure button Y positions relative to the outer wrapper
+  // ── Precision alignment — derive button Y directly from live DOM measurements ──
+  //
+  // Strategy:
+  //   1. Query all .art-cell elements rendered inside the card.
+  //   2. Get their actual screen-space bounding rects via getBoundingClientRect().
+  //   3. Sort rects by top, then group overlapping rects into horizontal bands —
+  //      each band corresponds to one scratch row.
+  //   4. Compute each band's vertical centre.
+  //   5. Express that centre relative to .scratch-tool-col (the button container)
+  //      so that `top: Xpx` on a button with `transform: translateY(-50%)` lands
+  //      exactly on the band centre.
+  //
+  // This approach is layout-agnostic: it doesn't depend on the 18 px header
+  // reservation inside .card-art, the formation fraction formulas, or any other
+  // internal constant — it reads the truth straight from the rendered DOM.
   const measurePositions = useCallback(() => {
-    if (!outerRef.current) return;
-    // Measure against card-art: formation fc.y/h fractions map directly to its height
-    const szEl = outerRef.current.querySelector('.card-art');
-    if (!szEl) return;
+    if (!outerRef.current || rows.length === 0) return;
 
-    const wrapRect = outerRef.current.getBoundingClientRect();
-    const szRect   = szEl.getBoundingClientRect();
-    const szTop    = szRect.top  - wrapRect.top;
-    const szH      = szRect.height;
-    if (szH < 10) return;
+    // The button column is the positioning parent (position: relative) for buttons.
+    const colEl = outerRef.current.querySelector('.scratch-tool-col');
+    if (!colEl) return;
+    const colRect = colEl.getBoundingClientRect();
+    if (colRect.height < 4) return;
 
-    const ys = rows.map(row => {
-      const midFrac = row.cells.reduce((s, r) => s + r.fc.y + r.fc.h / 2, 0) / row.cells.length;
-      return szTop + midFrac * szH;
-    });
+    // Collect every rendered scratch cell's bounding rect.
+    const cellEls = Array.from(outerRef.current.querySelectorAll('.art-cell'));
+    if (cellEls.length === 0) return;
+
+    const rects = cellEls
+      .map(el => el.getBoundingClientRect())
+      .filter(r => r.height > 0 && r.width > 0)
+      .sort((a, b) => a.top - b.top);
+
+    if (rects.length === 0) return;
+
+    // Group overlapping rects into row bands.
+    // Two rects belong to the same band if the second rect's top is below
+    // the current band's bottom (with 1 px sub-pixel tolerance).
+    const bands = [];
+    let band = null;
+    for (const r of rects) {
+      if (!band || r.top >= band.bottom - 1) {
+        band = { top: r.top, bottom: r.bottom };
+        bands.push(band);
+      } else {
+        band.bottom = Math.max(band.bottom, r.bottom);
+      }
+    }
+
+    // If the DOM doesn't show the expected number of rows yet, bail and wait
+    // for the next layout pass (useLayoutEffect will re-fire after next render).
+    if (bands.length !== rows.length) return;
+
+    // Convert each band's screen-space centre to a coordinate relative to the
+    // button column top.  With `transform: translateY(-50%)` on the button,
+    // setting `top` to this value centres the button on the row.
+    const ys = bands.map(b => (b.top + b.bottom) / 2 - colRect.top);
 
     setButtonYs(prev =>
       prev.length === ys.length && prev.every((v, i) => Math.abs(v - ys[i]) < 0.5)
-        ? prev
+        ? prev   // no meaningful change — skip re-render
         : ys
     );
   }, [rows]);
 
-  // Measure after layout changes (card resize, new card, etc.)
+  // Re-measure after every render (catches new card, font load, etc.)
   useLayoutEffect(() => { measurePositions(); }, [measurePositions]);
 
+  // Re-measure whenever the outer container resizes (covers window resize too,
+  // since .scratch-tool-outer is a flex child that stretches with the viewport).
   useEffect(() => {
     if (!outerRef.current) return;
     const obs = new ResizeObserver(measurePositions);
     obs.observe(outerRef.current);
-    return () => obs.disconnect();
+    // Belt-and-suspenders: also listen to the window resize event directly.
+    window.addEventListener('resize', measurePositions);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('resize', measurePositions);
+    };
   }, [measurePositions]);
 
   const handleRowClick = useCallback((rowIdx, row) => {
