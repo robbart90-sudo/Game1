@@ -1,4 +1,5 @@
 import './GasStationShop.css';
+import { MAX_ITEM_PURCHASES } from '../utils/lottery';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHOP ITEMS — edit prices and descriptions here.
@@ -15,15 +16,16 @@ export const SHOP_ITEMS = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function GasStationShop({
-  balance, phase, brushBoostSecs, slusheeSecs, nextCardWin, onBuy,
+  balance, phase, brushBoostSecs, slusheeSecs, nextCardWin, purchaseCounts = {}, onBuy,
 }) {
   const itemState = ({ id, cost }) => {
-    const isActive  = (id === 'fries'     && brushBoostSecs > 0)
-                   || (id === 'slushee'   && slusheeSecs    > 0)
-                   || (id === 'luckystar' && nextCardWin);
+    const isActive   = (id === 'fries'     && brushBoostSecs > 0)
+                    || (id === 'slushee'   && slusheeSecs    > 0)
+                    || (id === 'luckystar' && nextCardWin);
     const cantAfford = balance < cost;
     const notAvail   = id === 'hotdog' && phase !== 'playing';
-    return { isActive, cantAfford, disabled: cantAfford || notAvail || isActive };
+    const isMaxed    = id !== 'car' && (purchaseCounts[id] || 0) >= MAX_ITEM_PURCHASES;
+    return { isActive, cantAfford, isMaxed, disabled: isMaxed || cantAfford || notAvail || isActive };
   };
 
   return (
@@ -35,7 +37,8 @@ export default function GasStationShop({
       {/* ── All items: 2×3 grid + full-width car at bottom ──────────── */}
       <div className="gss-grid">
         {SHOP_ITEMS.map(({ id, emoji, name, cost, desc, category }) => {
-          const { isActive, cantAfford, disabled } = itemState({ id, cost });
+          const { isActive, cantAfford, isMaxed, disabled } = itemState({ id, cost });
+          const purchaseCount = purchaseCounts[id] || 0;
 
           /* ── Car: full-width horizontal card ─────────────────────── */
           if (id === 'car') {
@@ -69,8 +72,9 @@ export default function GasStationShop({
             'gss-card',
             `gss-card--${category}`,
             isActive   ? 'gss-card--active'     : '',
+            isMaxed    ? 'gss-card--maxed'       : '',
             !disabled  ? 'gss-card--affordable' : '',
-            cantAfford ? 'gss-card--broke'      : '',
+            cantAfford && !isMaxed ? 'gss-card--broke' : '',
           ].filter(Boolean).join(' ');
 
           return (
@@ -90,12 +94,17 @@ export default function GasStationShop({
                 </div>
               ) : (
                 <>
-                  <span className="gss-badge">{cost}🪙</span>
+                  {!isMaxed && <span className="gss-badge">{cost}🪙</span>}
                   <span className="gss-card-emoji">{emoji}</span>
                   <span className="gss-card-name">{name}</span>
-                  <span className="gss-card-desc">{desc}</span>
+                  <span className="gss-card-desc">{isMaxed ? 'Sold out' : desc}</span>
                 </>
               )}
+              <div className="gss-purchase-dots">
+                {Array.from({ length: MAX_ITEM_PURCHASES }, (_, i) => (
+                  <span key={i} className={`gss-purchase-dot${i < purchaseCount ? ' used' : ''}`} />
+                ))}
+              </div>
             </button>
           );
         })}

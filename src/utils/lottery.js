@@ -18,6 +18,7 @@ export const PRICE_WIN_TIERS = [
 
 export const JACKPOT_CHANCE = 0.005; // universal jackpot probability (all price tiers)
 export const JACKPOT_MULT   = 100;   // jackpot pays 100× card cost
+export const MAX_ITEM_PURCHASES = 3; // per-session purchase cap per shop item (car is exempt)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const LUCKY_COUNT = 5;

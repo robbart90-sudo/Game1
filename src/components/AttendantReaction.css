@@ -91,29 +91,26 @@
   }
 }
 
-/* ── Character placeholder (swap for real illustration) ──────────────────── */
-/*    See comment in AttendantReaction.jsx for replacement instructions.      */
-.ar-char-placeholder {
+/* ── Character emoji ─────────────────────────────────────────────────────── */
+.ar-char-emoji {
   width: 110px;
-  height: 140px;
-  background: linear-gradient(160deg, #555 0%, #333 100%);
-  border-radius: 8px 8px 0 0;
-  border: 2px solid rgba(255, 255, 255, 0.12);
-  border-bottom: none;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: 0.55rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.35);
+  gap: 4px;
+  padding-bottom: 4px;
 }
 
-/* Real illustration image, when the placeholder is replaced */
-.ar-char-img {
-  width: 120px;
-  height: 150px;
-  object-fit: contain;
-  object-position: bottom center;
-  display: block;
+.ar-char-icon {
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.ar-char-name {
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: rgba(0, 0, 0, 0.35);
+  text-transform: uppercase;
+  text-align: center;
 }

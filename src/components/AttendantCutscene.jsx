@@ -65,18 +65,10 @@ export default function AttendantCutscene({ onDone }) {
           </div>
         )}
 
-        {/*
-         * ── ILLUSTRATION ────────────────────────────────────────────────────
-         * Replace .ac-char-placeholder (and its contents) with your artwork.
-         * The wrapping .ac-char div owns the sizing/positioning — keep it.
-         * Recommended art size: 200 × 300 px.
-         * e.g.  <img src={attendantImg} alt="Attendant" className="ac-art" />
-         *       <AttendantSprite />
-         * ────────────────────────────────────────────────────────────────────
-         */}
         <div className="ac-char">
-          <div className="ac-char-placeholder">
-            <span className="ac-char-label">ATTENDANT</span>
+          <div className="ac-char-emoji">
+            <span className="ac-char-icon">🧑‍💼</span>
+            <span className="ac-char-name">Grig the gas attendant</span>
           </div>
         </div>
 

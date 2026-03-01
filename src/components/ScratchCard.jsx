@@ -704,26 +704,26 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
               return (
                 <div
                   key={i}
-                  className={`art-cell ${cell.isMatch ? 'match' : ''} ${completed && cell.isMatch ? 'win-revealed' : ''}`}
+                  className={`art-cell${completed && cell.isMatch ? ' match win-revealed' : ''}`}
                   style={{
                     left:   `${fc.x * 100}%`,
                     top:    `calc(18px + ${fc.y} * (100% - 18px))`,
                     width:  `${fc.w * 100}%`,
                     height: `calc(${fc.h} * (100% - 18px))`,
-                    background: cell.isMatch
+                    background: completed && cell.isMatch
                       ? `linear-gradient(135deg, ${palette.numBg}, #251800)`
                       : palette.numBg,
-                    borderColor: cell.isMatch ? '#FFD200' : `${palette.border}55`,
-                    boxShadow:   cell.isMatch ? '0 0 14px rgba(255,210,0,0.5)' : 'none',
+                    borderColor: completed && cell.isMatch ? '#FFD200' : `${palette.border}55`,
+                    boxShadow:   completed && cell.isMatch ? '0 0 14px rgba(255,210,0,0.5)' : 'none',
                   }}
                 >
                   <span
                     className="art-num"
-                    style={{ color: cell.isMatch ? '#FFD200' : palette.numText }}
+                    style={{ color: completed && cell.isMatch ? '#FFD200' : palette.numText }}
                   >
                     {String(cell.number).padStart(2, '0')}
                   </span>
-                  {cell.isMatch && cell.prize > 0 && (
+                  {completed && cell.isMatch && cell.prize > 0 && (
                     <span className="art-prize">+{cell.prize.toLocaleString()}🪙</span>
                   )}
                   {cell.isMatch && completed && (

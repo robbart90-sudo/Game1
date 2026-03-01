@@ -11,8 +11,9 @@ import Tutorial, { tutorialHasSeen } from './components/Tutorial';
 import AttendantCutscene from './components/AttendantCutscene';
 import AttendantReaction from './components/AttendantReaction';
 import GasStationShop, { SHOP_ITEMS } from './components/GasStationShop';
+import ModifierTray    from './components/ModifierTray';
 import { useSound }    from './hooks/useSound';
-import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE } from './utils/lottery';
+import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE, MAX_ITEM_PURCHASES } from './utils/lottery';
 import { getRandomTheme } from './utils/themes';
 import './App.css';
 
@@ -266,10 +267,11 @@ export default function App() {
   const flowDrainRef = useRef(null);
 
   // ── Shop / powerup state ─────────────────────────────────────────────────
-  const [brushBoostSecs, setBrushBoostSecs] = useState(0);
-  const [slusheeSecs,    setSlusheeSecs]    = useState(0);
-  const [nextCardWin,    setNextCardWin]    = useState(false);
-  const [hotDogTrigger,  setHotDogTrigger]  = useState(0);
+  const [brushBoostSecs,    setBrushBoostSecs]    = useState(0);
+  const [slusheeSecs,       setSlusheeSecs]       = useState(0);
+  const [nextCardWin,       setNextCardWin]       = useState(false);
+  const [hotDogTrigger,     setHotDogTrigger]     = useState(0);
+  const [shopPurchaseCounts, setShopPurchaseCounts] = useState({});
   const nextCardWinRef  = useRef(false);
   const friesTimerRef   = useRef(null);
   const slusheeTimerRef = useRef(null);
@@ -482,6 +484,7 @@ export default function App() {
   const handleShopBuy = useCallback((id) => {
     const item = SHOP_ITEMS.find(i => i.id === id);
     if (!item || balanceRef.current < item.cost) return;
+    if (id !== 'car' && (shopPurchaseCounts[id] || 0) >= MAX_ITEM_PURCHASES) return;
     updateBalance(b => b - item.cost);
     switch (id) {
       case 'coffee':   timeLeftRef.current += 10; setTimeLeft(t => t + 10); break;
@@ -493,7 +496,8 @@ export default function App() {
       case 'car':       stopTimer(); speakDialogue('Keys are right here.'); setGoReason('win'); setGameOver(true); break;
       default: break;
     }
-  }, [updateFlowLevel, stopTimer, speakDialogue]);
+    if (id !== 'car') setShopPurchaseCounts(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+  }, [updateFlowLevel, stopTimer, speakDialogue, shopPurchaseCounts]);
 
   // ── Card complete handler (normal scratch only — flow state is handled by handleFlowPick)
   const handleComplete = useCallback((scratchSecs) => {
@@ -754,6 +758,7 @@ export default function App() {
     setPhase('intro'); phaseRef.current = 'intro';
     // Reset shop state
     setBrushBoostSecs(0); setSlusheeSecs(0); setNextCardWin(false); setHotDogTrigger(0);
+    setShopPurchaseCounts({});
     nextCardWinRef.current = false;
     if (friesTimerRef.current)   { clearInterval(friesTimerRef.current);   friesTimerRef.current   = null; }
     if (slusheeTimerRef.current) { clearInterval(slusheeTimerRef.current); slusheeTimerRef.current = null; }
@@ -831,7 +836,7 @@ export default function App() {
 
       {/* ── Header ──────────────────────────── */}
       <header className="app-header">
-        <h1 className="title">🎰 Scratch &amp; Win</h1>
+        <h1 className="title">Gas Station Scratchers</h1>
         <div className="header-right">
           <button className="info-btn" onClick={sound.toggleMute} title={sound.muted ? 'Unmute' : 'Mute'}>{sound.muted ? '🔇' : '🔊'}</button>
           <button className="info-btn" onClick={() => setShowTutorial(true)} title="How to play">?</button>
@@ -864,12 +869,6 @@ export default function App() {
                   rightLabel={`${timeLeft}s`}
                 />
                 <FlowMeter flowLevel={flowLevel} flowState={flowState} flowRound={flowRound} />
-                {brushBoostSecs > 0 && (
-                  <SegmentedBar count={brushBoostSecs} maxCount={10} color="fries"   label="🍟 BIG BRUSH" rightLabel={`${brushBoostSecs}s`} />
-                )}
-                {slusheeSecs > 0 && (
-                  <SegmentedBar count={slusheeSecs}    maxCount={5}  color="slushee" label="🥤 FROZEN"    rightLabel={`${slusheeSecs}s`}    />
-                )}
               </div>
               {!gameOver && (
                 <GasStationShop
@@ -878,6 +877,7 @@ export default function App() {
                   brushBoostSecs={brushBoostSecs}
                   slusheeSecs={slusheeSecs}
                   nextCardWin={nextCardWin}
+                  purchaseCounts={shopPurchaseCounts}
                   onBuy={handleShopBuy}
                 />
               )}
@@ -885,11 +885,15 @@ export default function App() {
 
             {/* ── Left column — streak badge + card + picker ──────────────── */}
             <div className="kiosk-left">
-              {/* Streak badge */}
-              {!gameOver && (consecWins >= STREAK_SHOW_MIN || prevStreak >= STREAK_SHOW_MIN) && (
-                <div className={`streak-badge${prevStreak >= STREAK_SHOW_MIN && consecWins < STREAK_SHOW_MIN ? ' streak-breaking' : ''}`}>
-                  🔥 x{consecWins >= STREAK_SHOW_MIN ? consecWins : prevStreak} STREAK
-                </div>
+              {/* Modifier tray */}
+              {!gameOver && (
+                <ModifierTray
+                  consecWins={consecWins}
+                  streakMin={STREAK_SHOW_MIN}
+                  brushBoostSecs={brushBoostSecs}
+                  slusheeSecs={slusheeSecs}
+                  nextCardWin={nextCardWin}
+                />
               )}
 
               {/* Card view — normal scratch only (never shown during flow state) */}

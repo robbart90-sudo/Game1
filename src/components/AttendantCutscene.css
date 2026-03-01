@@ -78,24 +78,28 @@
   width: 200px;
 }
 
-/* ── Placeholder art box (remove when real illustration is added) ────────── */
-.ac-char-placeholder {
+/* ── Character emoji ─────────────────────────────────────────────────────── */
+.ac-char-emoji {
   width: 200px;
-  height: 300px;
-  background: linear-gradient(160deg, #555 0%, #333 100%);
-  border-radius: 10px 10px 0 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-bottom: none;
+  gap: 10px;
+  padding-bottom: 10px;
 }
 
-.ac-char-label {
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 12px;
-  letter-spacing: 0.18em;
+.ac-char-icon {
+  font-size: 9rem;
+  line-height: 1;
+}
+
+.ac-char-name {
+  font-size: 0.62rem;
   font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.38);
+  text-transform: uppercase;
+  text-align: center;
 }
 
 /* ── Keyframes ───────────────────────────────────────────────────────────── */

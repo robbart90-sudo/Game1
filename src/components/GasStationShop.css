@@ -323,6 +323,32 @@
   cursor: not-allowed;
 }
 
+/* ── Maxed-out state ────────────────────────────────────────────────── */
+.gss-card--maxed {
+  filter: grayscale(0.45);
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+/* ── Purchase dot indicators ────────────────────────────────────────── */
+.gss-purchase-dots {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  margin-top: 5px;
+}
+
+.gss-purchase-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.gss-purchase-dot.used {
+  background: rgba(255, 255, 255, 0.52);
+}
+
 @media (max-width: 768px) {
   .gss-card--car {
     width: 160px;

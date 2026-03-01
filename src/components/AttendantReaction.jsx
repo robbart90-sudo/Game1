@@ -96,16 +96,10 @@ export default function AttendantReaction({ msg }) {
         <span className="ar-cursor" aria-hidden="true">▌</span>
       </div>
 
-      {/* ── ATTENDANT CHARACTER ─────────────────────────────────────────────────
-          Replace the <div> below with the real illustration.
-          The art should show the attendant from roughly mid-chest upward.
-          Recommended element:
-            <img src={attendantHeadSrc} className="ar-char-img" alt="" />
-          Recommended dimensions: ~120 px wide × 150 px tall.
-          The component will slide the whole unit in from the right edge,
-          so the image should have a transparent background and face left.
-      ─────────────────────────────────────────────────────────────────────── */}
-      <div className="ar-char-placeholder">ATTENDANT</div>
+      <div className="ar-char-emoji">
+        <span className="ar-char-icon">🧑‍💼</span>
+        <span className="ar-char-name">Grig the gas attendant</span>
+      </div>
     </div>
   );
 }
