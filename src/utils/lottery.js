@@ -31,8 +31,11 @@ export const PRESSURE_WIN_ADJ = [0, -0.03, 0, 0.05, 0.10];
 export const JACKPOT_CHANCE = 0.005; // universal jackpot probability (all price tiers)
 export const JACKPOT_MULT   = 100;   // jackpot pays 100× card cost
 export const MAX_ITEM_PURCHASES = 3; // per-session purchase cap per shop item (car is exempt)
-export const LUCKY_NUMBER_FREQUENCY_BOOST = 0.05; // extra probability of session lucky number appearing in non-match cells
-export const LUCKY_NUMBER_WIN_BOOST       = 0.05; // win-chance boost when session lucky number is among the card's prize pool
+export const LUCKY_NUMBER_APPEARANCE_CHANCE = 0.08; // probability session lucky number is planted as a winner on any given card
+export const LUCKY_WIN_SMALL_CHANCE          = 0.40; // when lucky number planted: small win
+export const LUCKY_WIN_MEDIUM_CHANCE         = 0.30; // medium win (1.5–3× cost)
+export const LUCKY_WIN_BIG_CHANCE            = 0.20; // big win (existing bigRange)
+export const LUCKY_WIN_JACKPOT_CHANCE        = 0.10; // jackpot (100× cost)
 // Guaranteed winners per Flow State round (index = round-1; last entry repeats for all later rounds)
 export const FLOW_STATE_WIN_SCHEDULE = [6, 6, 5, 4, 3, 2, 1];
 // High-stakes tier unlock thresholds — permanent, based on lifetime earnings (not current balance)
@@ -88,6 +91,26 @@ function drawTier(cost, forceWin = false, pressureAdj = 0) {
   return { id: 'none', matches: 0, mult: 0 };
 }
 
+// Guaranteed win tier used when the session lucky number is planted on the card.
+// Distribution: 40% small | 30% medium (1.5–3×) | 20% big (bigRange) | 10% jackpot
+function drawLuckyTier(cost) {
+  const pt = getPriceTier(cost);
+  const r  = Math.random();
+  if (r < LUCKY_WIN_JACKPOT_CHANCE) {
+    return { id: 'jackpot', matches: 3, mult: JACKPOT_MULT };
+  }
+  if (r < LUCKY_WIN_JACKPOT_CHANCE + LUCKY_WIN_BIG_CHANCE) {
+    const mult = pt.bigRange[0] + Math.random() * (pt.bigRange[1] - pt.bigRange[0]);
+    return { id: 'big', matches: 2, mult };
+  }
+  if (r < LUCKY_WIN_JACKPOT_CHANCE + LUCKY_WIN_BIG_CHANCE + LUCKY_WIN_MEDIUM_CHANCE) {
+    const mult = 1.5 + Math.random() * 1.5; // 150%–300% of cost
+    return { id: 'big', matches: 2, mult };
+  }
+  // 40% small win
+  return { id: 'small', matches: 1, mult: pt.minMult };
+}
+
 function pickUnique(min, max, count) {
   const set = new Set();
   while (set.size < count) set.add(Math.floor(Math.random() * (max - min + 1)) + min);
@@ -110,16 +133,41 @@ function shuffle(arr) {
 }
 
 export function generateCard(theme, forceWin = false, pressureAdj = 0, sessionLuckyNum = null) {
-  const luckyNumbers = pickUnique(1, NUMBER_MAX, LUCKY_COUNT);
-  const luckySet = new Set(luckyNumbers);
+  // ── Lucky number appearance ────────────────────────────────────────────────
+  // 8% chance (non-forced cards only) to plant the session lucky number as a
+  // winning cell at luckyNumbers[0]. When NOT planted, the lucky number must not
+  // appear anywhere on the card — not in luckyNumbers, not in non-match cells.
+  const luckyHit = !forceWin && sessionLuckyNum != null
+    && Math.random() < LUCKY_NUMBER_APPEARANCE_CHANCE;
 
-  // Win boost: if the session lucky number happens to be in this card's lucky pool,
-  // the card is slightly more likely to be a winner.
-  const effectivePressureAdj = (sessionLuckyNum && luckySet.has(sessionLuckyNum))
-    ? pressureAdj + LUCKY_NUMBER_WIN_BOOST
-    : pressureAdj;
+  // ── Build luckyNumbers array ───────────────────────────────────────────────
+  let luckyNumbers;
+  if (luckyHit) {
+    // sessionLuckyNum at index 0; remaining LUCKY_COUNT-1 are distinct, ≠ it
+    const rest = new Set();
+    while (rest.size < LUCKY_COUNT - 1) {
+      const n = Math.floor(Math.random() * NUMBER_MAX) + 1;
+      if (n !== sessionLuckyNum) rest.add(n);
+    }
+    luckyNumbers = [sessionLuckyNum, ...rest];
+  } else {
+    // Normal draw — sessionLuckyNum excluded from the pool
+    const exclude = sessionLuckyNum != null ? new Set([sessionLuckyNum]) : new Set();
+    const set = new Set();
+    while (set.size < LUCKY_COUNT) {
+      const n = Math.floor(Math.random() * NUMBER_MAX) + 1;
+      if (!exclude.has(n)) set.add(n);
+    }
+    luckyNumbers = [...set];
+  }
 
-  const tier = drawTier(theme.price, forceWin, effectivePressureAdj);
+  // ── Win tier ──────────────────────────────────────────────────────────────
+  const tier = luckyHit
+    ? drawLuckyTier(theme.price)
+    : drawTier(theme.price, forceWin, pressureAdj);
+
+  // ── Build cells ───────────────────────────────────────────────────────────
+  const luckySet  = new Set(luckyNumbers);
   const cellCount = theme.formation ? theme.formation.cellCount : 9;
 
   // Use Math.ceil so prize is always ≥ minMult × cost — a winner never feels like a loss
@@ -128,25 +176,21 @@ export function generateCard(theme, forceWin = false, pressureAdj = 0, sessionLu
 
   const cells = [];
 
-  // Plant winning cells using actual lucky numbers
+  // Winning cells — first tier.matches entries from luckyNumbers
   for (let i = 0; i < tier.matches; i++) {
     cells.push({ number: luckyNumbers[i], prize: prizeEach, isMatch: true, scratched: false });
   }
 
-  // Fill remaining cells — bias toward session lucky number (frequency boost)
+  // Non-match cells — exclude luckySet; also exclude sessionLuckyNum when not planted
+  // so it can never appear as a non-winning decoy on this card
+  const nonMatchExclude = luckyHit
+    ? luckySet
+    : new Set([...luckySet, ...(sessionLuckyNum != null ? [sessionLuckyNum] : [])]);
   for (let i = tier.matches; i < cellCount; i++) {
     let n;
-    if (sessionLuckyNum && !luckySet.has(sessionLuckyNum) && Math.random() < LUCKY_NUMBER_FREQUENCY_BOOST) {
-      n = sessionLuckyNum; // subtle nudge — appears slightly more often than chance
-    } else {
-      n = pickNonLucky(luckySet);
-    }
+    do { n = Math.floor(Math.random() * NUMBER_MAX) + 1; } while (nonMatchExclude.has(n));
     cells.push({ number: n, prize: 0, isMatch: false, scratched: false });
   }
-
-  // Whether the session lucky number is a winning prize number on this card
-  const matchedNums = new Set(luckyNumbers.slice(0, tier.matches));
-  const sessionLuckyIsMatch = !!(sessionLuckyNum && matchedNums.has(sessionLuckyNum));
 
   return {
     theme,
@@ -154,6 +198,6 @@ export function generateCard(theme, forceWin = false, pressureAdj = 0, sessionLu
     luckyNumbers,
     cells: shuffle(cells),
     totalPrize: prizeEach * tier.matches,
-    sessionLuckyIsMatch,
+    sessionLuckyIsMatch: luckyHit,
   };
 }
