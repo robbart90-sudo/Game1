@@ -443,3 +443,48 @@
   color: rgba(255,255,255,0.80);
   text-align: center;
 }
+
+/* ── Mack's ESP Glow ─────────────────────────────────────────────────────────
+   Cool electric blue-white — this color exists nowhere else in the game.
+   Visible on the revealed HTML cell once the foil is scratched away;
+   the canvas layer handles the faint pre-reveal bleed through the foil.
+──────────────────────────────────────────────────────────────────────────── */
+
+/* Pre-complete: cell revealed under foil, glow runs continuously */
+.art-cell.esp-cell {
+  animation: espBreathe 2.9s ease-in-out infinite;
+  /* Override gold border/shadow from any other state */
+  border-color: rgba(110, 175, 255, 0.55) !important;
+}
+/* Breathing luminescence — slightly asymmetric so it never feels mechanical */
+@keyframes espBreathe {
+  0%   { box-shadow: 0 0  8px rgba(100, 170, 255, 0.30), 0 0 20px rgba(70, 130, 255, 0.12); }
+  38%  { box-shadow: 0 0 18px rgba(130, 195, 255, 0.60), 0 0 38px rgba(90, 150, 255, 0.25); }
+  60%  { box-shadow: 0 0 14px rgba(115, 182, 255, 0.48), 0 0 28px rgba(80, 140, 255, 0.18); }
+  78%  { box-shadow: 0 0 22px rgba(145, 205, 255, 0.68), 0 0 44px rgba(100, 160, 255, 0.28); }
+  100% { box-shadow: 0 0  8px rgba(100, 170, 255, 0.30), 0 0 20px rgba(70, 130, 255, 0.12); }
+}
+
+/* Post-complete, lucky number is a WINNING MATCH:
+   Intensifies for ~500 ms then blends into the gold win flash.
+   Fires automatically the moment the class is applied (on card completion). */
+.art-cell.esp-match {
+  animation: espIntensify 0.55s ease-out forwards;
+  border-color: rgba(140, 210, 255, 0.80) !important;
+}
+@keyframes espIntensify {
+  0%   { box-shadow: 0 0 10px rgba(120, 185, 255, 0.40), 0 0 24px rgba(80, 145, 255, 0.18); }
+  30%  { box-shadow: 0 0 30px rgba(160, 220, 255, 0.90), 0 0 65px rgba(110, 175, 255, 0.55), 0 0 100px rgba(80, 140, 255, 0.25); }
+  55%  { box-shadow: 0 0 38px rgba(180, 230, 255, 1.00), 0 0 80px rgba(130, 190, 255, 0.70), 0 0 120px rgba(90, 150, 255, 0.35); }
+  100% { box-shadow: 0 0 18px rgba(140, 210, 255, 0.60), 0 0 40px rgba(100, 165, 255, 0.30); }
+}
+
+/* Post-complete, lucky number appeared but was NOT a match:
+   Glow fades slowly — Mack sensed the number but it wasn't enough. */
+.art-cell.esp-fade {
+  animation: espFadeOut 1.1s ease-out forwards;
+}
+@keyframes espFadeOut {
+  0%   { box-shadow: 0 0 16px rgba(110, 175, 255, 0.50), 0 0 32px rgba(75, 135, 255, 0.22); border-color: rgba(110, 175, 255, 0.45) !important; }
+  100% { box-shadow: none; border-color: rgba(255,255,255,0.10) !important; }
+}

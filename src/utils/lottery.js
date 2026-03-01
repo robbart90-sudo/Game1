@@ -31,10 +31,14 @@ export const PRESSURE_WIN_ADJ = [0, -0.03, 0, 0.05, 0.10];
 export const JACKPOT_CHANCE = 0.005; // universal jackpot probability (all price tiers)
 export const JACKPOT_MULT   = 100;   // jackpot pays 100× card cost
 export const MAX_ITEM_PURCHASES = 3; // per-session purchase cap per shop item (car is exempt)
+export const LUCKY_NUMBER_FREQUENCY_BOOST = 0.05; // extra probability of session lucky number appearing in non-match cells
+export const LUCKY_NUMBER_WIN_BOOST       = 0.05; // win-chance boost when session lucky number is among the card's prize pool
+// Guaranteed winners per Flow State round (index = round-1; last entry repeats for all later rounds)
+export const FLOW_STATE_WIN_SCHEDULE = [6, 6, 5, 4, 3, 2, 1];
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const LUCKY_COUNT = 5;
-export const NUMBER_MAX = 30;
+export const NUMBER_MAX = 99;
 
 function getPriceTier(cost) {
   return PRICE_WIN_TIERS.find(t => cost <= t.maxCost);
@@ -89,10 +93,17 @@ function shuffle(arr) {
   return a;
 }
 
-export function generateCard(theme, forceWin = false, pressureAdj = 0) {
-  const tier = drawTier(theme.price, forceWin, pressureAdj);
+export function generateCard(theme, forceWin = false, pressureAdj = 0, sessionLuckyNum = null) {
   const luckyNumbers = pickUnique(1, NUMBER_MAX, LUCKY_COUNT);
   const luckySet = new Set(luckyNumbers);
+
+  // Win boost: if the session lucky number happens to be in this card's lucky pool,
+  // the card is slightly more likely to be a winner.
+  const effectivePressureAdj = (sessionLuckyNum && luckySet.has(sessionLuckyNum))
+    ? pressureAdj + LUCKY_NUMBER_WIN_BOOST
+    : pressureAdj;
+
+  const tier = drawTier(theme.price, forceWin, effectivePressureAdj);
   const cellCount = theme.formation ? theme.formation.cellCount : 9;
 
   // Use Math.ceil so prize is always ≥ minMult × cost — a winner never feels like a loss
@@ -106,10 +117,20 @@ export function generateCard(theme, forceWin = false, pressureAdj = 0) {
     cells.push({ number: luckyNumbers[i], prize: prizeEach, isMatch: true, scratched: false });
   }
 
-  // Fill remaining cells with non-lucky numbers
+  // Fill remaining cells — bias toward session lucky number (frequency boost)
   for (let i = tier.matches; i < cellCount; i++) {
-    cells.push({ number: pickNonLucky(luckySet), prize: 0, isMatch: false, scratched: false });
+    let n;
+    if (sessionLuckyNum && !luckySet.has(sessionLuckyNum) && Math.random() < LUCKY_NUMBER_FREQUENCY_BOOST) {
+      n = sessionLuckyNum; // subtle nudge — appears slightly more often than chance
+    } else {
+      n = pickNonLucky(luckySet);
+    }
+    cells.push({ number: n, prize: 0, isMatch: false, scratched: false });
   }
+
+  // Whether the session lucky number is a winning prize number on this card
+  const matchedNums = new Set(luckyNumbers.slice(0, tier.matches));
+  const sessionLuckyIsMatch = !!(sessionLuckyNum && matchedNums.has(sessionLuckyNum));
 
   return {
     theme,
@@ -117,5 +138,6 @@ export function generateCard(theme, forceWin = false, pressureAdj = 0) {
     luckyNumbers,
     cells: shuffle(cells),
     totalPrize: prizeEach * tier.matches,
+    sessionLuckyIsMatch,
   };
 }

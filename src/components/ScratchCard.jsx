@@ -3,6 +3,55 @@ import Sparkles    from './Sparkles';
 import CardHeader  from './CardHeader';
 import './ScratchCard.css';
 
+// ── ESP Glow — standalone canvas function ─────────────────────────────────────
+// Draws Mack's supernatural lucky-number luminescence at (cx, cy) on ctx.
+// intensity: 0.0 (invisible) → 1.0 (full glow). timestamp: performance.now() value.
+// Built for reuse in the peyote sequence where all probabilities become visible.
+export function drawESPGlow(ctx, cx, cy, intensity, timestamp) {
+  if (intensity <= 0) return;
+  const t = (timestamp || 0) * 0.001; // ms → seconds
+
+  // Irregular pulse rhythm — layered sines with incommensurate frequencies
+  // so it never settles into a perfect repeating cycle (feels alive, not mechanical)
+  const raw =
+      0.52 + 0.26 * Math.sin(t * 2.13)
+           + 0.13 * Math.sin(t * 5.87 + 1.41)
+           + 0.09 * Math.sin(t * 0.71 + 2.93);
+  const p = Math.max(0, Math.min(1, raw)) * intensity;
+  if (p < 0.01) return;
+
+  const r = 20 * (1 + p * 0.4); // breathing radius
+
+  ctx.save();
+
+  // Outer diffuse aura — cool electric blue
+  const aura = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 2.6);
+  aura.addColorStop(0,    `rgba(135, 200, 255, ${0.55 * p})`);
+  aura.addColorStop(0.28, `rgba(85,  155, 255, ${0.38 * p})`);
+  aura.addColorStop(0.65, `rgba(40,  100, 255, ${0.16 * p})`);
+  aura.addColorStop(1,    'rgba(0, 55, 200, 0)');
+
+  ctx.globalCompositeOperation = 'screen';
+  ctx.fillStyle = aura;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 2.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inner core — bright white-blue emanating from within
+  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.7);
+  core.addColorStop(0,   `rgba(215, 238, 255, ${0.80 * p})`);
+  core.addColorStop(0.4, `rgba(145, 195, 255, ${0.50 * p})`);
+  core.addColorStop(1,   'rgba(80, 140, 255, 0)');
+
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+}
+
 const CW = 320;
 const CH = 190;
 
@@ -64,7 +113,7 @@ function hotspotBlocks(fc) {
   };
 }
 
-const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soundScratch, flowLevel = 0, brushBoost = 1, hotDogTrigger = 0 }, ref) {
+const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soundScratch, flowLevel = 0, brushBoost = 1, hotDogTrigger = 0, sessionLuckyNumber = null }, ref) {
   const { theme, luckyNumbers, cells } = cardData;
   const { palette, formation, tilt } = theme;
   const formCells  = formation ? formation.cells : [];
@@ -91,6 +140,8 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
   const particlesRef   = useRef([]);
   const dealingRef     = useRef(true);
 
+  const espFadeRef      = useRef(false); // true once card completes w/ non-match lucky num
+
   const [sparkles,  setSparkles]  = useState(false);
   const [isDealing, setIsDealing] = useState(true);
   const [completed, setCompleted] = useState(false);
@@ -110,6 +161,7 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
     scratchStart.current    = null;
     scratchedCountRef.current = 0;
 
+    espFadeRef.current = false;
     // Fresh scratch state
     scratchedRef.current = new Uint8Array(TOTAL_BLOCKS);
 
@@ -266,6 +318,36 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
       ctx.globalCompositeOperation = 'source-over';
       ctx.drawImage(bc, 0, 0);
 
+      // ── 1b. ESP glow — faint luminescence visible THROUGH the foil ───────
+      // Drawn before erase so it bleeds into the metallic surface.
+      // Color exists nowhere else in this game — cool electric blue-white.
+      if (sessionLuckyNumber !== null) {
+        cells.forEach((cell, i) => {
+          if (cell.number !== sessionLuckyNumber) return;
+          const fc = formCells[i];
+          if (!fc) return;
+          const cx = (fc.x + fc.w * 0.5) * CW;
+          const cy = (fc.y + fc.h * 0.5) * CH;
+          // Pre-reveal: very faint so foil still reads as opaque
+          drawESPGlow(ctx, cx, cy, 0.22, ts);
+
+          // Spawn upward-drifting ESP particles (heat shimmer / static)
+          if (Math.random() < 0.014) {
+            particlesRef.current.push({
+              x:     cx + (Math.random() - 0.5) * 10,
+              y:     cy + (Math.random() - 0.5) * 4,
+              vx:    (Math.random() - 0.5) * 0.6,
+              vy:    -(0.9 + Math.random() * 1.4), // upward
+              size:  0.5 + Math.random() * 1.1,
+              angle: Math.random() * Math.PI,
+              color: `rgba(${140 + Math.floor(Math.random() * 60)},${185 + Math.floor(Math.random() * 55)},255,1)`,
+              born:  Date.now(),
+              isEsp: true,
+            });
+          }
+        });
+      }
+
       // ── 2. Erase scratched blocks (destination-out, clipped per cell) ───────
       // Each cell gets its own clipping rect so erasure never bleeds into
       // neighbouring cells. Jagged edge jitter (BLOCK_JITTER) is clipped at
@@ -327,17 +409,21 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
 
       ctx.globalCompositeOperation = 'source-over';
 
-      // ── 5. Debris particles ──────────────────────────────────────────────
+      // ── 5. Debris + ESP particles ────────────────────────────────────────
       const now = Date.now();
-      particlesRef.current = particlesRef.current.filter(p => now - p.born < 600);
+      particlesRef.current = particlesRef.current.filter(p =>
+        p.isEsp ? (now - p.born < 1100) : (now - p.born < 600)
+      );
       for (const p of particlesRef.current) {
-        const age = (now - p.born) / 600;
-        ctx.globalAlpha = (1 - age) * 0.75;
+        const life = p.isEsp ? 1100 : 600;
+        const age  = (now - p.born) / life;
+        const dist = p.isEsp ? 18 : 14;
+        ctx.globalAlpha = (1 - age) * (p.isEsp ? 0.55 : 0.75);
         ctx.fillStyle   = p.color;
         ctx.beginPath();
         ctx.ellipse(
-          p.x + p.vx * age * 14,
-          p.y + p.vy * age * 14,
+          p.x + p.vx * age * dist,
+          p.y + p.vy * age * dist,
           p.size, p.size * 0.5, p.angle, 0, Math.PI * 2,
         );
         ctx.fill();
@@ -700,10 +786,19 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
           <div className="art-cells">
             {cells.map((cell, i) => {
               const fc = formCells[i] || { x: 0, y: 0, w: 0.3, h: 0.3 };
+              const isESP      = sessionLuckyNumber !== null && cell.number === sessionLuckyNumber;
+              const isESPMatch = isESP && cell.isMatch;
+              const isESPMiss  = isESP && !cell.isMatch;
               return (
                 <div
                   key={i}
-                  className={`art-cell${completed && cell.isMatch ? ' match win-revealed' : ''}`}
+                  className={[
+                    'art-cell',
+                    completed && cell.isMatch    ? 'match win-revealed' : '',
+                    isESP && !completed          ? 'esp-cell'           : '',
+                    isESPMatch && completed       ? 'esp-match'          : '',
+                    isESPMiss  && completed       ? 'esp-fade'           : '',
+                  ].filter(Boolean).join(' ')}
                   style={{
                     left:   `${fc.x * 100}%`,
                     top:    `calc(18px + ${fc.y} * (100% - 18px))`,

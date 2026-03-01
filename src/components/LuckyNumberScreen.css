@@ -1,0 +1,112 @@
+/* ── Lucky Number Selection Screen ─────────────────────────────────────────── */
+
+.lns-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  /* Dark atmospheric non-modal — not a clean box */
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 45%, rgba(8, 5, 22, 0.88) 0%, rgba(2, 2, 10, 0.96) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Subtle vignette grain — atmospheric, not polished */
+.lns-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.lns-field {
+  position: relative;
+  width: 320px;
+  height: 300px;
+}
+
+/* ── Individual number buttons ──────────────────────────────────────────────── */
+
+.lns-num {
+  position: absolute;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 10px;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  /* Start invisible — numbers float in after Grig speaks */
+  opacity: 0;
+  color: rgba(190, 210, 255, 0.0);
+  text-shadow: none;
+  transition:
+    color       0.25s ease,
+    text-shadow 0.25s ease,
+    opacity     0.4s ease;
+
+  /* Respect the inline rotate transform */
+  transform-origin: center;
+}
+
+.lns-num--visible {
+  opacity: 1;
+  color: rgba(185, 210, 255, 0.68);
+  text-shadow:
+    0 0 30px rgba(100, 155, 255, 0.18),
+    0 0 60px rgba(60,  110, 255, 0.08);
+  animation: lnsFloatIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.lns-num--visible:hover:not(:disabled) {
+  color: rgba(210, 230, 255, 0.92);
+  text-shadow:
+    0 0 28px rgba(130, 180, 255, 0.65),
+    0 0 55px rgba(90,  140, 255, 0.30),
+    0 0 90px rgba(60,  100, 255, 0.12);
+}
+
+.lns-num--selected {
+  color: rgba(230, 242, 255, 1) !important;
+  text-shadow:
+    0 0 32px rgba(160, 200, 255, 0.95),
+    0 0 70px rgba(110, 160, 255, 0.55),
+    0 0 110px rgba(70, 120, 255, 0.25) !important;
+  animation: lnsPulse 0.55s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+
+.lns-num--faded {
+  opacity: 0 !important;
+  transition: opacity 0.35s ease !important;
+  pointer-events: none;
+}
+
+/* Float in from slightly below — like they drifted there */
+@keyframes lnsFloatIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    margin-top: 10px;   /* nudges position via margin, preserves transform */
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    margin-top: 0;
+  }
+}
+
+/* Lock-in pulse — brief size pop then settle */
+@keyframes lnsPulse {
+  0%   { transform: rotate(var(--rot, 0deg)) scale(1); }
+  40%  { transform: rotate(var(--rot, 0deg)) scale(1.22); }
+  70%  { transform: rotate(var(--rot, 0deg)) scale(0.95); }
+  100% { transform: rotate(var(--rot, 0deg)) scale(1); }
+}

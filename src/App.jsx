@@ -13,8 +13,9 @@ import AttendantReaction from './components/AttendantReaction';
 import GasStationShop, { SHOP_ITEMS } from './components/GasStationShop';
 import ModifierTray    from './components/ModifierTray';
 import { useSound }    from './hooks/useSound';
-import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE, MAX_ITEM_PURCHASES, PRESSURE_WIN_ADJ } from './utils/lottery';
+import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE, MAX_ITEM_PURCHASES, PRESSURE_WIN_ADJ, FLOW_STATE_WIN_SCHEDULE } from './utils/lottery';
 import { getRandomTheme, getRandomHighStakesTheme } from './utils/themes';
+import LuckyNumberScreen from './components/LuckyNumberScreen';
 import './App.css';
 
 // ── localStorage keys ─────────────────────────────────────────────────────────
@@ -153,16 +154,16 @@ function streakFlowMult(n) {
   return 1 + Math.max(0, n - 2) * STREAK_FLOW_BONUS;
 }
 
-function makeOption(speedMode, balance, forceWin = false, isDark = false, pressureAdj = 0) {
+function makeOption(speedMode, balance, forceWin = false, isDark = false, pressureAdj = 0, sessionLuckyNum = null) {
   const theme = getRandomTheme();
   const cost  = speedMode ? 1 : theme.price;
-  const card  = generateCard(speedMode ? { ...theme, price: 1 } : theme, forceWin, pressureAdj);
+  const card  = generateCard(speedMode ? { ...theme, price: 1 } : theme, forceWin, pressureAdj, sessionLuckyNum);
   return { theme, card, cost, canAfford: balance >= cost, isDark };
 }
 
-function makeHighStakesOption(balance, price, pressureAdj = 0) {
+function makeHighStakesOption(balance, price, pressureAdj = 0, sessionLuckyNum = null) {
   const theme = getRandomHighStakesTheme(price);
-  const card  = generateCard(theme, false, pressureAdj);
+  const card  = generateCard(theme, false, pressureAdj, sessionLuckyNum);
   return { theme, card, cost: price, canAfford: balance >= price, isHighStakes: true };
 }
 
@@ -170,10 +171,10 @@ function sortOptions(opts) {
   return opts.sort((a, b) => a.cost - b.cost || a.theme.name.localeCompare(b.theme.name));
 }
 
-function generatePickerOptions(speedMode, balance, allowRisk = false, pressureLvl = 0) {
+function generatePickerOptions(speedMode, balance, allowRisk = false, pressureLvl = 0, sessionLuckyNum = null) {
   const pressureAdj = PRESSURE_WIN_ADJ[pressureLvl] ?? 0;
-  const options = [makeOption(speedMode, balance, true, false, pressureAdj)];
-  for (let i = 0; i < PICKER_COUNT - 1; i++) options.push(makeOption(speedMode, balance, false, false, pressureAdj));
+  const options = [makeOption(speedMode, balance, true, false, pressureAdj, sessionLuckyNum)];
+  for (let i = 0; i < PICKER_COUNT - 1; i++) options.push(makeOption(speedMode, balance, false, false, pressureAdj, sessionLuckyNum));
 
   // Maybe inject one high-stakes card (not in speed mode)
   if (!speedMode && Math.random() < HIGH_STAKES_APPEAR_CHANCE) {
@@ -181,7 +182,7 @@ function generatePickerOptions(speedMode, balance, allowRisk = false, pressureLv
     if (unlocked.length > 0) {
       const tier = unlocked[Math.floor(Math.random() * unlocked.length)];
       const idx  = Math.floor(Math.random() * options.length);
-      options[idx] = makeHighStakesOption(balance, tier.price, pressureAdj);
+      options[idx] = makeHighStakesOption(balance, tier.price, pressureAdj, sessionLuckyNum);
     }
   }
 
@@ -196,16 +197,18 @@ function generatePickerOptions(speedMode, balance, allowRisk = false, pressureLv
   return sortOptions(options);
 }
 
-// Flow State: descending winner guarantee per round
-function generateFlowPickerOptions(speedMode, balance, flowRound, pressureLvl = 0) {
+// Flow State: winner guarantee follows FLOW_STATE_WIN_SCHEDULE
+// Rd1=6/6, Rd2=6/6, Rd3=5/6, Rd4=4/6, Rd5=3/6, Rd6=2/6, Rd7+=1/6
+function generateFlowPickerOptions(speedMode, balance, flowRound, pressureLvl = 0, sessionLuckyNum = null) {
   const pressureAdj = PRESSURE_WIN_ADJ[pressureLvl] ?? 0;
-  const winCount   = Math.max(1, 7 - flowRound); // Rd1=6,Rd2=5,...,Rd6+=1
+  const schedIdx  = Math.min(flowRound - 1, FLOW_STATE_WIN_SCHEDULE.length - 1);
+  const winCount  = FLOW_STATE_WIN_SCHEDULE[Math.max(0, schedIdx)];
   const loserCount = PICKER_COUNT - winCount;
   const opts = [];
   for (let i = 0; i < winCount; i++)
-    opts.push(makeOption(speedMode, balance, true, false, pressureAdj));
+    opts.push(makeOption(speedMode, balance, true, false, pressureAdj, sessionLuckyNum));
   for (let i = 0; i < loserCount; i++)
-    opts.push(makeOption(speedMode, balance, false, flowRound >= 4, pressureAdj));
+    opts.push(makeOption(speedMode, balance, false, flowRound >= 4, pressureAdj, sessionLuckyNum));
   return sortOptions(opts);
 }
 
@@ -271,6 +274,11 @@ export default function App() {
     localStorage.setItem(LS_LIFETIME, next);
     checkLifetimeMilestones(next);
   }, [checkLifetimeMilestones]);
+
+  // ── Mack's Lucky Number — selected once per session before the first card ─
+  const [sessionLuckyNumber, setSessionLuckyNumber] = useState(null);
+  const [showLuckyScreen,    setShowLuckyScreen]    = useState(false);
+  const sessionLuckyNumRef = useRef(null);
 
   // ── Opening cutscene (first visit only) ──────────────────────────────────
   const [showCutscene, setShowCutscene] = useState(() => !localStorage.getItem('cutscene_seen'));
@@ -529,8 +537,8 @@ export default function App() {
       && balanceRef.current >= RISK_CARD_MIN_BALANCE;
     const opts = pregenOptions ||
       (flowStateRef.current
-        ? generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current)
-        : generatePickerOptions(speedModeRef.current, balanceRef.current, allowRisk, pressureLvlRef.current));
+        ? generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current, sessionLuckyNumRef.current)
+        : generatePickerOptions(speedModeRef.current, balanceRef.current, allowRisk, pressureLvlRef.current, sessionLuckyNumRef.current));
     setPickerOptions(opts);
     slideOut(() => slideInNew(() => {
       setWinMsg(null); setCardFlash('');
@@ -548,7 +556,16 @@ export default function App() {
     switch (id) {
       case 'coffee':   timeLeftRef.current += 10; setTimeLeft(t => t + 10); break;
       case 'fries':    setBrushBoostSecs(10); break;
-      case 'gas':      updateFlowLevel(100); break;
+      case 'gas':
+        updateFlowLevel(100);
+        // If already in flow state, immediately regenerate picker with the correct
+        // guarantee schedule — cards currently on screen may be stale or mid-pick
+        if (flowStateRef.current) {
+          const freshOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current, sessionLuckyNumRef.current);
+          setPickerOptions(freshOpts);
+          setFlowPickResult(null);
+        }
+        break;
       case 'hotdog':   setHotDogTrigger(t => t + 1); break;
       case 'slushee':  setSlusheeSecs(5); stopTimer(); break;
       case 'luckystar': setNextCardWin(true); break;
@@ -565,61 +582,83 @@ export default function App() {
 
     const card  = cardRef.current;
     if (!card) return;
-    const prize = card.totalPrize;
+    const basePrize = card.totalPrize;
 
-    if (prize > 0) {
-      // ── Streak: increment and apply prize multiplier ──────────────────
-      const newStreak = consecWinsRef.current + 1;
-      consecWinsRef.current = newStreak;
-      setConsecWins(newStreak);
-      // Clear any break-animation that might still be running
-      if (newStreak === STREAK_SHOW_MIN && streakBreakTimerRef.current) {
-        clearTimeout(streakBreakTimerRef.current);
-        streakBreakTimerRef.current = null;
-        setPrevStreak(0);
+    if (basePrize > 0) {
+      const isLuckyMatch = !!card.sessionLuckyIsMatch;
+      // Lucky match: 1.3× multiplier applied to base prize; 500 ms anticipation pause
+      const prize = isLuckyMatch ? Math.ceil(basePrize * 1.3) : basePrize;
+
+      const applyWin = () => {
+        // Lucky match closing-loop moment — Grig echoes the selection screen "Hm."
+        if (isLuckyMatch) {
+          speakDialogue('Hm.');
+          cardsSinceAttendantRef.current = 0;
+        }
+
+        // ── Streak: increment and apply prize multiplier ──────────────────
+        const newStreak = consecWinsRef.current + 1;
+        consecWinsRef.current = newStreak;
+        setConsecWins(newStreak);
+        // Clear any break-animation that might still be running
+        if (newStreak === STREAK_SHOW_MIN && streakBreakTimerRef.current) {
+          clearTimeout(streakBreakTimerRef.current);
+          streakBreakTimerRef.current = null;
+          setPrevStreak(0);
+        }
+        const sMult   = streakPrizeMult(newStreak);
+        const boosted = sMult > 1 ? Math.floor(prize * sMult) : prize;
+        const dur     = boosted >= 500 ? 2000 : boosted < 10 ? 400 : 800;
+        const tier    = prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small';
+        const label   = prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN';
+        const multTag = sMult > 1 ? `🔥×${sMult} ` : '';
+        const espTag  = isLuckyMatch ? '✦ ' : '';
+
+        setBalanceDuration(dur);
+        updateBalance(b => b + boosted);
+        setTotalWon(t => t + boosted);
+        setBiggestWin(b => Math.max(b, boosted));
+        applyWinFeedback(prize);
+        addLifetimeEarned(boosted);
+
+        // ── Prize count-up animation ────────────────────────────────────
+        prizeRafCancelRef.current?.();
+        const initText = sMult > 1
+          ? `${espTag}🔥×${sMult} ${label} — +0 🪙 → +${boosted.toLocaleString()} 🪙`
+          : `${espTag}${label} — +0 🪙`;
+        setWinMsg({ text: initText, tier });
+        prizeRafCancelRef.current = soundRef.current?.countUp(boosted, dur, (current, t) => {
+          const finished = t >= 1;
+          const text = finished
+            ? `${espTag}${multTag}${label} — +${boosted.toLocaleString()} 🪙`
+            : sMult > 1
+              ? `${espTag}🔥×${sMult} ${label} — +${current.toLocaleString()} 🪙 → +${boosted.toLocaleString()} 🪙`
+              : `${espTag}${label} — +${current.toLocaleString()} 🪙`;
+          setWinMsg({ text, tier });
+        });
+
+        const flowBase = prize >= 500 ? 50 : prize >= 30 ? 35 : 18;
+        updateFlowLevel(flowBase * pressureMult(timeLeftRef.current, balanceRef.current) * streakFlowMult(newStreak));
+
+        // ── Grig streak reactions (immediate — override 4-card rule) ────
+        if (!isLuckyMatch) { // lucky match already spoke above
+          if      (newStreak === STREAK_THRESHOLD_A) { speakDialogue('Hm.'); cardsSinceAttendantRef.current = 0; }
+          else if (newStreak === STREAK_THRESHOLD_B) { speakDialogue('Chicken dinner, and all that.'); cardsSinceAttendantRef.current = 0; }
+          else if (newStreak === STREAK_THRESHOLD_C) { speakDialogue('Never seen this\u2026'); cardsSinceAttendantRef.current = 0; }
+          else                                        { maybeShowAttendant(); }
+        }
+
+        // Wait for count-up to finish (+400ms buffer), min 1200ms
+        const winDelay = Math.max(1200, dur + 400);
+        setTimeout(() => { prizeRafCancelRef.current?.(); showPicker(); }, winDelay);
+      };
+
+      // Lucky match: 500 ms ESP-intensification pause before win fires
+      if (isLuckyMatch) {
+        setTimeout(applyWin, 500);
+      } else {
+        applyWin();
       }
-      const sMult   = streakPrizeMult(newStreak);
-      const boosted = sMult > 1 ? Math.floor(prize * sMult) : prize;
-      const dur     = boosted >= 500 ? 2000 : boosted < 10 ? 400 : 800;
-      const tier    = prize >= 500 ? 'jackpot' : prize >= 20 ? 'big' : 'small';
-      const label   = prize >= 500 ? '🏆 JACKPOT' : prize >= 20 ? '💎 BIG WIN' : '🎉 WIN';
-      const multTag = sMult > 1 ? `🔥×${sMult} ` : '';
-
-      setBalanceDuration(dur);
-      updateBalance(b => b + boosted);
-      setTotalWon(t => t + boosted);
-      setBiggestWin(b => Math.max(b, boosted));
-      applyWinFeedback(prize); // visual tier based on base prize
-      addLifetimeEarned(boosted);
-
-      // ── Prize count-up animation ──────────────────────────────────────
-      prizeRafCancelRef.current?.();
-      const initText = sMult > 1
-        ? `🔥×${sMult} ${label} — +0 🪙 → +${boosted.toLocaleString()} 🪙`
-        : `${label} — +0 🪙`;
-      setWinMsg({ text: initText, tier });
-      prizeRafCancelRef.current = soundRef.current?.countUp(boosted, dur, (current, t) => {
-        const finished = t >= 1;
-        const text = finished
-          ? `${multTag}${label} — +${boosted.toLocaleString()} 🪙`
-          : sMult > 1
-            ? `🔥×${sMult} ${label} — +${current.toLocaleString()} 🪙 → +${boosted.toLocaleString()} 🪙`
-            : `${label} — +${current.toLocaleString()} 🪙`;
-        setWinMsg({ text, tier });
-      });
-
-      const flowBase = prize >= 500 ? 50 : prize >= 30 ? 35 : 18;
-      updateFlowLevel(flowBase * pressureMult(timeLeftRef.current, balanceRef.current) * streakFlowMult(newStreak));
-
-      // ── Grig streak reactions (immediate — override 4-card rule) ──────
-      if      (newStreak === STREAK_THRESHOLD_A) { speakDialogue('Hm.'); cardsSinceAttendantRef.current = 0; }
-      else if (newStreak === STREAK_THRESHOLD_B) { speakDialogue('Chicken dinner, and all that.'); cardsSinceAttendantRef.current = 0; }
-      else if (newStreak === STREAK_THRESHOLD_C) { speakDialogue('Never seen this\u2026'); cardsSinceAttendantRef.current = 0; }
-      else                                        { maybeShowAttendant(); }
-
-      // Wait for count-up to finish (+400ms buffer), min 1200ms
-      const winDelay = Math.max(1200, dur + 400);
-      setTimeout(() => { prizeRafCancelRef.current?.(); showPicker(); }, winDelay);
     } else {
       // ── Streak break ─────────────────────────────────────────────────
       const broken = consecWinsRef.current;
@@ -704,7 +743,7 @@ export default function App() {
     setTimeout(() => {
       setFlowPickResult(null);
       if (flowStateRef.current) {
-        const newOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current);
+        const newOpts = generateFlowPickerOptions(speedModeRef.current, balanceRef.current, flowRoundRef.current, pressureLvlRef.current, sessionLuckyNumRef.current);
         setPickerOptions(newOpts);
       } else {
         showPicker();
@@ -742,7 +781,7 @@ export default function App() {
     // Lucky Star: regenerate the chosen card as a guaranteed winner
     let card = opt.card;
     if (nextCardWinRef.current) {
-      card = generateCard(opt.theme, true);
+      card = generateCard(opt.theme, true, 0, sessionLuckyNumRef.current);
       setNextCardWin(false);
     }
 
@@ -758,15 +797,24 @@ export default function App() {
     }));
   }, [pickerOptions, slideOut, slideInNew, handleFlowPick]);
 
-  // ── Start session ──────────────────────────────────────────────────────────
-  const startFirstCard = useCallback(() => {
-    const options = generatePickerOptions(speedModeRef.current, balanceRef.current, false, pressureLvlRef.current);
+  // ── Lucky number selection — player picks before first card ───────────────
+  const handleLuckyPick = useCallback((num) => {
+    sessionLuckyNumRef.current = num;
+    setSessionLuckyNumber(num);
+    setShowLuckyScreen(false);
+    const options = generatePickerOptions(speedModeRef.current, balanceRef.current, false, pressureLvlRef.current, num);
     setPickerOptions(options);
     setSlideTarget('picker');
     setPhase('picking'); phaseRef.current = 'picking';
     startTimer();
     startDrain();
   }, [startTimer, startDrain]);
+
+  // ── Start session — show lucky number screen first ─────────────────────────
+  const startFirstCard = useCallback(() => {
+    speakDialogue('Hm.');
+    setShowLuckyScreen(true);
+  }, [speakDialogue]);
 
   // ── End session ────────────────────────────────────────────────────────────
   const handleEndSession = useCallback(() => {
@@ -822,6 +870,10 @@ export default function App() {
     if (friesTimerRef.current)   { clearInterval(friesTimerRef.current);   friesTimerRef.current   = null; }
     if (slusheeTimerRef.current) { clearInterval(slusheeTimerRef.current); slusheeTimerRef.current = null; }
     if (drainIntervalRef.current) { clearInterval(drainIntervalRef.current); drainIntervalRef.current = null; }
+    // Reset lucky number for new session
+    sessionLuckyNumRef.current = null;
+    setSessionLuckyNumber(null);
+    setShowLuckyScreen(false);
     // Reset session dialogue state (lifetime milestones and lifetimeEarned persist)
     cardsSinceAttendantRef.current = 0;
     lastAttendantLineRef.current   = null;
@@ -968,6 +1020,7 @@ export default function App() {
                     brushBoost={brushBoost}
                     hotDogTrigger={hotDogTrigger}
                     scratchToolUnlocked={true}
+                    sessionLuckyNumber={sessionLuckyNumber}
                   />
                   {winMsg && <div className={`result-msg tier-${winMsg.tier}`}>{winMsg.text}</div>}
                 </div>
@@ -1008,6 +1061,7 @@ export default function App() {
       {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} won={goReason === 'win'} onPlayAgain={handlePlayAgain} onStartFresh={handleStartFresh} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
       {showTutorial && !showCutscene && <Tutorial onDone={() => { speakDialogue('Good luck.'); setShowTutorial(false); }} />}
+      {showLuckyScreen && <LuckyNumberScreen onPick={handleLuckyPick} />}
       {showCutscene && (
         <AttendantCutscene onDone={() => {
           localStorage.setItem('cutscene_seen', '1');
