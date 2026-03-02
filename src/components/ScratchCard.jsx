@@ -68,21 +68,42 @@ const BLOCK_H    = CH / BLOCK_ROWS;   // 7.6px
 const TOTAL_BLOCKS = BLOCK_COLS * BLOCK_ROWS; // 1000
 
 // ── Group formation cells into horizontal row bands ───────────────────────────
-// Cells whose block-row ranges touch or overlap are merged into one row group.
-function groupIntoRows(formCells) {
+// Groups by fractional y-coordinate (the formation's own row structure) so that
+// block-boundary quantization never accidentally merges adjacent formation rows.
+// Cells with the same fc.y (within a small tolerance) belong to the same band.
+function groupIntoRows(formCells, formationId) {
   if (!formCells || !formCells.length) return [];
   const usableH = CH - ART_LABEL_H;
-  const ranges = formCells.map(fc => ({
-    by0: Math.max(0,              Math.floor((ART_LABEL_H + fc.y * usableH) / BLOCK_H)),
-    by1: Math.min(BLOCK_ROWS - 1, Math.ceil( (ART_LABEL_H + (fc.y + fc.h) * usableH) / BLOCK_H) - 1),
-  }));
-  ranges.sort((a, b) => a.by0 - b.by0);
-  const rows = [];
-  let cur = null;
-  for (const r of ranges) {
-    if (!cur || r.by0 > cur.by1) { cur = { by0: r.by0, by1: r.by1 }; rows.push(cur); }
-    else { cur.by1 = Math.max(cur.by1, r.by1); }
+
+  // Step 1 — bucket cells by their fractional y position
+  const Y_TOL  = 0.001;
+  const yBands = [];
+  for (const fc of formCells) {
+    let band = yBands.find(b => Math.abs(b.fy - fc.y) < Y_TOL);
+    if (!band) { band = { fy: fc.y, cells: [] }; yBands.push(band); }
+    band.cells.push(fc);
   }
+  yBands.sort((a, b) => a.fy - b.fy);
+
+  // Step 2 — map each band to block-row extents
+  const rows = yBands.map(band => {
+    const by0s = band.cells.map(fc => Math.floor((ART_LABEL_H + fc.y          * usableH) / BLOCK_H));
+    const by1s = band.cells.map(fc => Math.ceil( (ART_LABEL_H + (fc.y + fc.h) * usableH) / BLOCK_H) - 1);
+    return {
+      by0: Math.max(0,              Math.min(...by0s)),
+      by1: Math.min(BLOCK_ROWS - 1, Math.max(...by1s)),
+    };
+  });
+
+  // Dev-only log: confirm formation → cell → row → button consistency
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(
+      `[rows] formation=${formationId ?? '?'}  cells=${formCells.length}  ` +
+      `rows=${rows.length}  buttons=${rows.length}`,
+      rows.map(r => `[${r.by0}–${r.by1}]`).join(' '),
+    );
+  }
+
   return rows;
 }
 
@@ -198,7 +219,7 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
   const [completed, setCompleted] = useState(false);
   const [usedRows,  setUsedRows]  = useState(new Set());
   const firstFiredRef = useRef(false);
-  const rows = useMemo(() => groupIntoRows(formCells), [formCells]);
+  const rows = useMemo(() => groupIntoRows(formCells, formation?.id), [formCells, formation]);
 
   // ── Sparkles + deal animation ────────────────────────────────────────────
   useEffect(() => {
