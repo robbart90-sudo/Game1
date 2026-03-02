@@ -168,6 +168,16 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   background: rgba(0,0,0,0.12);
   border-color: rgba(0,0,0,0.22);
 }
+.info-btn--reset {
+  color: rgba(180,40,40,0.50);
+  border-color: rgba(180,40,40,0.18);
+  font-size: 1.1rem;
+}
+.info-btn--reset:hover {
+  background: rgba(180,40,40,0.08);
+  border-color: rgba(180,40,40,0.32);
+  color: rgba(180,40,40,0.75);
+}
 
 /* ── Game area ──────────────────────────────────────────────────────── */
 .game-area {

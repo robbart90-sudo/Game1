@@ -963,6 +963,24 @@ export default function App() {
   const handlePlayAgain  = useCallback(() => doRestart(false), [doRestart]);
   const handleStartFresh = useCallback(() => doRestart(true),  [doRestart]);
 
+  // ── Full game reset — wipes ALL persisted data and returns to square one ───
+  const handleFullReset = useCallback(() => {
+    if (!window.confirm('Reset all game data?\n\nThis clears your balance, lifetime earnings, lucky number, and all progress.')) return;
+    // Clear every persisted key
+    [LS_BALANCE, LS_LIFETIME, LS_MILESTONES, LS_LUCKY, LS_HS_UNLOCKED].forEach(k => localStorage.removeItem(k));
+    // Reset persistent refs
+    lifetimeEarnedRef.current        = 0;
+    triggeredMilestonesRef.current   = new Set();
+    unlockedHSRef.current            = new Set();
+    sessionLuckyNumRef.current       = null;
+    // Reset persistent React state
+    setLifetimeEarned(0);
+    setUnlockedHSPrices(new Set());
+    setSessionLuckyNumber(null);
+    // Reset session (balance → STARTING_BALANCE, phase → intro)
+    doRestart(true);
+  }, [doRestart]);
+
   // ── Fries: 50% bigger brush countdown (10 s) ─────────────────────────────
   useEffect(() => {
     if (brushBoostSecs <= 0 || friesTimerRef.current) return;
@@ -1046,6 +1064,7 @@ export default function App() {
           <button className="info-btn" onClick={sound.toggleMute} title={sound.muted ? 'Unmute' : 'Mute'}>{sound.muted ? '🔇' : '🔊'}</button>
           <button className="info-btn" onClick={() => setShowTutorial(true)} title="How to play">?</button>
           <button className="info-btn" onClick={() => setShowTiers(true)}>ℹ️</button>
+          <button className="info-btn info-btn--reset" onClick={handleFullReset} title="Reset all game data">↺</button>
         </div>
       </header>
 
