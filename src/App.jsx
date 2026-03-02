@@ -186,7 +186,9 @@ function generatePickerOptions(speedMode, balance, allowRisk = false, pressureLv
 
   // Maybe inject one high-stakes card (not in speed mode).
   // Pool: $30 bridge (always) + permanently unlocked tiers — no current-balance gate.
-  if (!speedMode && Math.random() < HIGH_STAKES_APPEAR_CHANCE) {
+  // Always inject when real tiers are unlocked; fall back to 18% chance for bridge-only.
+  const hasUnlockedTiers = unlockedHSPrices.size > 0;
+  if (!speedMode && (hasUnlockedTiers || Math.random() < HIGH_STAKES_APPEAR_CHANCE)) {
     const availableHS = [HIGH_STAKES_BRIDGE_PRICE, ...unlockedHSPrices];
     const price = availableHS[Math.floor(Math.random() * availableHS.length)];
     const idx   = Math.floor(Math.random() * options.length);
@@ -301,6 +303,9 @@ export default function App() {
       localStorage.setItem(LS_HS_UNLOCKED, JSON.stringify([...next]));
     }
   }, []);
+
+  // Belt-and-suspenders: keep unlockedHSRef in sync whenever state changes
+  useEffect(() => { unlockedHSRef.current = unlockedHSPrices; }, [unlockedHSPrices]);
 
   // Add to lifetime earnings (persisted forever) and check milestones + HS unlocks
   const addLifetimeEarned = useCallback((amount) => {
@@ -999,7 +1004,10 @@ export default function App() {
         padding: '6px 10px', borderRadius: 4, pointerEvents: 'none',
         whiteSpace: 'pre',
       }}>
-        {`balance:  ${balance}\nlifetime: ${lifetimeEarned}\nunlocked: [${[...unlockedHSPrices].sort((a, b) => a - b).join(', ')}]\nretired≤: ${computeRetiredMaxCost(unlockedHSPrices)}`}
+        {(() => {
+          const nextUnlock = HIGH_STAKES_UNLOCK_THRESHOLDS.find(t => !unlockedHSPrices.has(t.price));
+          return `balance:  ${balance}\nlifetime: ${lifetimeEarned}${nextUnlock ? ` / next unlock $${nextUnlock.price} at ${nextUnlock.lifetime}` : ' (all unlocked)'}\nunlocked: [${[...unlockedHSPrices].sort((a, b) => a - b).join(', ') || 'none'}]\nretired≤: ${computeRetiredMaxCost(unlockedHSPrices)}`;
+        })()}
       </div>
 
       {/* ── Flow State banner ─────────────────── */}
