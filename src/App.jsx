@@ -535,15 +535,11 @@ export default function App() {
     setShowFlowBanner(true);
     setTimeout(() => setShowFlowBanner(false), 1000);
     clearInterval(flowDrainRef.current);
+    flowDrainRef.current = null;
     stopTimer(); // freeze countdown during flow state
     soundRef.current?.flowActivate();
     triggerFlowMilestone();
-    // Drain ~8 pts/s
-    flowDrainRef.current = setInterval(() => {
-      flowLevelRef.current = Math.max(0, flowLevelRef.current - 1.2);
-      setFlowLevel(Math.round(flowLevelRef.current));
-      if (flowLevelRef.current <= 0 && flowStateRef.current) exitFlowState();
-    }, 150);
+    // Bar stays frozen at 100 — flow state only ends by picking a non-winning card.
   }, [exitFlowState, stopTimer, triggerFlowMilestone]);
 
   const updateFlowLevel = useCallback((delta) => {

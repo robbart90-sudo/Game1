@@ -727,6 +727,13 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
     // producing the jagged coin-drag look at the visible boundary.
     const rowLeading = new Array(BLOCK_ROWS).fill(-1);
 
+    // Per-row maximum column — each row stops independently at ~68–90% width
+    // so the tool leaves an organic, visibly-incomplete trailing edge (~80% mean).
+    const rowEndBx = new Array(BLOCK_ROWS);
+    for (let by = by0; by <= by1; by++) {
+      rowEndBx[by] = Math.floor((0.68 + Math.random() * 0.22) * BLOCK_COLS);
+    }
+
     // Pre-compute 1–2 stutter windows (brief coin-catching hesitations mid-wipe).
     // Defined in absolute ms from start so the pause is frame-rate independent.
     const stutters = [];
@@ -762,13 +769,13 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
       let anyNew = false;
       for (let by = by0; by <= by1; by++) {
         // Jagged edge: two overlapping sine waves — one static (row-based),
-        // one time-evolving (shifts as the wipe moves) — total ±1.6 blocks ≈ ±13 px
+        // one time-evolving (shifts as the wipe moves) — total ±3.5 blocks ≈ ±28 px
         const jag = Math.round(
-          Math.sin(by * 1.7 + wipePhase + easedT * Math.PI * 2.5) * 1.0 +
-          Math.sin(by * 3.1 + wipePhase * 1.6)                    * 0.6,
+          Math.sin(by * 1.7 + wipePhase + easedT * Math.PI * 2.5) * 2.2 +
+          Math.sin(by * 3.1 + wipePhase * 1.6)                    * 1.3,
         );
-        // targetBx never retreats: already-scratched blocks stay visible
-        const targetBx = Math.max(rowLeading[by], Math.min(BLOCK_COLS - 1, nominalBx + jag));
+        // targetBx never retreats, and is capped at this row's individual endpoint
+        const targetBx = Math.max(rowLeading[by], Math.min(rowEndBx[by], nominalBx + jag));
 
         for (let bx = rowLeading[by] + 1; bx <= targetBx; bx++) {
           scratchBlock(bx, by);
@@ -800,11 +807,8 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
       if (rawT < 1) {
         requestAnimationFrame(step);
       } else {
-        // Final pass: guarantee every block in the row is scratched
-        // (compensates for stutter time and jag offsets at the right edge)
-        for (let by = by0; by <= by1; by++) {
-          for (let bx = rowLeading[by] + 1; bx < BLOCK_COLS; bx++) scratchBlock(bx, by);
-        }
+        // Animation complete — rows stop at their individual rowEndBx.
+        // No fill-to-edge pass so the trailing edge stays visibly jagged (~80%).
         checkCoverage();
       }
     };
