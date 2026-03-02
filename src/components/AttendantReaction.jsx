@@ -126,8 +126,8 @@ export default function AttendantReaction({ msg }) {
   }, []);
 
   return (
-    <div className="ar-wrap">
-      {/* Portrait — always visible */}
+    <div className={`ar-wrap${mounted ? ' ar-wrap--speaking' : ''}`}>
+      {/* Portrait — always visible on desktop; slides in with panel on mobile */}
       <div className="ar-char-emoji">
         <span
           className={`ar-char-icon${emojiFading ? ' ar-char-icon--fade' : ''}`}

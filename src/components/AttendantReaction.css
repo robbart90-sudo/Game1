@@ -1,16 +1,43 @@
 /* ── Attendant Reaction ────────────────────────────────────────────────────
-   Sits inline inside kiosk-right, below the shop.
-   Portrait is always rendered; speech bubble fades in/out when Grig speaks.
+   Desktop (≥900px): inline in kiosk-right, permanently visible below the
+                     car button.  Portrait always shows; only the speech
+                     bubble animates in/out.
+   Mobile  (<900px): fixed overlay at the bottom of the viewport.  The whole
+                     panel slides in from below when Grig speaks and slides
+                     back out when the line expires.
    ────────────────────────────────────────────────────────────────────────── */
 
+/* ── Desktop default: inline, always present ──────────────────────────── */
 .ar-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0;
-  padding: 8px 16px 4px;
+  padding: 6px 0 4px;
   pointer-events: none;
   width: 100%;
+}
+
+/* ── Mobile: fixed overlay, hidden by default, slides up when speaking ── */
+@media (max-width: 899px) {
+  .ar-wrap {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    /* Resting state: pushed fully below the viewport */
+    transform: translateX(-50%) translateY(100%);
+    transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 200;
+    padding: 0 16px 14px;
+    width: max-content;
+    max-width: 100vw;
+    gap: 0;
+  }
+
+  /* Speaking state: panel slides up into view */
+  .ar-wrap--speaking {
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 /* ── Character portrait ───────────────────────────────────────────────── */
@@ -50,7 +77,9 @@
   border: 2px solid #1a1a1a;
   border-radius: 12px;
   padding: 9px 13px;
-  max-width: 210px;
+  /* Constrained to right column: never wider than the container */
+  width: max-content;
+  max-width: min(210px, 100%);
   font-family: Arial, 'Helvetica Neue', sans-serif;
   font-size: 0.8rem;
   font-weight: 600;
@@ -61,9 +90,10 @@
   text-align: center;
   margin-top: 12px; /* space for the upward tail */
 
+  /* Gentle fade up from below — 0.2 s as specified */
   opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 200ms ease, transform 200ms ease;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .ar-bubble--visible {

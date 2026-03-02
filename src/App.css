@@ -482,6 +482,15 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   gap: 14px;
 }
 
+/* ── Shop + Grig group: tight gap so Grig sits flush below the car button */
+.shop-grig-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;  /* 8-12 px as specified — keeps Grig close to the car button */
+  width: 100%;
+}
+
 /* ══════════════════════════════════════════════════════════════════════
    DESKTOP LAYOUT — full-viewport two-column kiosk terminal
    Activates above 900 px.  Mobile styles above are unchanged.
@@ -661,11 +670,6 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   .kiosk-right .gss-wrap {
     max-width: none;
     width: 100%;
-  }
-
-  /* Push Grig to the bottom of the sticky right panel */
-  .kiosk-right .ar-wrap {
-    margin-top: auto;
   }
 
   .status-panel {

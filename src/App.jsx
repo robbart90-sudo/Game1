@@ -1095,17 +1095,22 @@ export default function App() {
                 />
                 <FlowMeter flowLevel={flowLevel} flowState={flowState} flowRound={flowRound} />
               </div>
-              {!gameOver && (
-                <GasStationShop
-                  balance={balance}
-                  phase={phase}
-                  brushBoostSecs={brushBoostSecs}
-                  slusheeSecs={slusheeSecs}
-                  nextCardWin={nextCardWin}
-                  purchaseCounts={shopPurchaseCounts}
-                  onBuy={handleShopBuy}
-                />
-              )}
+              {/* Shop + Grig grouped tightly — Grig sits directly below the car button */}
+              <div className="shop-grig-group">
+                {!gameOver && (
+                  <GasStationShop
+                    balance={balance}
+                    phase={phase}
+                    brushBoostSecs={brushBoostSecs}
+                    slusheeSecs={slusheeSecs}
+                    nextCardWin={nextCardWin}
+                    purchaseCounts={shopPurchaseCounts}
+                    onBuy={handleShopBuy}
+                  />
+                )}
+                {/* Grig — inline on desktop (always visible), fixed overlay on mobile */}
+                <AttendantReaction msg={attendantMsg} />
+              </div>
               {!gameOver && (
                 <ModifierTray
                   consecWins={consecWins}
@@ -1115,8 +1120,6 @@ export default function App() {
                   nextCardWin={nextCardWin}
                 />
               )}
-              {/* Grig — always visible below the shop */}
-              <AttendantReaction msg={attendantMsg} />
             </div>
 
             {/* ── Left column — card + picker ──────────────── */}
