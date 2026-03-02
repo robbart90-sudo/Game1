@@ -941,7 +941,7 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
                     {String(cell.number).padStart(2, '0')}
                   </span>
                   {completed && cell.isMatch && cell.prize > 0 && (
-                    <span className="art-prize">+{cell.prize.toLocaleString()}🪙</span>
+                    <span className="art-prize">+{cell.prize.toLocaleString()}<span className="coin">🪙</span></span>
                   )}
                   {cell.isMatch && completed && (
                     <span

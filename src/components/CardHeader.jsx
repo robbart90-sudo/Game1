@@ -291,7 +291,7 @@ export default function CardHeader({ theme, illustrationLayer = null }) {
 
       {/* ── Price badge ──────────────────────────────────────────────── */}
       <div className="card-header__price">
-        {theme.price}🪙
+        {theme.price}<span className="coin">🪙</span>
       </div>
 
       {/* ── Emoji + name ─────────────────────────────────────────────── */}

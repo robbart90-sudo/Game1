@@ -12,7 +12,7 @@ export default function GoalBar({ balance, achieved }) {
       <div className="goal-bar-label">
         <span>SESSION GOAL</span>
         <span className="goal-target">
-          {achieved ? '🏆 ACHIEVED!' : `${Math.round(clamped)}% · Double to ${GOAL}🪙`}
+          {achieved ? '🏆 ACHIEVED!' : <>{Math.round(clamped)}% · Double to {GOAL}<span className="coin">🪙</span></>}
         </span>
       </div>
       <div className="goal-track">

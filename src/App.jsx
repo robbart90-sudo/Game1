@@ -1053,7 +1053,7 @@ export default function App() {
           <div className="intro">
             <div className="intro-icon">🎟️</div>
             <p>120 themed cards — scratch to reveal your prize</p>
-            <p className="intro-sub">Match numbers · 1–20 🪙 per card · ⚡ for speed mode</p>
+            <p className="intro-sub">Match numbers · 1–20 <span className="coin">🪙</span> per card · ⚡ for speed mode</p>
             <button className="action-btn buy-btn start-btn" onClick={startFirstCard}>🎟️ Start Scratching</button>
           </div>
         )}

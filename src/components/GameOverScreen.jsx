@@ -36,19 +36,19 @@ export default function GameOverScreen({ stats, timeExpired, won, onPlayAgain, o
           </div>
           <div className="go-row">
             <span>Total Spent</span>
-            <strong>{totalSpent.toLocaleString()} 🪙</strong>
+            <strong>{totalSpent.toLocaleString()} <span className="coin">🪙</span></strong>
           </div>
           <div className="go-row">
             <span>Total Won</span>
-            <strong>{totalWon.toLocaleString()} 🪙</strong>
+            <strong>{totalWon.toLocaleString()} <span className="coin">🪙</span></strong>
           </div>
           <div className="go-row">
             <span>Biggest Win</span>
-            <strong>{biggestWin.toLocaleString()} 🪙</strong>
+            <strong>{biggestWin.toLocaleString()} <span className="coin">🪙</span></strong>
           </div>
           <div className={`go-net ${net >= 0 ? 'profit' : 'loss'}`}>
             <span>Net {net >= 0 ? 'Profit' : 'Loss'}</span>
-            <strong>{net >= 0 ? '+' : ''}{net.toLocaleString()} 🪙</strong>
+            <strong>{net >= 0 ? '+' : ''}{net.toLocaleString()} <span className="coin">🪙</span></strong>
           </div>
         </div>
 

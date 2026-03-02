@@ -58,7 +58,7 @@ export default function GasStationShop({
                   <span className="gss-card-name">{name}</span>
                   <span className="gss-card-desc">{desc}</span>
                 </span>
-                <span className="gss-car-price">{cost.toLocaleString()}🪙</span>
+                <span className="gss-car-price">{cost.toLocaleString()}<span className="coin">🪙</span></span>
               </button>
             );
           }
@@ -94,7 +94,7 @@ export default function GasStationShop({
                 </div>
               ) : (
                 <>
-                  {!isMaxed && <span className="gss-badge">{cost}🪙</span>}
+                  {!isMaxed && <span className="gss-badge">{cost}<span className="coin">🪙</span></span>}
                   <span className="gss-card-emoji">{emoji}</span>
                   <span className="gss-card-name">{name}</span>
                   <span className="gss-card-desc">{isMaxed ? 'Sold out' : desc}</span>
@@ -110,7 +110,7 @@ export default function GasStationShop({
                 <span className="gss-tooltip-emoji">{emoji}</span>
                 <span className="gss-tooltip-effect">{desc}</span>
                 <span className="gss-tooltip-count">{purchaseCount} of {MAX_ITEM_PURCHASES} used</span>
-                <span className="gss-tooltip-cost">{cost}🪙</span>
+                <span className="gss-tooltip-cost">{cost}<span className="coin">🪙</span></span>
               </div>
             </button>
           );

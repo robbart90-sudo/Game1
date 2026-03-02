@@ -35,7 +35,7 @@ export default function PrizeTierTable({ visible, onClose }) {
             ))}
           </tbody>
         </table>
-        <p className="cost-note">Cards cost 1–20 🪙 · 120 themes</p>
+        <p className="cost-note">Cards cost 1–20 <span className="coin">🪙</span> · 120 themes</p>
         <button className="close-btn" onClick={onClose}>Close</button>
       </div>
     </div>

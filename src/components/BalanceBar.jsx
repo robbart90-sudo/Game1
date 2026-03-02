@@ -9,7 +9,7 @@ export default function BalanceBar({ balance, totalWon, cardsPlayed, speedMode, 
     <div className="balance-bar">
       <div className="stat">
         <span className="stat-label">Balance</span>
-        <span className="stat-value coins">{animBalance.toLocaleString()} 🪙</span>
+        <span className="stat-value coins">{animBalance.toLocaleString()} <span className="coin">🪙</span></span>
       </div>
       <div className="divider" />
       <div className="stat">
@@ -19,7 +19,7 @@ export default function BalanceBar({ balance, totalWon, cardsPlayed, speedMode, 
       <div className="divider" />
       <div className="stat">
         <span className="stat-label">Won</span>
-        <span className="stat-value won">{animWon.toLocaleString()} 🪙</span>
+        <span className="stat-value won">{animWon.toLocaleString()} <span className="coin">🪙</span></span>
       </div>
       <div className="divider" />
       <button

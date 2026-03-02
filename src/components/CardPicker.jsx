@@ -93,7 +93,7 @@ export default function CardPicker({ options, onPick, flowState = false, flowPic
 
                 {/* Floating prize / no-match text */}
                 {isWinCard && flowPickResult.prize > 0 && (
-                  <div className="flow-prize-float">+{flowPickResult.prize.toLocaleString()} 🪙</div>
+                  <div className="flow-prize-float">+{flowPickResult.prize.toLocaleString()} <span className="coin">🪙</span></div>
                 )}
                 {isLoseCard && (
                   <div className="flow-lose-text">No match</div>
@@ -113,7 +113,7 @@ export default function CardPicker({ options, onPick, flowState = false, flowPic
                       borderColor: isRisk ? '#D81F2688' : (canAfford ? `${theme.palette.border}88` : 'rgba(255,255,255,0.1)'),
                     }}
                   >
-                    {cost} 🪙
+                    {cost} <span className="coin">🪙</span>
                   </div>
                   {!canAfford && <div className="picker-cant-label">Can't afford</div>}
                 </div>

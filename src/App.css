@@ -1,6 +1,12 @@
 /* ── Reset ──────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Gold coin — shifts the 🪙 emoji from silver to gold on all platforms ── */
+.coin {
+  display: inline-block;
+  filter: sepia(0.8) saturate(6) hue-rotate(5deg) brightness(1.1);
+}
+
 html, body, #root {
   width: 100%;
   min-height: 100dvh;

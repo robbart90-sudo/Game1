@@ -464,6 +464,7 @@
   font-size: min(38cqi, 1.25rem);
   pointer-events: none;
   z-index: 4;
+  filter: sepia(0.8) saturate(6) hue-rotate(5deg) brightness(1.1);
   /* drops in from above, bounces twice, then fades — gold cell stays visible */
   animation: coinBounce 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
