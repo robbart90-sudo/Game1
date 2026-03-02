@@ -934,27 +934,41 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
       {/* ── Scratch Zone ─────────────────────────── */}
       <div className="scratch-zone">
 
-        {/* Row auto-scratch buttons — absolutely positioned so each button sits
-            exactly over its row's block range in the canvas (top/height in %).
-            Uses BLOCK_ROWS (25) as the grid so positions match the foil canvas. */}
+        {/* Row auto-scratch buttons — flex column where each segment's flex-grow
+            equals its block-row span, so heights match the canvas rows exactly
+            without relying on percentage resolution of abs-positioned children. */}
         {scratchToolUnlocked && !completed && rows.length > 0 && (
           <div className="row-btn-col">
-            {rows.map((row, i) => {
-              const topPct    = (row.by0 / BLOCK_ROWS) * 100;
-              const heightPct = ((row.by1 - row.by0 + 1) / BLOCK_ROWS) * 100;
-              if (usedRows.has(i)) {
-                return <div key={i} className="row-btn-spacer" style={{ position: 'absolute', top: `${topPct}%`, height: `${heightPct}%`, width: '100%' }} />;
+            {(() => {
+              const items = [];
+              // Top gap: label area (blocks 0 → rows[0].by0 - 1)
+              if (rows[0].by0 > 0) {
+                items.push(<div key="g-top" className="row-btn-gap" style={{ flex: `${rows[0].by0} 0 0` }} />);
               }
-              return (
-                <button
-                  key={i}
-                  className="row-scratch-btn"
-                  style={{ position: 'absolute', top: `${topPct}%`, height: `${heightPct}%` }}
-                  onClick={() => handleRowClick(i, row)}
-                  aria-label={`Auto-scratch row ${i + 1}`}
-                >▶</button>
-              );
-            })}
+              rows.forEach((row, i) => {
+                const span = row.by1 - row.by0 + 1;
+                if (usedRows.has(i)) {
+                  items.push(<div key={i} className="row-btn-spacer" style={{ flex: `${span} 0 0` }} />);
+                } else {
+                  items.push(
+                    <button
+                      key={i}
+                      className="row-scratch-btn"
+                      style={{ flex: `${span} 0 0` }}
+                      onClick={() => handleRowClick(i, row)}
+                      aria-label={`Auto-scratch row ${i + 1}`}
+                    >▶</button>
+                  );
+                }
+                // Gap between this row and the next (or bottom gap after last row)
+                const nextBy0 = i < rows.length - 1 ? rows[i + 1].by0 : BLOCK_ROWS;
+                const gap = nextBy0 - row.by1 - 1;
+                if (gap > 0) {
+                  items.push(<div key={`g${i}`} className="row-btn-gap" style={{ flex: `${gap} 0 0` }} />);
+                }
+              });
+              return items;
+            })()}
           </div>
         )}
 

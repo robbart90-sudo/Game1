@@ -287,14 +287,15 @@
 .row-btn-col {
   flex-shrink: 0;
   width: 30px;
-  position: relative; /* buttons are absolutely positioned inside */
+  display: flex;
+  flex-direction: column;
   background: rgba(0, 0, 0, 0.12);
-  /* no padding — percentages must be clean for absolute positioning to align with canvas rows */
 }
 
 .row-scratch-btn {
-  /* top/height set inline as % of BLOCK_ROWS so buttons align with canvas rows */
+  /* flex: <block-count> 0 0 set inline — height distributed proportionally via flex-grow */
   width: 100%;
+  min-height: 0;          /* allow flex to shrink below content size */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -332,8 +333,9 @@
   to   { opacity: 1; transform: translateX(0); }
 }
 
-/* invisible spacer — keeps column height stable after a button is used */
-.row-btn-spacer { /* flex value set inline */ }
+/* invisible gap/spacer segments — flex: <block-count> 0 0 set inline */
+.row-btn-gap    { min-height: 0; }
+.row-btn-spacer { min-height: 0; }
 
 /* ── Canvas area — contains art cells + foil canvas ─────────────────────── */
 .scratch-canvas-area {
