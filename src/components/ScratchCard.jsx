@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import Sparkles    from './Sparkles';
 import CardHeader  from './CardHeader';
 import './ScratchCard.css';
@@ -67,6 +67,25 @@ const BLOCK_W    = CW / BLOCK_COLS;   // 8px
 const BLOCK_H    = CH / BLOCK_ROWS;   // 7.6px
 const TOTAL_BLOCKS = BLOCK_COLS * BLOCK_ROWS; // 1000
 
+// ── Group formation cells into horizontal row bands ───────────────────────────
+// Cells whose block-row ranges touch or overlap are merged into one row group.
+function groupIntoRows(formCells) {
+  if (!formCells || !formCells.length) return [];
+  const usableH = CH - ART_LABEL_H;
+  const ranges = formCells.map(fc => ({
+    by0: Math.max(0,              Math.floor((ART_LABEL_H + fc.y * usableH) / BLOCK_H)),
+    by1: Math.min(BLOCK_ROWS - 1, Math.ceil( (ART_LABEL_H + (fc.y + fc.h) * usableH) / BLOCK_H) - 1),
+  }));
+  ranges.sort((a, b) => a.by0 - b.by0);
+  const rows = [];
+  let cur = null;
+  for (const r of ranges) {
+    if (!cur || r.by0 > cur.by1) { cur = { by0: r.by0, by1: r.by1 }; rows.push(cur); }
+    else { cur.by1 = Math.max(cur.by1, r.by1); }
+  }
+  return rows;
+}
+
 // Base brush radius (px) — at rest the brush is a circle of this size.
 const BASE_BRUSH_R = 22;
 // Speed (px/pointer-event in canvas coords) at which the capsule reaches full stretch.
@@ -119,7 +138,7 @@ function hotspotBlocks(fc) {
   };
 }
 
-const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soundScratch, flowLevel = 0, brushBoost = 1, hotDogTrigger = 0, sessionLuckyNumber = null, debugRows = 0 }, ref) {
+const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soundScratch, flowLevel = 0, brushBoost = 1, hotDogTrigger = 0, sessionLuckyNumber = null, debugRows = 0, scratchToolUnlocked = false, onFirstToolUse }, ref) {
   const { theme, luckyNumbers, cells } = cardData;
   const { palette, formation, tilt } = theme;
   const formCells  = formation ? formation.cells : [];
@@ -153,6 +172,9 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
   const [sparkles,  setSparkles]  = useState(false);
   const [isDealing, setIsDealing] = useState(true);
   const [completed, setCompleted] = useState(false);
+  const [usedRows,  setUsedRows]  = useState(new Set());
+  const firstFiredRef = useRef(false);
+  const rows = useMemo(() => groupIntoRows(formCells), [formCells]);
 
   // ── Sparkles + deal animation ────────────────────────────────────────────
   useEffect(() => {
@@ -170,6 +192,8 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
     scratchedCountRef.current = 0;
 
     espFadeRef.current = false;
+    setUsedRows(new Set());
+    firstFiredRef.current = false;
     // Fresh scratch state
     scratchedRef.current = new Uint8Array(TOTAL_BLOCKS);
 
@@ -685,6 +709,15 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
 
   useImperativeHandle(ref, () => ({ scratchRowBlocks }), [scratchRowBlocks]);
 
+  const handleRowClick = useCallback((rowIdx, row) => {
+    if (!firstFiredRef.current) {
+      firstFiredRef.current = true;
+      onFirstToolUse?.();
+    }
+    setUsedRows(prev => new Set([...prev, rowIdx]));
+    scratchRowBlocks(row.by0, row.by1, 400);
+  }, [onFirstToolUse, scratchRowBlocks]);
+
   const hdBg   = `linear-gradient(135deg, ${palette.hdr[0]}, ${palette.hdr[1]}, ${palette.hdr[2]})`;
   const cardBg = `linear-gradient(170deg, ${palette.bg[0]}, ${palette.bg[1]})`;
 
@@ -808,6 +841,31 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
 
       {/* ── Scratch Zone ─────────────────────────── */}
       <div className="scratch-zone">
+
+        {/* Row auto-scratch buttons — flex column, each button height proportional
+            to its row's block count so it aligns with the canvas rows naturally */}
+        {scratchToolUnlocked && !completed && rows.length > 0 && (
+          <div className="row-btn-col">
+            {rows.map((row, i) => {
+              const flex = row.by1 - row.by0 + 1;
+              if (usedRows.has(i)) {
+                return <div key={i} className="row-btn-spacer" style={{ flex }} />;
+              }
+              return (
+                <button
+                  key={i}
+                  className="row-scratch-btn"
+                  style={{ flex }}
+                  onClick={() => handleRowClick(i, row)}
+                  aria-label={`Auto-scratch row ${i + 1}`}
+                >▶</button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Canvas area — contains art cells + foil canvas, aspect-ratio drives height */}
+        <div className="scratch-canvas-area">
         <div
           className="card-art"
           style={{
@@ -883,6 +941,7 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
             onTouchStart={(e) => { pointerDown.current = true; lastPosRef.current = null; scratchAt(e.touches[0].clientX, e.touches[0].clientY); }}
           />
         )}
+        </div>{/* /.scratch-canvas-area */}
       </div>
 
       {/* ── Footer ───────────────────────────────── */}
