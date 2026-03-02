@@ -1,0 +1,140 @@
+/* ── TitleScreen overlay ───────────────────────────────────────────────────── */
+.title-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+  overflow: hidden;
+
+  /* Mirror the game's grid background */
+  background-color: #DDDBD0;
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(0,0,0,0.068) 0, rgba(0,0,0,0.068) 1px, transparent 1px, transparent 13px),
+    repeating-linear-gradient(90deg,  rgba(0,0,0,0.068) 0, rgba(0,0,0,0.068) 1px, transparent 1px, transparent 13px),
+    repeating-linear-gradient(45deg,  rgba(0,0,0,0.022) 0, rgba(0,0,0,0.022) 1px, transparent 1px, transparent 7px);
+
+  transition: background-color 0.15s ease, background-image 0.15s ease;
+}
+
+.title-screen--flash {
+  background-color: #ffffff;
+  background-image: none;
+}
+
+/* ── Floating emoji particles ──────────────────────────────────────────────── */
+.ts-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ts-particle {
+  position: absolute;
+  user-select: none;
+  will-change: transform;
+  line-height: 1;
+}
+
+/* ── Animated title ────────────────────────────────────────────────────────── */
+.ts-title-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-weight: 900;
+  color: #D81F26;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.ts-word {
+  display: inline-block;
+  font-size: 5rem;
+  line-height: 1.05;
+  text-shadow:
+    0 3px 0 rgba(0,0,0,0.22),
+    0 6px 20px rgba(216,31,38,0.20),
+    2px 2px 0 rgba(0,0,0,0.10);
+
+  /* CSS Level 5 individual transform props — each word gets its own sway + pulse */
+  animation-name: tsSway, tsPulse;
+  animation-duration: 2s, 1.5s;
+  animation-iteration-count: infinite, infinite;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-direction: alternate, alternate;
+  animation-fill-mode: both, both;
+}
+
+.ts-word--gas        { animation-delay: 0s,   0s;   }
+.ts-word--station    { animation-delay: 0.2s, 0.2s; }
+.ts-word--scratchers { font-size: 4.2rem; animation-delay: 0.4s, 0.4s; }
+
+@keyframes tsSway {
+  from { rotate: -3deg; }
+  to   { rotate:  3deg; }
+}
+
+@keyframes tsPulse {
+  from { scale: 1.00; }
+  to   { scale: 1.06; }
+}
+
+/* ── PLAY button ───────────────────────────────────────────────────────────── */
+.ts-play-btn {
+  position: relative;
+  z-index: 1;
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-weight: 900;
+  font-size: 1.7rem;
+  letter-spacing: 0.14em;
+  color: #fff;
+  background: linear-gradient(160deg, #E8272E 0%, #B81820 60%, #8A1015 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 20px 72px;
+  cursor: pointer;
+  box-shadow:
+    0 4px 0 #6A0A0E,
+    0 8px 28px rgba(0,0,0,0.32);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ts-play-btn:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 7px 0 #6A0A0E,
+    0 14px 36px rgba(0,0,0,0.40);
+}
+
+.ts-play-btn:active {
+  transform: translateY(1px);
+  box-shadow:
+    0 2px 0 #6A0A0E,
+    0 4px 12px rgba(0,0,0,0.35);
+}
+
+/* ── Mobile ────────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .title-screen {
+    gap: 40px;
+    background-color: #EEEDE6;
+    background-image:
+      repeating-linear-gradient(0deg,  rgba(0,0,0,0.030) 0, rgba(0,0,0,0.030) 1px, transparent 1px, transparent 26px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.030) 0, rgba(0,0,0,0.030) 1px, transparent 1px, transparent 26px);
+  }
+
+  .ts-word              { font-size: 3rem; }
+  .ts-word--scratchers  { font-size: 2.5rem; }
+
+  .ts-play-btn {
+    font-size: 1.3rem;
+    padding: 16px 52px;
+  }
+}

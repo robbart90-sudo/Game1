@@ -16,6 +16,7 @@ import { useSound }    from './hooks/useSound';
 import { generateCard, STARTING_BALANCE, RISK_CARD_CHANCE, RISK_CARD_MIN_BALANCE, MAX_ITEM_PURCHASES, PRESSURE_WIN_ADJ, FLOW_STATE_WIN_SCHEDULE, HIGH_STAKES_UNLOCK_THRESHOLDS, HIGH_STAKES_RETIRE_SCHEDULE } from './utils/lottery';
 import { getRandomTheme, getRandomHighStakesTheme } from './utils/themes';
 import LuckyNumberScreen from './components/LuckyNumberScreen';
+import TitleScreen      from './components/TitleScreen';
 import './App.css';
 
 // ── localStorage keys ─────────────────────────────────────────────────────────
@@ -396,6 +397,7 @@ export default function App() {
   const streakBreakTimerRef = useRef(null);
 
   // ── UI ────────────────────────────────────────────────────────────────────
+  const [showTitle, setShowTitle] = useState(() => !sessionStorage.getItem('ts_shown'));
   const [gameOver,  setGameOver]  = useState(false);
   const [goReason,  setGoReason]  = useState('coins');
   const [showTiers, setShowTiers] = useState(false);
@@ -1016,6 +1018,11 @@ export default function App() {
 
   const isActive = phase !== 'intro';
 
+  const handleTitleStart = useCallback(() => {
+    sessionStorage.setItem('ts_shown', '1');
+    setShowTitle(false);
+  }, []);
+
   return (
     <div className={`app ${shaking ? 'shaking' : ''} ${flowState ? 'flow-state' : ''}`}>
 
@@ -1163,6 +1170,8 @@ export default function App() {
 
       {/* ── Desktop keyboard shortcut hint — hidden on mobile via CSS ── */}
       <div className="kb-hint">Space: scratch row&nbsp;&nbsp;•&nbsp;&nbsp;1–6: pick card&nbsp;&nbsp;•&nbsp;&nbsp;M: mute</div>
+
+      {showTitle && <TitleScreen onStart={handleTitleStart} />}
     </div>
   );
 }
