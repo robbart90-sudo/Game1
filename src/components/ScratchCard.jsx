@@ -727,13 +727,6 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
     // producing the jagged coin-drag look at the visible boundary.
     const rowLeading = new Array(BLOCK_ROWS).fill(-1);
 
-    // Per-row maximum column — each row stops independently at ~68–90% width
-    // so the tool leaves an organic, visibly-incomplete trailing edge (~80% mean).
-    const rowEndBx = new Array(BLOCK_ROWS);
-    for (let by = by0; by <= by1; by++) {
-      rowEndBx[by] = Math.floor((0.68 + Math.random() * 0.22) * BLOCK_COLS);
-    }
-
     // Pre-compute 1–2 stutter windows (brief coin-catching hesitations mid-wipe).
     // Defined in absolute ms from start so the pause is frame-rate independent.
     const stutters = [];
@@ -749,6 +742,23 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
 
     // Unique per-wipe phase so jagged pattern is never repeated
     const wipePhase = Math.random() * Math.PI * 2;
+
+    // Y-edge fringe: for bands ≥3 block-rows tall the outermost rows are left
+    // partially unscratched (~37% of columns each), giving ragged top/bottom
+    // boundaries and ~80% total area coverage while still revealing all numbers.
+    const bandH = by1 - by0 + 1;
+    const topFringe = bandH >= 3 ? new Uint8Array(BLOCK_COLS) : null;
+    const botFringe = bandH >= 3 ? new Uint8Array(BLOCK_COLS) : null;
+    if (topFringe) {
+      for (let bx = 0; bx < BLOCK_COLS; bx++) {
+        const t = Math.sin(bx * 0.41 + wipePhase)       * 0.55
+                + Math.sin(bx * 0.73 + wipePhase * 1.4) * 0.45;
+        const b = Math.sin(bx * 0.38 + wipePhase * 1.2) * 0.55
+                + Math.sin(bx * 0.66 + wipePhase * 0.9) * 0.45;
+        topFringe[bx] = t > 0.25 ? 1 : 0;
+        botFringe[bx] = b > 0.25 ? 1 : 0;
+      }
+    }
 
     const step = (now) => {
       if (revealedRef.current) return;
@@ -774,10 +784,13 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
           Math.sin(by * 1.7 + wipePhase + easedT * Math.PI * 2.5) * 2.2 +
           Math.sin(by * 3.1 + wipePhase * 1.6)                    * 1.3,
         );
-        // targetBx never retreats, and is capped at this row's individual endpoint
-        const targetBx = Math.max(rowLeading[by], Math.min(rowEndBx[by], nominalBx + jag));
+        // targetBx never retreats: already-scratched blocks stay visible
+        const targetBx = Math.max(rowLeading[by], Math.min(BLOCK_COLS - 1, nominalBx + jag));
 
         for (let bx = rowLeading[by] + 1; bx <= targetBx; bx++) {
+          // Y-edge fringe: leave the outermost block rows patchy for a ragged look
+          if (by === by0 && topFringe?.[bx]) continue;
+          if (by === by1 && botFringe?.[bx]) continue;
           scratchBlock(bx, by);
         }
         if (targetBx > rowLeading[by]) {
@@ -807,8 +820,15 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
       if (rawT < 1) {
         requestAnimationFrame(step);
       } else {
-        // Animation complete — rows stop at their individual rowEndBx.
-        // No fill-to-edge pass so the trailing edge stays visibly jagged (~80%).
+        // Final pass: fill every remaining column so numbers are fully revealed.
+        // Y-edge fringe is preserved — outermost rows stay patchy at their gaps.
+        for (let by = by0; by <= by1; by++) {
+          for (let bx = rowLeading[by] + 1; bx < BLOCK_COLS; bx++) {
+            if (by === by0 && topFringe?.[bx]) continue;
+            if (by === by1 && botFringe?.[bx]) continue;
+            scratchBlock(bx, by);
+          }
+        }
         checkCoverage();
       }
     };
