@@ -694,40 +694,100 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
     if (hotDogTrigger > 0) autoRevealAll();
   }, [hotDogTrigger, autoRevealAll]);
 
-  // ── Keyboard: spacebar ────────────────────────────────────────────────────
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.code === 'Space' && !e.repeat) {
-        e.preventDefault();
-        autoRevealLosers();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [autoRevealLosers]);
-
-  // ── Row sweep: auto-scratch all blocks in rows by0..by1 left-to-right ────
+  // ── Row sweep: left-to-right wipe with organic timing, jagged edge, debris ─
+  // Used by both the arrow buttons and the Space keyboard shortcut.
+  // No secondary reveal path — cells are uncovered solely by the wipe passing over.
   const scratchRowBlocks = useCallback((by0, by1, durationMs = 400) => {
     if (revealedRef.current || dealingRef.current) return;
     if (!scratchStart.current) scratchStart.current = Date.now();
     const startTime = performance.now();
-    let lastScratchedBx = -1;
+
+    // Per-row leading edge: lets each row's wipe front be slightly ahead or behind,
+    // producing the jagged coin-drag look at the visible boundary.
+    const rowLeading = new Array(BLOCK_ROWS).fill(-1);
+
+    // Pre-compute 1–2 stutter windows (brief coin-catching hesitations mid-wipe).
+    // Defined in absolute ms from start so the pause is frame-rate independent.
+    const stutters = [];
+    let prevEnd = durationMs * 0.15;
+    const numStutters = Math.random() < 0.55 ? 2 : 1;
+    for (let i = 0; i < numStutters; i++) {
+      const tStart = prevEnd + durationMs * (0.12 + Math.random() * 0.28);
+      if (tStart >= durationMs * 0.88) break;
+      const tEnd = tStart + 22 + Math.random() * 28; // 22–50 ms pause
+      stutters.push({ tStart, tEnd });
+      prevEnd = tEnd + durationMs * 0.08;
+    }
+
+    // Unique per-wipe phase so jagged pattern is never repeated
+    const wipePhase = Math.random() * Math.PI * 2;
+
     const step = (now) => {
       if (revealedRef.current) return;
-      const t = Math.min((now - startTime) / durationMs, 1);
-      const targetBx = t >= 1 ? BLOCK_COLS - 1 : Math.floor(t * BLOCK_COLS);
-      for (let bx = lastScratchedBx + 1; bx <= targetBx; bx++) {
-        for (let by = by0; by <= by1; by++) {
-          scratchBlock(bx, by);
+      const elapsed = now - startTime;
+      const rawT    = Math.min(elapsed / durationMs, 1);
+
+      // Freeze wipe position during a stutter window
+      for (const s of stutters) {
+        if (elapsed >= s.tStart && elapsed <= s.tEnd) {
+          if (rawT < 1) { requestAnimationFrame(step); return; }
         }
       }
-      if (targetBx > lastScratchedBx) {
-        lastScratchedBx = targetBx;
-        soundScratch?.();
+
+      // Ease-in (power > 1): starts ~15% slower, builds to natural pace
+      const easedT   = rawT < 1 ? Math.pow(rawT, 1.25) : 1;
+      const nominalBx = easedT >= 1 ? BLOCK_COLS : Math.floor(easedT * BLOCK_COLS);
+
+      let anyNew = false;
+      for (let by = by0; by <= by1; by++) {
+        // Jagged edge: two overlapping sine waves — one static (row-based),
+        // one time-evolving (shifts as the wipe moves) — total ±1.6 blocks ≈ ±13 px
+        const jag = Math.round(
+          Math.sin(by * 1.7 + wipePhase + easedT * Math.PI * 2.5) * 1.0 +
+          Math.sin(by * 3.1 + wipePhase * 1.6)                    * 0.6,
+        );
+        // targetBx never retreats: already-scratched blocks stay visible
+        const targetBx = Math.max(rowLeading[by], Math.min(BLOCK_COLS - 1, nominalBx + jag));
+
+        for (let bx = rowLeading[by] + 1; bx <= targetBx; bx++) {
+          scratchBlock(bx, by);
+        }
+        if (targetBx > rowLeading[by]) {
+          anyNew = true;
+          // Sparse debris particle at the leading edge (latex-fleck effect)
+          if (Math.random() < 0.07) {
+            particlesRef.current.push({
+              x:     targetBx * BLOCK_W + (Math.random() - 0.5) * BLOCK_W,
+              y:     by * BLOCK_H + BLOCK_H * 0.5 + (Math.random() - 0.4) * BLOCK_H,
+              vx:    (Math.random() - 0.5) * 1.4,
+              vy:    0.6 + Math.random() * 1.2,   // drifts downward
+              size:  0.5 + Math.random() * 1.0,
+              angle: Math.random() * Math.PI,
+              color: SILVER_COLORS[Math.floor(Math.random() * SILVER_COLORS.length)],
+              born:  Date.now(),
+            });
+          }
+          rowLeading[by] = targetBx;
+        }
       }
-      checkCoverage();
-      if (t < 1) requestAnimationFrame(step);
+
+      if (anyNew) {
+        soundScratch?.();
+        checkCoverage();
+      }
+
+      if (rawT < 1) {
+        requestAnimationFrame(step);
+      } else {
+        // Final pass: guarantee every block in the row is scratched
+        // (compensates for stutter time and jag offsets at the right edge)
+        for (let by = by0; by <= by1; by++) {
+          for (let bx = rowLeading[by] + 1; bx < BLOCK_COLS; bx++) scratchBlock(bx, by);
+        }
+        checkCoverage();
+      }
     };
+
     requestAnimationFrame(step);
   }, [scratchBlock, checkCoverage, soundScratch]);
 
