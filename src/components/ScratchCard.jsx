@@ -218,6 +218,9 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
   const [isDealing, setIsDealing] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [usedRows,  setUsedRows]  = useState(new Set());
+  const [cardReady, setCardReady] = useState(false); // true once the deal animation finishes
+  const usedRowsRef   = useRef(new Set()); // sync mirror of usedRows — never stale in callbacks
+  const spaceQueueRef = useRef(0);         // buffered spacebar presses received pre-ready
   const firstFiredRef = useRef(false);
   const rows = useMemo(() => groupIntoRows(formCells, formation?.id), [formCells, formation]);
 
@@ -238,12 +241,19 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
 
     espFadeRef.current = false;
     setUsedRows(new Set());
+    usedRowsRef.current   = new Set();
+    spaceQueueRef.current = 0;
+    setCardReady(false);
     firstFiredRef.current = false;
     // Fresh scratch state
     scratchedRef.current = new Uint8Array(TOTAL_BLOCKS);
 
     const t1 = setTimeout(() => setSparkles(false), 1200);
-    const t2 = setTimeout(() => { setIsDealing(false); dealingRef.current = false; }, 500);
+    const t2 = setTimeout(() => {
+      setIsDealing(false);
+      dealingRef.current = false;
+      setCardReady(true); // card is now interactive — drain any buffered spacebar presses
+    }, 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [cardData]);
 
@@ -841,19 +851,46 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
       firstFiredRef.current = true;
       onFirstToolUse?.();
     }
+    // Update the sync ref first so that rapid consecutive calls (e.g. drained
+    // buffer) always advance to the next unscratched row without waiting for
+    // a React re-render to flush the state update.
+    usedRowsRef.current = new Set([...usedRowsRef.current, rowIdx]);
     setUsedRows(prev => new Set([...prev, rowIdx]));
     scratchRowBlocks(row.by0, row.by1, 400);
   }, [onFirstToolUse, scratchRowBlocks]);
 
+  // Internal helper: scratch the topmost un-scratched row using the sync ref
+  // so that multiple calls in one tick each advance to the correct next row.
+  const scratchNextRowInternal = useCallback(() => {
+    for (let i = 0; i < rows.length; i++) {
+      if (!usedRowsRef.current.has(i)) { handleRowClick(i, rows[i]); return; }
+    }
+  }, [rows, handleRowClick]);
+
+  // Drain the input buffer as soon as the card becomes ready.
+  // Each buffered press is processed in order — top row first.
+  useEffect(() => {
+    if (!cardReady) return;
+    const count = spaceQueueRef.current;
+    if (count <= 0) return;
+    spaceQueueRef.current = 0;
+    for (let q = 0; q < count; q++) {
+      scratchNextRowInternal();
+    }
+  }, [cardReady, scratchNextRowInternal]);
+
   useImperativeHandle(ref, () => ({
     scratchRowBlocks,
     // Scratch the topmost un-scratched row — used by the Space keyboard shortcut.
+    // If the card is still dealing, buffer the press; it will be processed once ready.
     scratchNextRow: () => {
-      for (let i = 0; i < rows.length; i++) {
-        if (!usedRows.has(i)) { handleRowClick(i, rows[i]); return; }
+      if (dealingRef.current) {
+        spaceQueueRef.current++;
+        return;
       }
+      scratchNextRowInternal();
     },
-  }), [scratchRowBlocks, rows, usedRows, handleRowClick]);
+  }), [scratchRowBlocks, scratchNextRowInternal]);
 
   const hdBg   = `linear-gradient(135deg, ${palette.hdr[0]}, ${palette.hdr[1]}, ${palette.hdr[2]})`;
   const cardBg = `linear-gradient(170deg, ${palette.bg[0]}, ${palette.bg[1]})`;
