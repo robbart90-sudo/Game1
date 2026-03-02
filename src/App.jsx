@@ -114,7 +114,8 @@ const DIALOGUE_LINES = [
   "Sure.",
   "Close.",
 ];
-const FLOW_MILESTONE_LINES = ["Hmm\u2026", "Never seen this\u2026", "My goodness!"];
+const FLOW_MILESTONE_LINES   = ["Hmm\u2026", "Never seen this\u2026", "My goodness!"];
+const FLOW_MILESTONE_EMOTIONS = ['flow_1', 'flow_2', 'flow_3'];
 
 // ── Pressure helpers (pure — outside component) ───────────────────────────
 const PRESSURE_CLASS = ['', 'pressure-low', 'pressure-medium', 'pressure-high', 'pressure-critical'];
@@ -229,30 +230,30 @@ export default function App() {
   const [attendantMsg, setAttendantMsg] = useState(null);
 
   // Low-level: deliver a specific line to the attendant bubble
-  const speakDialogue = useCallback((text) => {
+  const speakDialogue = useCallback((text, emotion = 'neutral') => {
     lastAttendantLineRef.current = text;
-    setAttendantMsg({ text, seq: ++attendantSeqRef.current });
+    setAttendantMsg({ text, emotion, seq: ++attendantSeqRef.current });
   }, []);
 
   // Ordered flow-state milestone lines ("Hmm…" / "Never seen this…" / "My goodness!")
   const triggerFlowMilestone = useCallback(() => {
     const idx  = Math.min(flowMilestoneCountRef.current, FLOW_MILESTONE_LINES.length - 1);
     flowMilestoneCountRef.current++;
-    speakDialogue(FLOW_MILESTONE_LINES[idx]);
+    speakDialogue(FLOW_MILESTONE_LINES[idx], FLOW_MILESTONE_EMOTIONS[idx]);
   }, [speakDialogue]);
 
   // Random quip from pool — no consecutive repeat; gas smell triggers follow-up
   const triggerAttendantDialogue = useCallback(() => {
-    let line;
     if (nextIsGasReplyRef.current) {
-      line = "Gas doesn't have a smell.";
       nextIsGasReplyRef.current = false;
-    } else {
-      const pool = DIALOGUE_LINES.filter(l => l !== lastAttendantLineRef.current);
-      line = pool[Math.floor(Math.random() * pool.length)];
-      if (line === "Smells like gas.") nextIsGasReplyRef.current = true;
+      speakDialogue("Gas doesn't have a smell.", 'gas_smell');
+      return;
     }
-    speakDialogue(line);
+    const pool = DIALOGUE_LINES.filter(l => l !== lastAttendantLineRef.current);
+    const line = pool[Math.floor(Math.random() * pool.length)];
+    if (line === "Smells like gas.") nextIsGasReplyRef.current = true;
+    const emotion = line === "Harold won fifty bucks in '09. Never came back." ? 'harold' : 'neutral';
+    speakDialogue(line, emotion);
   }, [speakDialogue]);
 
   // Called after every card — fires the attendant every 3 or 4 cards (random)
@@ -270,7 +271,7 @@ export default function App() {
       if (earned >= m.at && !triggeredMilestonesRef.current.has(m.at)) {
         triggeredMilestonesRef.current.add(m.at);
         localStorage.setItem(LS_MILESTONES, JSON.stringify([...triggeredMilestonesRef.current]));
-        speakDialogue(m.line);
+        speakDialogue(m.line, 'milestone');
         cardsSinceAttendantRef.current = 0; // override the 4-card rule
         break; // one milestone per event — next one fires on the next win
       }
@@ -633,7 +634,7 @@ export default function App() {
       case 'hotdog':   setHotDogTrigger(t => t + 1); break;
       case 'slushee':  setSlusheeSecs(5); stopTimer(); break;
       case 'luckystar': setNextCardWin(true); break;
-      case 'car':       stopTimer(); speakDialogue('Keys are right here.'); setGoReason('win'); setGameOver(true); break;
+      case 'car':       stopTimer(); speakDialogue('Keys are right here.', 'milestone'); setGoReason('win'); setGameOver(true); break;
       default: break;
     }
     if (id !== 'car') setShopPurchaseCounts(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
@@ -656,7 +657,7 @@ export default function App() {
       const applyWin = () => {
         // Lucky match closing-loop moment — Grig echoes the selection screen "Hm."
         if (isLuckyMatch) {
-          speakDialogue('Hm.');
+          speakDialogue('Hm.', 'neutral');
           cardsSinceAttendantRef.current = 0;
         }
 
@@ -706,9 +707,9 @@ export default function App() {
 
         // ── Grig streak reactions (immediate — override 4-card rule) ────
         if (!isLuckyMatch) { // lucky match already spoke above
-          if      (newStreak === STREAK_THRESHOLD_A) { speakDialogue('Hm.'); cardsSinceAttendantRef.current = 0; }
-          else if (newStreak === STREAK_THRESHOLD_B) { speakDialogue('Chicken dinner, and all that.'); cardsSinceAttendantRef.current = 0; }
-          else if (newStreak === STREAK_THRESHOLD_C) { speakDialogue('Never seen this\u2026'); cardsSinceAttendantRef.current = 0; }
+          if      (newStreak === STREAK_THRESHOLD_A) { speakDialogue('Hm.',                        'streak_low');  cardsSinceAttendantRef.current = 0; }
+          else if (newStreak === STREAK_THRESHOLD_B) { speakDialogue('Chicken dinner, and all that.', 'streak_low');  cardsSinceAttendantRef.current = 0; }
+          else if (newStreak === STREAK_THRESHOLD_C) { speakDialogue('Never seen this\u2026',       'streak_high'); cardsSinceAttendantRef.current = 0; }
           else                                        { maybeShowAttendant(); }
         }
 
@@ -780,9 +781,9 @@ export default function App() {
       setFlowRound(r);
 
       // Grig streak reactions
-      if      (newStreak === STREAK_THRESHOLD_A) { speakDialogue('Hm.'); cardsSinceAttendantRef.current = 0; }
-      else if (newStreak === STREAK_THRESHOLD_B) { speakDialogue('Chicken dinner, and all that.'); cardsSinceAttendantRef.current = 0; }
-      else if (newStreak === STREAK_THRESHOLD_C) { speakDialogue('Never seen this\u2026'); cardsSinceAttendantRef.current = 0; }
+      if      (newStreak === STREAK_THRESHOLD_A) { speakDialogue('Hm.',                        'streak_low');  cardsSinceAttendantRef.current = 0; }
+      else if (newStreak === STREAK_THRESHOLD_B) { speakDialogue('Chicken dinner, and all that.', 'streak_low');  cardsSinceAttendantRef.current = 0; }
+      else if (newStreak === STREAK_THRESHOLD_C) { speakDialogue('Never seen this\u2026',       'streak_high'); cardsSinceAttendantRef.current = 0; }
       else                                        { maybeShowAttendant(); }
     } else {
       // ── Streak break ─────────────────────────────────────────────
@@ -831,10 +832,10 @@ export default function App() {
       const won = Math.random() < 0.5;
       if (won) {
         updateBalance(b => b * 2);
-        speakDialogue('Chicken dinner, and all that.');
+        speakDialogue('Chicken dinner, and all that.', 'risk_win');
       } else {
         updateBalance(() => 10);
-        speakDialogue('Happens.');
+        speakDialogue('Happens.', 'risk_loss');
       }
       setRiskResult({ won });
       setTimeout(() => { setRiskResult(null); showPicker(); }, 1500);
@@ -1114,6 +1115,8 @@ export default function App() {
                   nextCardWin={nextCardWin}
                 />
               )}
+              {/* Grig — always visible below the shop */}
+              <AttendantReaction msg={attendantMsg} />
             </div>
 
             {/* ── Left column — card + picker ──────────────── */}
@@ -1151,8 +1154,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Grig — fixed at the bottom of the screen, invisible when idle */}
-            <AttendantReaction msg={attendantMsg} />
           </>
         )}
       </main>
@@ -1174,7 +1175,7 @@ export default function App() {
 
       {gameOver && <GameOverScreen stats={{ cardsPlayed, totalSpent, totalWon, biggestWin }} timeExpired={goReason === 'time'} won={goReason === 'win'} onPlayAgain={handlePlayAgain} onStartFresh={handleStartFresh} />}
       <PrizeTierTable visible={showTiers} onClose={() => setShowTiers(false)} />
-      {showTutorial && !showCutscene && <Tutorial onDone={() => { speakDialogue('Good luck.'); setShowTutorial(false); }} />}
+      {showTutorial && !showCutscene && <Tutorial onDone={() => { speakDialogue('Good luck.', 'neutral'); setShowTutorial(false); }} />}
       {showLuckyScreen && <LuckyNumberScreen onPick={handleLuckyPick} />}
       {showCutscene && (
         <AttendantCutscene onDone={() => {

@@ -663,6 +663,11 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
     width: 100%;
   }
 
+  /* Push Grig to the bottom of the sticky right panel */
+  .kiosk-right .ar-wrap {
+    margin-top: auto;
+  }
+
   .status-panel {
     max-width: none;
   }
