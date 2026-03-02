@@ -287,15 +287,13 @@
 .row-btn-col {
   flex-shrink: 0;
   width: 30px;
-  display: flex;
-  flex-direction: column;
+  position: relative; /* buttons are absolutely positioned inside */
   background: rgba(0, 0, 0, 0.12);
-  gap: 2px;
-  padding: 2px 2px;
+  /* no padding — percentages must be clean for absolute positioning to align with canvas rows */
 }
 
 .row-scratch-btn {
-  /* flex value set inline — proportional to row block count */
+  /* top/height set inline as % of BLOCK_ROWS so buttons align with canvas rows */
   width: 100%;
   display: flex;
   align-items: center;

@@ -874,20 +874,22 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
       {/* ── Scratch Zone ─────────────────────────── */}
       <div className="scratch-zone">
 
-        {/* Row auto-scratch buttons — flex column, each button height proportional
-            to its row's block count so it aligns with the canvas rows naturally */}
+        {/* Row auto-scratch buttons — absolutely positioned so each button sits
+            exactly over its row's block range in the canvas (top/height in %).
+            Uses BLOCK_ROWS (25) as the grid so positions match the foil canvas. */}
         {scratchToolUnlocked && !completed && rows.length > 0 && (
           <div className="row-btn-col">
             {rows.map((row, i) => {
-              const flex = row.by1 - row.by0 + 1;
+              const topPct    = (row.by0 / BLOCK_ROWS) * 100;
+              const heightPct = ((row.by1 - row.by0 + 1) / BLOCK_ROWS) * 100;
               if (usedRows.has(i)) {
-                return <div key={i} className="row-btn-spacer" style={{ flex }} />;
+                return <div key={i} className="row-btn-spacer" style={{ position: 'absolute', top: `${topPct}%`, height: `${heightPct}%`, width: '100%' }} />;
               }
               return (
                 <button
                   key={i}
                   className="row-scratch-btn"
-                  style={{ flex }}
+                  style={{ position: 'absolute', top: `${topPct}%`, height: `${heightPct}%` }}
                   onClick={() => handleRowClick(i, row)}
                   aria-label={`Auto-scratch row ${i + 1}`}
                 >▶</button>
