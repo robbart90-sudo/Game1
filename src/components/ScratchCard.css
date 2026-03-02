@@ -346,6 +346,10 @@
   isolation: isolate;
   overflow: hidden;
 }
+/* Mobile: no custom cursor (touch devices don't show pointer cursors anyway) */
+@media (max-width: 899px) {
+  .scratch-canvas-area { cursor: crosshair !important; }
+}
 
 /* Corner registration marks (real lottery ticket detail) */
 .registration-marks {

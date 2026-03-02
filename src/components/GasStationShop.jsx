@@ -105,6 +105,13 @@ export default function GasStationShop({
                   <span key={i} className={`gss-purchase-dot${i < purchaseCount ? ' used' : ''}`} />
                 ))}
               </div>
+              {/* Desktop hover tooltip — visible only at ≥900px after 600ms */}
+              <div className="gss-tooltip" role="tooltip">
+                <span className="gss-tooltip-emoji">{emoji}</span>
+                <span className="gss-tooltip-effect">{desc}</span>
+                <span className="gss-tooltip-count">{purchaseCount} of {MAX_ITEM_PURCHASES} used</span>
+                <span className="gss-tooltip-cost">{cost}🪙</span>
+              </div>
             </button>
           );
         })}

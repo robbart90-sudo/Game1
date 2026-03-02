@@ -405,6 +405,8 @@ export default function App() {
 
   // ── Stable refs ───────────────────────────────────────────────────────────
   const cardRef           = useRef(null);
+  const scratchCardRef    = useRef(null); // ref to ScratchCard imperative handle (scratchNextRow)
+  const handlePickRef     = useRef(null); // stable ref so keydown handler never needs re-registration
   const balanceRef        = useRef(initBalance);
   const speedModeRef      = useRef(false);
   const soundRef          = useRef(null);
@@ -433,6 +435,26 @@ export default function App() {
   useEffect(() => { cardsPlayedRef.current = cardsPlayed; },     [cardsPlayed]);
   // Persist balance to localStorage whenever it changes
   useEffect(() => { localStorage.setItem(LS_BALANCE, balance); }, [balance]);
+
+  // ── Desktop keyboard shortcuts (≥900px only) ──────────────────────────────
+  // Uses refs so the listener is registered once and never needs re-registration.
+  // NOTE: handlePickRef.current is assigned after handlePick is defined (below).
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (window.innerWidth < 900) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        scratchCardRef.current?.scratchNextRow();
+      } else if (e.key >= '1' && e.key <= '6') {
+        if (phaseRef.current === 'picking') handlePickRef.current(Number(e.key) - 1);
+      } else if (e.key === 'm' || e.key === 'M') {
+        soundRef.current?.toggleMute();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateBalance = (fn) => setBalance(b => {
     const next = fn(b);
@@ -840,6 +862,7 @@ export default function App() {
       setPhase('playing'); phaseRef.current = 'playing';
     }));
   }, [pickerOptions, slideOut, slideInNew, handleFlowPick]);
+  handlePickRef.current = handlePick; // keep ref current for keyboard handler
 
   // ── Lucky number selection — player picks once ever ─────────────────────────
   const handleLuckyPick = useCallback((num) => {
@@ -1079,6 +1102,7 @@ export default function App() {
                 <div className={`card-area ${cardFlash} ${slideClass} ${!flowState && pressureLvl > 0 ? PRESSURE_CLASS[pressureLvl] : ''}`}>
                   <ScratchToolOverlay
                     key={`${cardData.theme.id}-${cardsPlayed}`}
+                    ref={scratchCardRef}
                     cardData={cardData}
                     onComplete={handleComplete}
                     soundScratch={sound.scratch}
@@ -1136,6 +1160,9 @@ export default function App() {
           setShowCutscene(false);
         }} />
       )}
+
+      {/* ── Desktop keyboard shortcut hint — hidden on mobile via CSS ── */}
+      <div className="kb-hint">Space: scratch row&nbsp;&nbsp;•&nbsp;&nbsp;1–6: pick card&nbsp;&nbsp;•&nbsp;&nbsp;M: mute</div>
     </div>
   );
 }

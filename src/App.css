@@ -627,9 +627,13 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
         transparent 13px
       );
 
-    border-left: 1.5px solid rgba(0,0,0,0.16);
-    /* Inset shadow gives depth to the panel edge */
-    box-shadow: inset 6px 0 20px rgba(0,0,0,0.08);
+    /* Vertical divider: a 1px physical edge with shadow suggesting depth */
+    border-left: 1px solid rgba(0,0,0,0.30);
+    /* Recessed panel: shadow spills inward from the left border + faint highlight sliver */
+    box-shadow:
+      inset 8px 0 22px rgba(0,0,0,0.11),
+      inset 2px 0 0 rgba(0,0,0,0.14),
+      inset 0 0 0 0.5px rgba(255,255,255,0.04);
 
     scrollbar-width: thin;
     scrollbar-color: rgba(0,0,0,0.18) transparent;
@@ -661,7 +665,39 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
       inset 0 0 80px rgba(255,210,0,0.22),
       inset 0 0 180px rgba(216,31,38,0.10);
   }
+
+  /* ── Counter edge — 12px bar at bottom, suggesting the physical counter lip */
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: rgba(0,0,0,0.13);
+    border-top: 1px solid rgba(0,0,0,0.22);
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  /* ── Keyboard shortcut hint — bottom left, muted ────────────────────── */
+  .kb-hint {
+    display: block;
+    position: fixed;
+    bottom: 20px; /* above the 12px counter edge */
+    left: 44px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.62rem;
+    color: rgba(0,0,0,0.22);
+    letter-spacing: 0.04em;
+    pointer-events: none;
+    z-index: 60;
+    user-select: none;
+  }
 }
+
+/* ── kb-hint — hidden on mobile (no keyboard) ─────────────────────────────── */
+.kb-hint { display: none; }
 
 /* ── Risk Card result overlay ─────────────────────────────────────────────── */
 .risk-result {

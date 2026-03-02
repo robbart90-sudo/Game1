@@ -86,6 +86,30 @@ function groupIntoRows(formCells) {
   return rows;
 }
 
+// Coin-edge cursor — generated once at module load, applied on the scratch surface.
+// A small horizontal silver oval (24×12px) mimicking a coin dragged across a card.
+const coinCursor = (() => {
+  if (typeof document === 'undefined') return 'crosshair';
+  const c = document.createElement('canvas');
+  c.width = 24; c.height = 12;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 12);
+  grad.addColorStop(0,   '#D4D4D4');
+  grad.addColorStop(0.4, '#F2F2F2');
+  grad.addColorStop(1,   '#9A9A9A');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(12, 6, 11, 4.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Specular highlight along top arc
+  ctx.strokeStyle = 'rgba(255,255,255,0.58)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.ellipse(12, 5, 8.5, 2.8, 0, 0, Math.PI);
+  ctx.stroke();
+  return `url(${c.toDataURL()}) 12 6, crosshair`;
+})();
+
 // Base brush radius (px) — at rest the brush is a circle of this size.
 const BASE_BRUSH_R = 22;
 // Speed (px/pointer-event in canvas coords) at which the capsule reaches full stretch.
@@ -707,8 +731,6 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
     requestAnimationFrame(step);
   }, [scratchBlock, checkCoverage, soundScratch]);
 
-  useImperativeHandle(ref, () => ({ scratchRowBlocks }), [scratchRowBlocks]);
-
   const handleRowClick = useCallback((rowIdx, row) => {
     if (!firstFiredRef.current) {
       firstFiredRef.current = true;
@@ -717,6 +739,16 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
     setUsedRows(prev => new Set([...prev, rowIdx]));
     scratchRowBlocks(row.by0, row.by1, 400);
   }, [onFirstToolUse, scratchRowBlocks]);
+
+  useImperativeHandle(ref, () => ({
+    scratchRowBlocks,
+    // Scratch the topmost un-scratched row — used by the Space keyboard shortcut.
+    scratchNextRow: () => {
+      for (let i = 0; i < rows.length; i++) {
+        if (!usedRows.has(i)) { handleRowClick(i, rows[i]); return; }
+      }
+    },
+  }), [scratchRowBlocks, rows, usedRows, handleRowClick]);
 
   const hdBg   = `linear-gradient(135deg, ${palette.hdr[0]}, ${palette.hdr[1]}, ${palette.hdr[2]})`;
   const cardBg = `linear-gradient(170deg, ${palette.bg[0]}, ${palette.bg[1]})`;
@@ -865,7 +897,7 @@ const ScratchCard = forwardRef(function ScratchCard({ cardData, onComplete, soun
         )}
 
         {/* Canvas area — contains art cells + foil canvas, aspect-ratio drives height */}
-        <div className="scratch-canvas-area">
+        <div className="scratch-canvas-area" style={{ cursor: coinCursor }}>
         <div
           className="card-art"
           style={{
